@@ -1,0 +1,15 @@
+{
+    "name": "invaders",
+    "description": "Project invaders",
+    "toolkit": "oscar64",
+    "sources": [
+        "src/main.c",
+        "src/invaders.h",
+        "src/invaders-181.spd"
+    ],
+    "build": "debug",
+    "definitions": [],
+    "includes": [],
+    "args": [],
+    "compiler": ""
+}
