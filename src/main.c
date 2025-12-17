@@ -5,70 +5,29 @@
 //
 
 
-//const char* hello_text = "HELLO, WORLD!";
-//char* screen = (char*) (0x4 0e);
-//unsigned char* color = (unsigned char*) (0xd80e);
-
 byte * const Screen = (byte *)0x400; //(byte *)0xc800;
-//byte * const Font = (byte *)0xd000;
 byte * const Color = (byte *)0xd800;
 byte * Sprites = (byte *)0x340; //0xd800;
 
 
-//byte invader1_0[];
 unsigned char invaders_181[128];
 
-//const float fps = 1.0;
-
 const int NUM_INVADERS=6;
-    //{.alive=true,.x=25,.y=50,.speed_x=5,.speed_y=0,.num_images=2,.image_handles={13,14},.fps=1.0},
 
 
 Invader invaders[NUM_INVADERS] = {
-        
-    // {
-    //     true,           //active
-    //     75,             //x
-    //     50,             //y
-    //     1,              //x_speed
-    //     0,              //y_speed
-    //     2,              //num_images
-    //     {13,14},        //image_handles
-    //     0,              //image_num
-    //     0,              //sprite_num
-    //     1.0,              //fps
-    //     0               //frame
-    // },
-
     {true, 50,50,1,0,2,{13,14},0,0,1.0,0},
     {true,100,50,1,0,2,{13,14},0,1,1.0,0},
     {true,150,50,1,0,2,{13,14},0,2,1.0,0},
     {true,200,50,1,0,2,{13,14},0,3,1.0,0},
     {true,250,50,1,0,2,{13,14},0,4,1.0,0},
     {true,300,50,1,0,2,{13,14},0,5,1.0,0},
-    // {true,200,25,1,0,2,{13,14},0,0,1.0,0},
-    // {true,250,25,1,0,2,{13,14},0,0,1.0,0},
-    // {true,300,25,1,0,2,{13,14},0,0,1.0,0}
-
-    // {true,150,50,5,0,2,{13,14},1.0},
-    // {true,225,50,5,0,2,{13,14},1.0},
-    // {true,300,50,5,0,2,{13,14},1.0},
-    // {true,375,50,5,0,2,{13,14},1.0}
 };
 
 
-//byte image_num=13;
 
 int main() {
     iocharmap(IOCHM_PETSCII_2);
-
-
-    //print_invaders();
-    //exit(0);
-
-    //byte frames=0;
- 	// Switch screen
-	//vic_setmode(VICM_TEXT, Screen, Font);
 
     // Change colors
 	vic.color_border = VCOL_GREEN;
@@ -90,46 +49,6 @@ int main() {
     for (int i=0;i<NUM_INVADERS; i++) {
         vic.spr_color[i]=VCOL_WHITE;
     }
-    // spr_move(0,100,200);
-    // //spr_image(0,Sprites/16);
-    // //*((char *)(2040)) = 13;
-    // spr_image(0,14);
-    // spr_show(0,true);
-    // // unsigned char i = 0;
-    // // char c;
-
-    // *((unsigned char*) 0xd018) = 21;
-
-    // for (;;) {
-    //     c = (char) (hello_text[i]&0b00111111);
-    //     if (c == '\0') break;
-    //     screen[i] = c;
-    //     color[i] = (unsigned char) 1;
-    //     i++;
-    // }
-
-    // for (int i=0;i<NUM_INVADERS;i++){ 
-    // spr_image(invaders[i].sprite_num,invaders[i].image_handles[0]);
-    //spr_image(0,13);
-    //spr_image(1,13);
-    //     //spr_show(invaders[i].sprite_num, true);
-    //     invaders[i].x=25*i+50;
-    //     invaders[i].y=50;
-    //     invaders[i].alive = true;
-    //     invaders[i].num_images = 2;
-    //     invaders[i].image_handles[0]=13;
-    //     invaders[i].image_handles[1]=13;
-        
-    //     invaders[i].fps=1.0;
-    // }
-
-    //byte invader_images[2]={13,14};
-
-    // printf("FPS=%f\n",fps);
-    // printf("fps=%f2.2\n",fps);
-    
-
-    // print_invaders();
 
     while(true) {
 
@@ -219,4 +138,3 @@ void print_invaders() {
     }
 }
 
-//    {.x=25,.y=50,.speed_x=5,.speed_y=0,.num_images=2,.image_handles={13,14},.fps=1.0},
