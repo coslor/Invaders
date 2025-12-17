@@ -21,8 +21,12 @@ const int MAX_IMAGE_HANDLES=8;
 
 typedef struct  {
     byte alive=0;
+
     signed int x=0;
     byte y=0;
+
+    //signed int old_x=0;
+    //signed int old_y=0;
 
     signed int speed_x=0; //pixels per frame
     signed int speed_y=0;
