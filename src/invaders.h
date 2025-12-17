@@ -18,21 +18,24 @@
 const int MAX_IMAGE_HANDLES=8;
 
 typedef struct  {
-    unsigned char alive;
+    byte alive=0;
     int x=0;
-    unsigned char y=0;
+    byte y=0;
 
     char speed_x=0; //pixels per frame
     char speed_y=0;
 
-    unsigned char num_images;
-    unsigned char image_handles[MAX_IMAGE_HANDLES];
+    byte num_images;
+    byte image_handles[MAX_IMAGE_HANDLES];
+    byte image_num=0;
 
     unsigned char sprite_num;
 
-    float fps;
+    float fps=1.0;
+
+    long frame_num=0;
 } Invader;
 
-void flip_images(byte, byte**, byte, float);
+void flip_images(Invader* inv);
 void print_invaders();
-void move_invader(byte inv_num);
+void move_invader(Invader* inv);

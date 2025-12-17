@@ -12,14 +12,13 @@
 byte * const Screen = (byte *)0x400; //(byte *)0xc800;
 //byte * const Font = (byte *)0xd000;
 byte * const Color = (byte *)0xd800;
-byte * const Sprites = (byte *)0x340; //0xd800;
+byte * Sprites = (byte *)0x340; //0xd800;
 
-float f = (float)1.1;
 
 //byte invader1_0[];
 unsigned char invaders_181[128];
 
-const float fps = 1.0;
+//const float fps = 1.0;
 
 const int NUM_INVADERS=1;
     //{.alive=true,.x=25,.y=50,.speed_x=5,.speed_y=0,.num_images=2,.image_handles={13,14},.fps=1.0},
@@ -43,14 +42,17 @@ Invader invaders[NUM_INVADERS] = {
         //     (float)1.0
         // }
     {
-        true,
-        75,
-        50,
-        5,
-        0,
-        2,{13,14},
-        0,
-        2.0
+        true,           //active
+        75,             //x
+        50,             //y
+        1,              //x_speed
+        0,              //y_speed
+        2,              //num_images
+        {13,14},        //image_handles
+        0,              //image_num
+        0,              //sprite_num
+        1.0,              //fps
+        0               //frame
     },
     // {true,150,50,5,0,2,{13,14},1.0},
     // {true,225,50,5,0,2,{13,14},1.0},
@@ -65,7 +67,10 @@ int main() {
     iocharmap(IOCHM_PETSCII_2);
 
 
-    byte frames=0;
+    //print_invaders();
+    //exit(0);
+
+    //byte frames=0;
  	// Switch screen
 	//vic_setmode(VICM_TEXT, Screen, Font);
 
@@ -104,10 +109,19 @@ int main() {
     //     i++;
     // }
 
-    for (int i=0;i<NUM_INVADERS;i++){ 
-        spr_image(invaders[i].sprite_num,invaders[i].image_handles[0]);
-        spr_show(invaders[i].sprite_num, true);
-    }
+    // for (int i=0;i<NUM_INVADERS;i++){ 
+    // spr_image(invaders[i].sprite_num,invaders[i].image_handles[0]);
+    spr_image(0,13);
+    //     //spr_show(invaders[i].sprite_num, true);
+    //     invaders[i].x=25*i+50;
+    //     invaders[i].y=50;
+    //     invaders[i].alive = true;
+    //     invaders[i].num_images = 2;
+    //     invaders[i].image_handles[0]=13;
+    //     invaders[i].image_handles[1]=13;
+        
+    //     invaders[i].fps=1.0;
+    // }
 
     //byte invader_images[2]={13,14};
 
@@ -124,10 +138,19 @@ int main() {
         for (int i=0;i<NUM_INVADERS; i++){
             if (invaders[i].alive) {
                 int frames_to_switch=(int)(60.0 / invaders[i].fps);
-                move_invader(i);
-                flip_images(invaders[i].sprite_num, &invaders[i].image_handles,
-                    invaders[i].num_images, invaders[i].fps );
+                move_invader(&invaders[i]);
+                flip_images(
+                    &invaders[i]);
+                    //invaders[i].sprite_num, &invaders[i].image_handles,
+                    //invaders[i].num_images, invaders[i].fps );
+                spr_image(invaders[i].sprite_num, 
+                    //invaders[i].image_num);
+                    invaders[i].image_handles[invaders[i].image_num]);
+                // *(char*)(1016+invaders[i].sprite_num)=
+                //     invaders[i].image_handles[invaders[i].image_num];
             }
+        spr_show(invaders[i].sprite_num, invaders[i].alive);
+
         }
         // for (int x=24;x<320;x++) {	
         //     //vic.color_border = VCOL_RED;
@@ -153,29 +176,40 @@ int main() {
         //     flip_images(0,invader_images, 2,2.0);
         //     //vic_waitFrame();
         //}
-    }    
+    }  
+    printf("wtf??\n");
     return 0;
 }
 
-void flip_images(Invader inv) {
+void flip_images(Invader *inv) {
     //byte spr_num, byte **image_handles, byte num_images, float fps) {
-    assert(fps>0);
+
+    assert(inv->fps>0);
 
 
-    int max_frames=(int)(60.0/inv.fps);
-    static int frames=0;
-    static int image_num=0;
+    int max_frames=(int)(60.0/inv->fps);
+    //static int frames=0;
+    //static int image_num=0;
 
-    frames++;
-    if ((frames % max_frames)==0) {
-        image_num=(image_num+1) % num_images;
-        frames=0;
+    int frame_num = inv->frame_num;
+    int image_num=inv->image_num;
+
+    //inv->frames++;
+    if (((inv->frame_num+1) % max_frames)==0) {
+        inv->image_num=(inv->image_num+1) % inv->num_images;
+        inv->frame_num=0;
+        inv=inv;
+        int a=5;
+        inv=(Invader*)a;
+    }
+    else {
+        (inv->frame_num)++;
     }
 
 }
 
-void move_invader(byte inv_num) {
-    Invader* inv=&invaders[inv_num];
+void move_invader(Invader* inv) {
+    //Invader* inv=&invaders[inv_num];
     inv->x += inv->speed_x;
     inv->y += inv->speed_y;
     spr_move(inv->sprite_num,inv->x,inv->y);
