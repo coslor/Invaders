@@ -25,9 +25,6 @@ typedef struct  {
     signed int x=0;
     byte y=0;
 
-    //signed int old_x=0;
-    //signed int old_y=0;
-
     signed int speed_x=0; //pixels per frame
     signed int speed_y=0;
 
@@ -39,7 +36,11 @@ typedef struct  {
 
     float fps=1.0;
 
+    ////////////auto-initialized from here down////////////////
     long frame_num=0;
+
+    signed int old_x=0;
+    signed int old_y=0;
 } Invader;
 
 void flip_images(Invader* inv);
