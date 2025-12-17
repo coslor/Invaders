@@ -136,46 +136,28 @@ int main() {
         vic_waitBottom();
 
         for (int i=0;i<NUM_INVADERS; i++){
-            if (invaders[i].alive) {
-                int frames_to_switch=(int)(60.0 / invaders[i].fps);
-                move_invader(&invaders[i]);
+            Invader *inv=&invaders[i];
+
+            if (inv->alive) {
+                int frames_to_switch=(int)(60.0 / inv->fps);
+
+                move_invader(inv);
+                if (inv->x <20) {
+                    inv->speed_x = abs(inv->speed_x);
+                }
+                else if (inv->x >= 320){
+                    inv->speed_x = -abs(inv->speed_x);
+
+                }
+                
                 flip_images(
-                    &invaders[i]);
-                    //invaders[i].sprite_num, &invaders[i].image_handles,
-                    //invaders[i].num_images, invaders[i].fps );
-                spr_image(invaders[i].sprite_num, 
-                    //invaders[i].image_num);
-                    invaders[i].image_handles[invaders[i].image_num]);
-                // *(char*)(1016+invaders[i].sprite_num)=
-                //     invaders[i].image_handles[invaders[i].image_num];
+                    inv);
+                spr_image(inv->sprite_num, 
+                    inv->image_handles[inv->image_num]);
             }
-        spr_show(invaders[i].sprite_num, invaders[i].alive);
+        spr_show(inv->sprite_num, inv->alive);
 
         }
-        // for (int x=24;x<320;x++) {	
-        //     //vic.color_border = VCOL_RED;
-
-        //     vic_waitBottom();
-
-        //     //vic.color_border = VCOL_WHITE;
-        //     vic_waitBottom();
-
-        //     spr_move(0,x,100);
-        //     flip_images(0,invader_images, 2,2.0);
-        //     //vic.color_border = VCOL_BLACK;
-        //     //vic_waitFrame();
-        // }
-        // for (int x=320;x>24;x--) {	
-        //     vic.color_border = VCOL_BLUE;
-
-        //     vic_waitBottom();
-
-        //     vic.color_border ++;//= VCOL_WHITE;
-
-        //     spr_move(0,x,100);
-        //     flip_images(0,invader_images, 2,2.0);
-        //     //vic_waitFrame();
-        //}
     }  
     printf("wtf??\n");
     return 0;

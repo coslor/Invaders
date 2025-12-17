@@ -13,17 +13,19 @@
 #include <c64/memmap.h>
 #include <c64/rasterirq.h>
 
+#include <math.h>
+
 //#include "invaders.h"
 
 const int MAX_IMAGE_HANDLES=8;
 
 typedef struct  {
     byte alive=0;
-    int x=0;
+    signed int x=0;
     byte y=0;
 
-    char speed_x=0; //pixels per frame
-    char speed_y=0;
+    signed int speed_x=0; //pixels per frame
+    signed int speed_y=0;
 
     byte num_images;
     byte image_handles[MAX_IMAGE_HANDLES];
