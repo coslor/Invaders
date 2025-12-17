@@ -20,40 +20,36 @@ unsigned char invaders_181[128];
 
 //const float fps = 1.0;
 
-const int NUM_INVADERS=1;
+const int NUM_INVADERS=6;
     //{.alive=true,.x=25,.y=50,.speed_x=5,.speed_y=0,.num_images=2,.image_handles={13,14},.fps=1.0},
 
 
 Invader invaders[NUM_INVADERS] = {
         
-        
-        // {
-        //     (byte)true,
-        //     (int)25,
-        //     (char)50,
-        //     (char)5,
-        //     (char)0,
-        //     (unsigned char)2,
-        //     {
-        //         (unsigned char)13,
-        //         (unsigned char)14
-        //     },
-        //     (char)0,
-        //     (float)1.0
-        // }
-    {
-        true,           //active
-        75,             //x
-        50,             //y
-        1,              //x_speed
-        0,              //y_speed
-        2,              //num_images
-        {13,14},        //image_handles
-        0,              //image_num
-        0,              //sprite_num
-        1.0,              //fps
-        0               //frame
-    },
+    // {
+    //     true,           //active
+    //     75,             //x
+    //     50,             //y
+    //     1,              //x_speed
+    //     0,              //y_speed
+    //     2,              //num_images
+    //     {13,14},        //image_handles
+    //     0,              //image_num
+    //     0,              //sprite_num
+    //     1.0,              //fps
+    //     0               //frame
+    // },
+
+    {true, 50,50,1,0,2,{13,14},0,0,1.0,0},
+    {true,100,50,1,0,2,{13,14},0,1,1.0,0},
+    {true,150,50,1,0,2,{13,14},0,2,1.0,0},
+    {true,200,50,1,0,2,{13,14},0,3,1.0,0},
+    {true,250,50,1,0,2,{13,14},0,4,1.0,0},
+    {true,300,50,1,0,2,{13,14},0,5,1.0,0},
+    // {true,200,25,1,0,2,{13,14},0,0,1.0,0},
+    // {true,250,25,1,0,2,{13,14},0,0,1.0,0},
+    // {true,300,25,1,0,2,{13,14},0,0,1.0,0}
+
     // {true,150,50,5,0,2,{13,14},1.0},
     // {true,225,50,5,0,2,{13,14},1.0},
     // {true,300,50,5,0,2,{13,14},1.0},
@@ -61,7 +57,7 @@ Invader invaders[NUM_INVADERS] = {
 };
 
 
-byte image_num=13;
+//byte image_num=13;
 
 int main() {
     iocharmap(IOCHM_PETSCII_2);
@@ -91,6 +87,9 @@ int main() {
 
     spr_init(Screen);
 
+    for (int i=0;i<NUM_INVADERS; i++) {
+        vic.spr_color[i]=VCOL_WHITE;
+    }
     // spr_move(0,100,200);
     // //spr_image(0,Sprites/16);
     // //*((char *)(2040)) = 13;
@@ -111,7 +110,8 @@ int main() {
 
     // for (int i=0;i<NUM_INVADERS;i++){ 
     // spr_image(invaders[i].sprite_num,invaders[i].image_handles[0]);
-    spr_image(0,13);
+    //spr_image(0,13);
+    //spr_image(1,13);
     //     //spr_show(invaders[i].sprite_num, true);
     //     invaders[i].x=25*i+50;
     //     invaders[i].y=50;
@@ -136,6 +136,7 @@ int main() {
         vic_waitBottom();
 
         for (int i=0;i<NUM_INVADERS; i++){
+            //vic.color_border=i;
             Invader *inv=&invaders[i];
 
             if (inv->alive) {
@@ -158,6 +159,7 @@ int main() {
         spr_show(inv->sprite_num, inv->alive);
 
         }
+        vic.color_border=9;
     }  
     printf("wtf??\n");
     return 0;
