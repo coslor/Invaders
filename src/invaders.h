@@ -5,6 +5,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 
 #include <c64/joystick.h>

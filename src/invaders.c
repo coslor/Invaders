@@ -119,6 +119,7 @@ void move_invader(Invader* inv) {
     spr_move(inv->sprite_num,inv->x,inv->y);
 }
 
+/**
 void print_invaders() {
     printf("# invaders=%d\n",NUM_INVADERS);
 
@@ -139,3 +140,4 @@ void print_invaders() {
     }
 }
 
+**/
