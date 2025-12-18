@@ -12,7 +12,13 @@ byte * Sprites = (byte *)0x340; //0xd800;
 
 unsigned char invaders_181[128];
 
-const int NUM_INVADERS=6;
+//OK, now what happens when we use more sprites than we have?
+const int NUM_INVADERS=18;
+
+//Well, as long as we don't try to use a sprite beyond #7 in the spr_
+//  functions, we can get away with just about as many sprites as we want.
+//  This is time-based multiplexing, and the flickering sprites
+//  look like crap.
 
 
 Invader invaders[NUM_INVADERS] = {
@@ -23,6 +29,20 @@ Invader invaders[NUM_INVADERS] = {
     {true,200,50, 1,0,2,{13,14},1,5,4.0},
     {true,250,50, 1,0,2,{13,14},0,6,4.0},
     {true,300,50, 1,0,2,{13,14},1,7,4.0},
+
+    {true, 50,75, 1,0,2,{13,14},0,2,4.0},
+    {true,100,75, 1,0,2,{13,14},1,3,4.0},
+    {true,150,75, 1,0,2,{13,14},0,4,4.0},
+    {true,200,75, 1,0,2,{13,14},1,5,4.0},
+    {true,250,75, 1,0,2,{13,14},0,6,4.0},
+    {true,300,75, 1,0,2,{13,14},1,7,4.0},
+
+    {true, 50,100, 1,0,2,{13,14},0,2,4.0},
+    {true,100,100, 1,0,2,{13,14},1,3,4.0},
+    {true,150,100, 1,0,2,{13,14},0,4,4.0},
+    {true,200,100, 1,0,2,{13,14},1,5,4.0},
+    {true,250,100, 1,0,2,{13,14},0,6,4.0},
+    {true,300,100, 1,0,2,{13,14},1,7,4.0},
 };
 
 
