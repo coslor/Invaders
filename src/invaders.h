@@ -13,6 +13,8 @@
 #include <c64/sprites.h>
 #include <c64/memmap.h>
 #include <c64/rasterirq.h>
+#include <c64/cia.h>
+
 
 #include <math.h>
 
