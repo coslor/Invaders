@@ -4,11 +4,16 @@
     "toolkit": "oscar64",
     "sources": [
         "src/invaders.c",
-        "src/invaders.h"
+        "src/invaders.h",
+        "digitsprites.bin" 
     ],
     "build": "debug",
     "definitions": [],
     "includes": [],
-    "args": ["-v2"],
+    "args": [
+        "-v2",
+        "-dVSPRITES_MAX=32",
+        "-dNUM_IRQS=28"
+    ],
     "compiler": ""
 }
