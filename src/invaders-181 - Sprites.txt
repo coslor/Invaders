@@ -1,0 +1,31 @@
+; SpriteSet Data...
+; 2 images, 64 bytes per image, total size is 128 ($80) bytes.
+
+* = addr_spriteset_data
+spriteset_data
+
+sprite_image_0
+.byte $0c,$00,$30,$0c,$00,$30,$c3,$00,$c3,$c3,$ff,$c3,$c3,$ff,$c3,$cf
+.byte $ff,$f3,$cc,$7e,$33,$cc,$7e,$3f,$fc,$7e,$3f,$ff,$ff,$ff,$ff,$ff
+.byte $ff,$3f,$ff,$fc,$3f,$ff,$fc,$0f,$ff,$f0,$0f,$ff,$f0,$0c,$00,$30
+.byte $0c,$00,$30,$30,$00,$0c,$30,$00,$0c,$00,$00,$00,$00,$00,$00,$01
+
+sprite_image_1
+.byte $0c,$00,$30,$0c,$00,$30,$03,$00,$c0,$03,$ff,$c0,$03,$ff,$c0,$0f
+.byte $ff,$f0,$0c,$7e,$30,$0c,$7e,$3c,$3c,$7e,$3c,$3f,$ff,$fc,$ff,$ff
+.byte $ff,$ff,$ff,$ff,$ff,$ff,$ff,$cf,$ff,$f3,$cf,$ff,$f3,$cc,$00,$33
+.byte $cc,$00,$33,$c3,$00,$c3,$c3,$00,$c3,$00,$00,$00,$00,$00,$00,$01
+
+
+
+; SpriteSet Attribute Data...
+; 2 attributes, 1 per image, 8 bits each, total size is 2 ($2) bytes.
+; nb. Upper nybbles = MYXV, lower nybbles = colour (0-15).
+
+* = addr_spriteset_attrib_data
+spriteset_attrib_data
+
+.byte $01,$01
+
+
+

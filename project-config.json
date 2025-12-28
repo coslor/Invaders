@@ -4,12 +4,11 @@
     "toolkit": "oscar64",
     "sources": [
         "src/invaders.c",
-        "src/invaders.h",
-        "src/invaders-181.spd"
+        "src/invaders.h"
     ],
     "build": "debug",
     "definitions": [],
     "includes": [],
-    "args": [],
+    "args": ["-v2"],
     "compiler": ""
 }
