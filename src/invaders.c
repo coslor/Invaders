@@ -20,56 +20,25 @@
 
 #pragma section( spriteset, 0)
 
-#pragma region( spriteset, 0x2000, 0x2040, , , {spriteset} )
+#pragma region( spriteset, 0x2000, 0x2080, , , {spriteset} )
 
 // everything beyond will be code, data, bss and heap to the end
 
-#pragma region( main, 0x2040, 0xa000, , , {code, data, bss, heap, stack} )
+#pragma region( main, 0x2080, 0xa000, , , {code, data, bss, heap, stack} )
 
 
 // spriteset at fixed location
 
 #pragma data(spriteset)
 
-/********************************
- * OK, so make really FUCKING sure that the size of the spriteset array
- *  is the actual length of the file.
- *
-*********************************/
-// extern volatile char spriteset[128] = {
-// 	#embed "invaders-both.bin"
-//     //#embed "invaders-181.bin"
-//     // #embed "digitsprites.bin"
-// };
+////
+//  NOTE: anything like this, where it's data that needs to be there, but isn't
+//      referenced anywhere, needs to be called out with __export or 
+//      #pragma reference(name), or it will be optimized away!
+////
+__export static const char spriteset[128] =  {
+    #embed spd_sprites "invaders-both.spd"
 
-__export static const char spriteset[64] =  {
-    #embed spd_sprites "invaders.spd"
-
-//     // #embed "invaders-181.bin"
-//    #embed "digitsprites.bin"
-
-//     //  sprite_image_0
-//     0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xc3,0xff,0xff,0xff,
-//     0xff,0xf3,0xcc,0x7e,0x33,0xcc,0x7e,0x3f,0xfc,0x7e,0x3f,0xff,0xff,0xff,0xff,0xff,
-//     0xff,0x3f,0xff,0xfc,0x3f,0xff,0xfc,0x0f,0xff,0xf0,0x0f,0xff,0xf0,0x0c,0x00,0x30,
-//     0x0c,0x00,0x30,0x30,0x00,0x0c,0x30,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x01,
-//     //  sprite_image_1
-//     0x0c,0x00,0x30,0x0c,0x00,0x30,0x03,0x00,0xc0,0x03,0xff,0xc0,0x03,0xff,0xc0,0x0f,
-//     0xff,0xf0,0x0c,0x7e,0x30,0x0c,0x7e,0x3c,0x3c,0x7e,0x3c,0x3f,0xff,0xfc,0xff,0xff,
-//     0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xcf,0xff,0xf3,0xcf,0xff,0xf3,0xcc,0x00,0x33,
-//     0xcc,0x00,0x33,0xc3,0x00,0xc3,0xc3,0x00,0xc3,0x00,0x00,0x00,0x00,0x00,0x00,0x01
-// };
-
-// {
-//     0x0c,0x00,0x30,0x0c,0x00,0x30,0xc3,0x00,0xc3,0xc3,0xff,0xc3,0xc3,0xff,0xc3,0xcf,
-//     0xff,0xf3,0xcc,0x7e,0x33,0xcc,0x7e,0x3f,0xfc,0x7e,0x3f,0xff,0xff,0xff,0xff,0xff,
-//     0xff,0x3f,0xff,0xfc,0x3f,0xff,0xfc,0x0f,0xff,0xf0,0x0f,0xff,0xf0,0x0c,0x00,0x30,
-//     0x0c,0x00,0x30,0x30,0x00,0x0c,0x30,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x01,
-//     0x0c,0x00,0x30,0x0c,0x00,0x30,0x03,0x00,0xc0,0x03,0xff,0xc0,0x03,0xff,0xc0,0x0f,
-//     0xff,0xf0,0x0c,0x7e,0x30,0x0c,0x7e,0x3c,0x3c,0x7e,0x3c,0x3f,0xff,0xfc,0xff,0xff,
-//     0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xcf,0xff,0xf3,0xcf,0xff,0xf3,0xcc,0x00,0x33,
-//     0xcc,0x00,0x33,0xc3,0x00,0xc3,0xc3,0x00,0xc3,0x00,0x00,0x00,0x00,0x00,0x00,0x01
-// };
 
 };
 
@@ -80,37 +49,23 @@ __export static const char spriteset[64] =  {
 
 
 
-const int NUM_INVADERS=12;
-
-//Well, as long as we don't try to use a sprite beyond #12 in the spr_
-//  functions, we can get away with just about as many sprites as we want.
-//  This is time-based multiplexing, and the flickering sprites
-//  look like crap.
-
-//So, let's try out the multiplexing library.
+const int NUM_INVADERS=9;
 
 Invader invaders[NUM_INVADERS] = {
-//active,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,fps
-    {true, 50,50, 1,0,2,{128,129},0, 2,4.0},
-    {true,100,50, 1,0,2,{128,129},1, 3,4.0},
-    {true,150,50, 1,0,2,{128,129},0, 4,4.0},
-    {true,200,50, 1,0,2,{128,129},1, 5,4.0},
-    {true,250,50, 1,0,2,{128,129},0, 6,4.0},
-    {true,300,50, 1,0,2,{128,129},1, 7,4.0},
+//active,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,fps,color
+    {true, 50,50, 1,0,2,{128,129},0, 2,4.0,1},
+    {true,100,50, 1,0,2,{128,129},1, 3,4.0,2},
+    {true,150,50, 1,0,2,{128,129},0, 4,4.0,3},
+    {true,200,50, 1,0,2,{128,129},1, 5,4.0,4},
+    {true,250,50, 1,0,2,{128,129},0, 6,4.0,5},
+    {true,300,50, 1,0,2,{128,129},1, 7,4.0,6},
 
-    {true, 50,100, 1,0,2,{128,129},0, 8,4.0},
-    {true,100,100, 1,0,2,{128,129},1, 9,4.0},
-    {true,150,100, 1,0,2,{128,129},0,10,4.0},
-    {true,200,100, 1,0,2,{128,129},1,11,4.0},
-    {true,250,100, 1,0,2,{128,129},0,12,4.0},
-    {true,300,100, 1,0,2,{128,129},1,13,4.0},
-
-    // {true, 50,100, 1,0,2,{13,14},0,14,4.0},
-    // {true,100,100, 1,0,2,{13,14},1,15,4.0},
-    // {true,150,100, 1,0,2,{13,14},0,16,4.0},
-    // {true,200,100, 1,0,2,{13,14},1,17,4.0},
-    // {true,250,100, 1,0,2,{13,14},0,18,4.0},
-    // {true,300,100, 1,0,2,{13,14},1,19,4.0},
+    {true, 50,100, 1,0,2,{128,129},0, 8,4.0,7},
+    {true,100,100, 1,0,2,{128,129},1, 9,4.0,8},
+    {true,150,100, 1,0,2,{128,129},0,10,4.0,9},
+    // {true,200,100, 1,0,2,{128,129},1,11,4.0,10},
+    // {true,250,100, 1,0,2,{128,129},0,12,4.0,11},
+    // {true,300,100, 1,0,2,{128,129},1,13,4.0,12}
 };
 
 
@@ -157,34 +112,26 @@ int main() {
 
 
     for (int i=0;i<NUM_INVADERS;i++) {
-        Invader *inv=&invaders[i];
-        if (inv->alive) {
-            byte color = (i & 15);
-            if (color == 0) {
-                color = 1;
-            }
+        Invader *inv1=&invaders[i];
+        if (inv1->alive) {
+            //byte color = (i & 15);
+            //if (color == 0) {
+            //    color = 1;
+            //}
             // value =     
             //         //(((unsigned)&spriteset[0]) / 64);
             //         (byte)(inv->image_handles[inv->image_num]);
             //         //(byte)0x80;
 
-            vspr_set(inv->sprite_num,
-                inv->x, inv->y,
-                //inv->image_handles[inv->image_num],
+            vspr_set(inv1->sprite_num,
+                inv1->x, inv1->y,
+                inv1->image_handles[inv1->image_num],
                 //(unsigned)(0xc000 / 64),
                 //value,
-                 128,
-
-                //////////////////////////
-                //      IMPORTANT       //
-                //////////////////////////
-                //  You **MUST** reference spriteset in the code somewhere, or 
-                //      oscar will optimize it away. There's probably a better
-                //      way to do this with #pragma or something.
-                //
+                //128,
                 // ((unsigned)&spriteset[0]) / 64,
 
-                color
+                inv1->color
             );
         }
     }
@@ -204,43 +151,43 @@ int main() {
 
         //vic_waitBottom();
 
-        for (int i=0;i<NUM_INVADERS; i++){
+        for (int j=0;j<NUM_INVADERS; j++){
             //vic.color_border=i;
-            Invader *inv=&invaders[i];
+            Invader *inv2=&invaders[j];
 
-            if (inv->alive) {
+            if (inv2->alive) {
                 //int frames_to_switch=(int)(60.0 / inv->fps);
 
-                move_invader(inv);
-                if (inv->x <20) {
-                    inv->speed_x = abs(inv->speed_x);
+                move_invader(inv2);
+                if (inv2->x <20) {
+                    inv2->speed_x = abs(inv2->speed_x);
                 }
                 else {
-                    if (inv->x >= 320){
-                        inv->speed_x = -abs(inv->speed_x);
+                    if (inv2->x >= 320){
+                        inv2->speed_x = -abs(inv2->speed_x);
                     }
                 }
                 
-                // flip_images(inv);
+                flip_images(inv2);
 
                 // // spr_image(inv->sprite_num, 
                 // //     inv->image_handles[inv->image_num]);
-                // vspr_image(inv->sprite_num, 
-                //     inv->image_handles[inv->image_num]);
+                vspr_image(inv2->sprite_num, 
+                    inv2->image_handles[inv2->image_num]);
             }
             else {
-                vspr_hide(inv->sprite_num);
+                vspr_hide(inv2->sprite_num);
         // spr_show(inv->sprite_num, inv->alive);        
             }
         //vic.color_border++; 
 
         }   //for
 
-    	// sort virtual sprites by y position
-		vspr_sort();
-
 		// wait for raster IRQ to reach and of frame
 		rirq_wait();
+
+    	// sort virtual sprites by y position
+		vspr_sort();
 
 		// update sprites back to normal and set up raster IRQ for sprites 8 to 31
 		vspr_update();
@@ -270,17 +217,16 @@ void flip_images(Invader *inv) {
     int image_num=inv->image_num;
 
     //inv->frames++;
-    if (((inv->frame_num+1) % max_frames)==0) {
-        inv->image_num=(inv->image_num+1) % inv->num_images;
-        inv->frame_num=0;
-        inv=inv;
-        int a=5;
-        inv=(Invader*)a;
+    if (inv->frame_num != 0) {
+        if (((inv->frame_num) % max_frames)==0) {
+            inv->image_num=(inv->image_num+1) % inv->num_images;
+            inv->frame_num=0;
+        }
     }
-    else {
-        (inv->frame_num)++;
-    }
-
+    // else {
+    //     (inv->frame_num)++;
+    // }
+    inv->frame_num += 1;
 }
 
 void move_invader(Invader* inv) {

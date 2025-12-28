@@ -13,7 +13,8 @@
     "args": [
         "-v2",
         "-dVSPRITES_MAX=32",
-        "-dNUM_IRQS=28"
+        "-dNUM_IRQS=28",
+        "-O0"
     ],
     "compiler": ""
 }

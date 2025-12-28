@@ -31,19 +31,21 @@ typedef struct  {
     signed int speed_x=0; //pixels per frame
     signed int speed_y=0;
 
-    byte num_images;
+    byte num_images=0;
     byte image_handles[MAX_IMAGE_HANDLES];
     byte image_num=0;
 
-    unsigned char sprite_num;
+    unsigned char sprite_num=0;
 
     float fps=1.0;
+    unsigned short int color=7;
 
     ////////////auto-initialized from here down////////////////
     long frame_num=0;
 
     signed int old_x=0;
     signed int old_y=0;
+
 } Invader;
 
 void flip_images(Invader* inv);
