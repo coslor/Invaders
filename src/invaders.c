@@ -1,4 +1,4 @@
-#define VSPRITES_MAX 12
+#define VSPRITES_MAX 16
 #include "invaders.h"
 
 //
@@ -47,23 +47,21 @@ __export static const char spriteset[128] =  {
 #pragma data(data)
 
 
-
-
 const int NUM_INVADERS=9;
 
 Invader invaders[NUM_INVADERS] = {
-//active,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,fps,color
-    {true, 50,50, 1,0,2,{128,129},0, 2,4.0,1},
-    {true,100,50, 1,0,2,{128,129},1, 3,4.0,2},
-    {true,150,50, 1,0,2,{128,129},0, 4,4.0,3},
-    {true,200,50, 1,0,2,{128,129},1, 5,4.0,4},
-    {true,250,50, 1,0,2,{128,129},0, 6,4.0,5},
-    {true,300,50, 1,0,2,{128,129},1, 7,4.0,6},
+//alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,fps,color
+    //{true, 50,50, 1,0,2,{128,129},0, 2,4.0,2},
+    {true,100, 50, 1,0,2,{128,129},1, 0,4.0, 3},
+    {true,150, 50, 1,0,2,{128,129},0, 1,4.0, 4},
+    {true,200, 50, 1,0,2,{128,129},1, 2,4.0, 5},
+    {true,250, 50, 1,0,2,{128,129},0, 3,4.0, 6},
+    {true,300, 50, 1,0,2,{128,129},1, 4,4.0, 7},
 
-    {true, 50,100, 1,0,2,{128,129},0, 8,4.0,7},
-    {true,100,100, 1,0,2,{128,129},1, 9,4.0,8},
-    {true,150,100, 1,0,2,{128,129},0,10,4.0,9},
-    // {true,200,100, 1,0,2,{128,129},1,11,4.0,10},
+    {true, 50,100, 1,0,2,{128,129},0, 5,4.0, 3},
+    {true,100,100, 1,0,2,{128,129},1, 6,4.0, 4},
+    {true,150,100, 1,0,2,{128,129},0, 7,4.0, 5},
+    {true,200,100, 1,0,2,{128,129},1, 8,4.0, 6}
     // {true,250,100, 1,0,2,{128,129},0,12,4.0,11},
     // {true,300,100, 1,0,2,{128,129},1,13,4.0,12}
 };
@@ -97,15 +95,15 @@ int main() {
 
     // is this really necessary? //
     // Disable interrupts while setting up
-	__asm { sei };
+	//__asm { sei };
 
 	// Kill CIA interrupts
-	cia_init();
+	//cia_init();
 
-    mmap_set(MMAP_NO_ROM);
+    //mmap_set(MMAP_NO_ROM);
     
     // enable raster interrupt via direct path
-	rirq_init(false);
+	rirq_init(true);
 
 	// initialize sprite multiplexer
 	vspr_init(Screen);
