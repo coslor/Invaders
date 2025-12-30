@@ -1,6 +1,5 @@
 #define VSPRITES_MAX 16
 #include "invaders.h"
-
 //
 // Invaders...raping!
 //
@@ -32,40 +31,71 @@
 #pragma data(spriteset)
 
 ////
-//  NOTE: anything like this, where it's data that needs to be there, but isn't
-//      referenced anywhere, needs to be called out with __export or 
-//      #pragma reference(name), or it will be optimized away!
+//  NOTE: anything like this, where its data that needs to be there, but the 
+//      var itself isn't referenced anywhere, needs to be called out 
+//      with __export or #pragma reference(name), or it will be optimized away!
 ////
 __export static const char spriteset[128] =  {
     #embed spd_sprites "invaders-both.spd"
-
-
 };
-
-//extern volatile byte value=0;
 
 #pragma data(data)
 
-
-const int NUM_INVADERS=9;
-
-Invader invaders[NUM_INVADERS] = {
+Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
+    {
 //alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,fps,color
-    //{true, 50,50, 1,0,2,{128,129},0, 2,4.0,2},
-    {true,100, 50, 1,0,2,{128,129},1, 0,4.0, 3},
-    {true,150, 50, 1,0,2,{128,129},0, 1,4.0, 4},
-    {true,200, 50, 1,0,2,{128,129},1, 2,4.0, 5},
-    {true,250, 50, 1,0,2,{128,129},0, 3,4.0, 6},
-    {true,300, 50, 1,0,2,{128,129},1, 4,4.0, 7},
-
-    {true, 50,100, 1,0,2,{128,129},0, 5,4.0, 3},
-    {true,100,100, 1,0,2,{128,129},1, 6,4.0, 4},
-    {true,150,100, 1,0,2,{128,129},0, 7,4.0, 5},
-    {true,200,100, 1,0,2,{128,129},1, 8,4.0, 6}
-    // {true,250,100, 1,0,2,{128,129},0,12,4.0,11},
-    // {true,300,100, 1,0,2,{128,129},1,13,4.0,12}
+        {true, 50, 50, 1,0,2,{128,129},0, 2,4.0,2},
+        {true,100, 50, 1,0,2,{128,129},1, 3,4.0, 3},
+        {true,150, 50, 1,0,2,{128,129},0, 4,4.0, 4},
+        {true,200, 50, 1,0,2,{128,129},1, 5,4.0, 5},
+        {true,250, 50, 1,0,2,{128,129},0, 6,4.0, 6},
+        {true,300, 50, 1,0,2,{128,129},1, 7,4.0, 7},
+    },
+    // {
+    //     {true, 50, 75, 1,0,2,{128,129},0, 2,4.0, 2},
+    //     {true,100, 75, 1,0,2,{128,129},1, 3,4.0, 3},
+    //     {true,150, 75, 1,0,2,{128,129},0, 4,4.0, 4},
+    //     {true,200, 75, 1,0,2,{128,129},1, 5,4.0, 5},
+    //     {true,250, 75, 1,0,2,{128,129},0, 6,4.0, 6},
+    //     {true,300, 75, 1,0,2,{128,129},1, 7,4.0, 7}
+    // },
+    // {
+    //     {true, 50,100, 1,0,2,{128,129},0, 2,4.0, 2},
+    //     {true,100,100, 1,0,2,{128,129},1, 3,4.0, 3},
+    //     {true,150,100, 1,0,2,{128,129},0, 4,4.0, 4},
+    //     {true,200,100, 1,0,2,{128,129},1, 5,4.0, 5},
+    //     {true,250,100, 1,0,2,{128,129},0, 6,4.0, 6},
+    //     {true,300,100, 1,0,2,{128,129},1, 7,4.0, 7}
+    // },
+    // {
+    //     {true, 50,125, 1,0,2,{128,129},0, 2,4.0, 2},
+    //     {true,100,125, 1,0,2,{128,129},1, 3,4.0, 3},
+    //     {true,150,125, 1,0,2,{128,129},0, 4,4.0, 4},
+    //     {true,200,125, 1,0,2,{128,129},1, 5,4.0, 5},
+    //     {true,250,125, 1,0,2,{128,129},0, 6,4.0, 6},
+    //     {true,300,125, 1,0,2,{128,129},1, 7,4.0, 7}
+    // },
+    // {
+    //     {true, 50,150, 1,0,2,{128,129},0, 2,4.0, 2},
+    //     {true,100,150, 1,0,2,{128,129},1, 3,4.0, 3},
+    //     {true,150,150, 1,0,2,{128,129},0, 4,4.0, 4},
+    //     {true,200,150, 1,0,2,{128,129},1, 5,4.0, 5},
+    //     {true,250,150, 1,0,2,{128,129},0, 6,4.0, 6},
+    //     {true,300,150, 1,0,2,{128,129},1, 7,4.0, 7}
+    // },
+    // {
+    //     {true, 50,175, 1,0,2,{128,129},0, 2,4.0, 2},
+    //     {true,100,175, 1,0,2,{128,129},1, 3,4.0, 3},
+    //     {true,150,175, 1,0,2,{128,129},0, 4,4.0, 4},
+    //     {true,200,175, 1,0,2,{128,129},1, 5,4.0, 5},
+    //     {true,250,175, 1,0,2,{128,129},0, 6,4.0, 6},
+    //     {true,300,175, 1,0,2,{128,129},1, 7,4.0, 7}
+    // }
 };
 
+byte inv_start_line[NUM_ROWS] = {
+    50,75,100,125,150,175
+};
 
 
 int main() {
@@ -85,13 +115,6 @@ int main() {
 	vic.spr_mcolor1 = VCOL_WHITE;
 
    	memset(Screen, 32, 1000);
-	//memset(Color, 1, 1000);
-
-	//memcpy(Font, charset, 2048);
-	//memcpy(Sprites, invaders_181, 128);
-    // memset((char *)0x2000,0xff,128);
-
-    //spr_init(Screen);
 
     // is this really necessary? //
     // Disable interrupts while setting up
@@ -103,84 +126,88 @@ int main() {
     //mmap_set(MMAP_NO_ROM);
     
     // enable raster interrupt via direct path
-	rirq_init(true);
+	// rirq_init(true);
 
 	// initialize sprite multiplexer
-	vspr_init(Screen);
+	//vspr_init(Screen);
 
 
-    for (int i=0;i<NUM_INVADERS;i++) {
-        Invader *inv1=&invaders[i];
-        if (inv1->alive) {
-            //byte color = (i & 15);
-            //if (color == 0) {
-            //    color = 1;
-            //}
-            // value =     
-            //         //(((unsigned)&spriteset[0]) / 64);
-            //         (byte)(inv->image_handles[inv->image_num]);
-            //         //(byte)0x80;
+    // for (int r=0;r<NUM_ROWS;r++) {
+    //     for (int c=0;c<INVADERS_PER_ROW;c++) {
 
-            vspr_set(inv1->sprite_num,
-                inv1->x, inv1->y,
-                inv1->image_handles[inv1->image_num],
-                //(unsigned)(0xc000 / 64),
-                //value,
-                //128,
-                // ((unsigned)&spriteset[0]) / 64,
-
-                inv1->color
-            );
-        }
-    }
-    // for (int i=0;i<8; i++) {
-    //     vic.spr_color[i]=VCOL_WHITE;
+    //         Invader *inv1=&invaders[r][c];
+    //         if (inv1->alive) {
+    //             vspr_set(inv1->sprite_num,
+    //                 inv1->x, inv1->y,
+    //                 inv1->image_handles[inv1->image_num],
+    //                 inv1->color
+    //             );
+    //         }
+    //     }
     // }
+ 
+    // // initial sort and update
+	// vspr_sort();
+	// vspr_update();
+	// rirq_sort();
 
-    // initial sort and update
-	vspr_sort();
-	vspr_update();
-	rirq_sort();
-
-    // start raster IRQ processing
-	rirq_start();
+    // // start raster IRQ processing
+	// rirq_start();
 
     while(true) {
 
-        //vic_waitBottom();
+        vic_waitTop();
 
-        for (int j=0;j<NUM_INVADERS; j++){
-            //vic.color_border=i;
-            Invader *inv2=&invaders[j];
+        for (int r=0;r<NUM_ROWS; r++){
+            vic_waitBelow(inv_start_line[r]);
 
-            if (inv2->alive) {
-                //int frames_to_switch=(int)(60.0 / inv->fps);
+            vic.color_back = r;
 
-                move_invader(inv2);
-                if (inv2->x <20) {
-                    inv2->speed_x = abs(inv2->speed_x);
+            vic.spr_enable = 0;
+
+            for (int c=0;c<INVADERS_PER_ROW; c++) {
+                Invader *inv=&invaders[r][c];
+                if (inv->alive) {
+                    vic_sprxy(inv->sprite_num,inv->x, inv->y);
+                    //vic.spr_color[inv->sprite_num]= inv->color;
+                    //Screen[2016+inv->sprite_num] = inv->image_handles[inv->image_num];
+                    vic.spr_enable |= (1<<inv->sprite_num);
+                }
+
+                /*
+                //vic.color_border=i;
+                Invader *inv2=&invaders[j];
+
+                if (inv2->alive) {
+                    //int frames_to_switch=(int)(60.0 / inv->fps);
+
+                    move_invader(inv2);
+                    if (inv2->x <20) {
+                        inv2->speed_x = abs(inv2->speed_x);
+                    }
+                    else {
+                        if (inv2->x >= 320){
+                            inv2->speed_x = -abs(inv2->speed_x);
+                        }
+                    }
+                    
+                    flip_images(inv2);
+
+                    // // spr_image(inv->sprite_num, 
+                    // //     inv->image_handles[inv->image_num]);
+                    vspr_image(inv2->sprite_num, 
+                        inv2->image_handles[inv2->image_num]);
                 }
                 else {
-                    if (inv2->x >= 320){
-                        inv2->speed_x = -abs(inv2->speed_x);
-                    }
+                    vspr_hide(inv2->sprite_num);
+            // spr_show(inv->sprite_num, inv->alive);        
                 }
-                
-                flip_images(inv2);
+            */
+            }   //for c
+        }   //for r
+        vic_waitBottom();
 
-                // // spr_image(inv->sprite_num, 
-                // //     inv->image_handles[inv->image_num]);
-                vspr_image(inv2->sprite_num, 
-                    inv2->image_handles[inv2->image_num]);
-            }
-            else {
-                vspr_hide(inv2->sprite_num);
-        // spr_show(inv->sprite_num, inv->alive);        
-            }
-        //vic.color_border++; 
-
-        }   //for
-
+        /*
 		// wait for raster IRQ to reach and of frame
 		rirq_wait();
 
@@ -193,6 +220,8 @@ int main() {
 		// sort raster IRQs
 		rirq_sort();
 
+        */
+        
         //vic.color_border++; 
         //vic.color_border=9;
     }  
