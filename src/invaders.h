@@ -49,7 +49,7 @@ typedef struct  {
 } Invader;
 
 //const int NUM_INVADERS=9;
-const int NUM_ROWS=2;
+const int NUM_ROWS=6;
 const int INVADERS_PER_ROW=6;
 
 void flip_images(Invader* inv);

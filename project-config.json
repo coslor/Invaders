@@ -14,7 +14,7 @@
         "-v2",
         "-dVSPRITES_MAX=16",
         "-dNUM_IRQS=28",
-        "-O0"
+        "-O2"
     ],
     "compiler": ""
 }
