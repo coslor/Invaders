@@ -41,73 +41,9 @@ __export static const char spriteset[128] =  {
 
 #pragma data(data)
 
-int inv_start_line[NUM_ROWS] = {
-    20,
-    50,
-    80,
-    110,
-    140,
-    170
-};
-
-Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
-    {
-//alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,fps,color
-        {1, 50, 50, 1,0,2,{128,129},0, 2,4.0, 1},
-        {1,100, 50, 1,0,2,{128,129},1, 3,4.0, 3},
-        {1,150, 50, 1,0,2,{128,129},0, 4,4.0, 4},
-        {1,200, 50, 1,0,2,{128,129},1, 5,4.0, 5},
-        {1,250, 50, 1,0,2,{128,129},0, 6,4.0, 6},
-        {1,300, 50, 1,0,2,{128,129},1, 7,4.0, 7},
-    },
-    {
-        {1, 50, 80, 1,0,2,{128,129},0, 2,4.0, 1},
-        {1,100, 80, 1,0,2,{128,129},1, 3,4.0, 3},
-        {1,150, 80, 1,0,2,{128,129},0, 4,4.0, 4},
-        {1,200, 80, 1,0,2,{128,129},1, 5,4.0, 5},
-        {1,250, 80, 1,0,2,{128,129},0, 6,4.0, 6},
-        {1,300, 80, 1,0,2,{128,129},1, 7,4.0, 7}
-    },
-    {
-        {1, 50,110, 1,0,2,{128,129},0, 2,4.0, 1},
-        {1,100,110, 1,0,2,{128,129},1, 3,4.0, 3},
-        {1,150,110, 1,0,2,{128,129},0, 4,4.0, 4},
-        {1,200,110, 1,0,2,{128,129},1, 5,4.0, 5},
-        {1,250,110, 1,0,2,{128,129},0, 6,4.0, 6},
-        {1,300,110, 1,0,2,{128,129},1, 7,4.0, 7}
-    },
-    {
-        {1, 50,140, 1,0,2,{128,129},0, 2,4.0, 1},
-        {1,100,140, 1,0,2,{128,129},1, 3,4.0, 3},
-        {1,150,140, 1,0,2,{128,129},0, 4,4.0, 4},
-        {1,200,140, 1,0,2,{128,129},1, 5,4.0, 5},
-        {1,250,140, 1,0,2,{128,129},0, 6,4.0, 6},
-        {1,300,140, 1,0,2,{128,129},1, 7,4.0, 7}
-    },
-    {
-        {1, 50,170, 1,0,2,{128,129},0, 2,4.0, 1},
-        {1,100,170, 1,0,2,{128,129},1, 3,4.0, 3},
-        {1,150,170, 1,0,2,{128,129},0, 4,4.0, 4},
-        {1,200,170, 1,0,2,{128,129},1, 5,4.0, 5},
-        {1,250,170, 1,0,2,{128,129},0, 6,4.0, 6},
-        {1,300,170, 1,0,2,{128,129},1, 7,4.0, 7}
-    },
-    {
-        {1, 50,200, 1,0,2,{128,129},0, 2,4.0, 1},
-        {1,100,200, 1,0,2,{128,129},1, 3,4.0, 3},
-        {1,150,200, 1,0,2,{128,129},0, 4,4.0, 4},
-        {1,200,200, 1,0,2,{128,129},1, 5,4.0, 5},
-        {1,250,200, 1,0,2,{128,129},0, 6,4.0, 6},
-        {1,300,200, 1,0,2,{128,129},1, 7,4.0, 7}
-    }
-};
-
-
-
-
 int main() {
 
-        iocharmap(IOCHM_PETSCII_2);
+    iocharmap(IOCHM_PETSCII_2);
 
         // memset((char *)0x2000,0xff,128);
 
@@ -115,11 +51,11 @@ int main() {
     // Change colors
 	vic.color_border = VCOL_GREEN;
 	vic.color_back = VCOL_BLACK;
-	vic.color_back1 = VCOL_WHITE;
-	vic.color_back2 = VCOL_DARK_GREY;
+	//vic.color_back1 = VCOL_WHITE;
+	//vic.color_back2 = VCOL_DARK_GREY;
 
-	vic.spr_mcolor0 = VCOL_DARK_GREY;
-	vic.spr_mcolor1 = VCOL_WHITE;
+	//vic.spr_mcolor0 = VCOL_DARK_GREY;
+	//vic.spr_mcolor1 = VCOL_WHITE;
 
    	memset(Screen, 32, 1000);
 
@@ -137,6 +73,7 @@ int main() {
 
 	// initialize sprite multiplexer
 	//vspr_init(Screen);
+    spr_init(Screen);
 
 
     // for (int r=0;r<NUM_ROWS;r++) {
@@ -163,21 +100,23 @@ int main() {
 
     while(1) {
 
-        vic.color_back=9;
+        vic.color_back=VCOL_LT_GREY;
 
-        vic_waitBottom();
+        vic_waitTop();
+        vic.color_back=VCOL_BLACK;
 
         #pragma unroll(full)
         for (int r=0;r<NUM_ROWS; r++){
             //vic.color_back=10;
+            //vic.color_back=VCOL_BROWN;
             vic_waitBelow(inv_start_line[r]);
-
+            //vic.color_back=VCOL_GREEN;
             //vic.color_back = r;
 
             vic.spr_enable = 0;
-            vic.color_back=2;
+            //vic.color_back=VCOL_RED;
 
-            #pragma unroll(full)
+            //#pragma unroll(full)
             for (int c=0;c<INVADERS_PER_ROW; c++) {
                 Invader *inv=&invaders[r][c];
                 if (inv->alive) {
@@ -185,6 +124,16 @@ int main() {
                     vic.spr_color[inv->sprite_num]= inv->color;
                     Screen[0x3f8 + inv->sprite_num] = inv->image_handles[inv->image_num];
                     vic.spr_enable |= (1<<inv->sprite_num);
+
+                    //vic.color_border++;
+                    ////
+                    //  WTF IS HAPPENING HERE???
+                    //          ||
+                    //          ||
+                    //         ----
+                    //          --
+                    ////
+                    flip_image(inv);
                 }
 
                 /*
@@ -217,10 +166,14 @@ int main() {
                 }
             */
             }   //for c
-            vic.color_back=0;
+
+            //vic.color_back=0;
+            vic.color_back=VCOL_BLACK;
+
         }   //for r
-        //vic.color_back=8;
+        //vic.color_back=VCOL_BLUE;
         vic_waitBottom();
+        //vic.color_back=VCOL_BLACK;
 
         /*
 		// wait for raster IRQ to reach and of frame
@@ -244,39 +197,56 @@ int main() {
     return 0;
 };
 
+//__forceinline 
+void flip_image(Invader *inv2) {
+    __assume(inv2->frame_num<256);
+    __assume(inv2->max_frames<256);
+    __assume(inv2->image_num<256);
+    __assume(inv2->num_images<256);
 
-void flip_images(Invader *inv) {
     //byte spr_num, byte **image_handles, byte num_images, float fps) {
 
-    assert(inv->fps>0);
+    //assert(inv->fps>0);
 
 
-    int max_frames=(int)(60.0/inv->fps);
+    //int max_frames=(int)(60.0/inv->fps);
     //static int frames=0;
     //static int image_num=0;
 
-    int frame_num = inv->frame_num;
-    int image_num=inv->image_num;
+    //vic.color_back=VCOL_PURPLE;
+    //int frame_num = inv->frame_num;
+    //int image_num=inv->image_num;
 
     //inv->frames++;
-    if (inv->frame_num != 0) {
-        if (((inv->frame_num) % max_frames)==0) {
-            inv->image_num=(inv->image_num+1) % inv->num_images;
-            inv->frame_num=0;
+    if ((++inv2->frame_num) >= inv2->max_frames) {
+        if (++(inv2->image_num) >= inv2->num_images) {
+            inv2->image_num=0;
         }
+        inv2->frame_num=0;
     }
     // else {
     //     (inv->frame_num)++;
     // }
-    inv->frame_num += 1;
+    //inv2->frame_num ++;
+    //vic.color_back=VCOL_BLACK;
 }
 
-void move_invader(Invader* inv) {
+ __forceinline void move_invader(Invader* inv) {
     //Invader* inv=&invaders[inv_num];
     inv->x += inv->speed_x;
     inv->y += inv->speed_y;
-    //spr_move(inv->sprite_num,inv->x,inv->y);
-    vspr_move(inv->sprite_num,inv->x,inv->y);
+
+    if (inv->x <20) {
+        inv->speed_x = abs(inv->speed_x);
+    }
+    else {
+        if (inv->x >= 320){
+            inv->speed_x = -abs(inv->speed_x);
+        }
+    }
+
+    // spr_move(inv->sprite_num,inv->x,inv->y);
+    // vspr_move(inv->sprite_num,inv->x,inv->y);
 }
 
 /**

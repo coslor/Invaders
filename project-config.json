@@ -3,8 +3,8 @@
     "description": "Project invaders",
     "toolkit": "oscar64",
     "sources": [
-        "src/invaders.c",
         "src/invaders.h",
+        "src/invaders.c",
         "digitsprites.bin" 
     ],
     "build": "debug",
