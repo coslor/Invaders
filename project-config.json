@@ -5,16 +5,26 @@
     "sources": [
         "src/invaders.h",
         "src/invaders.c",
-        "digitsprites.bin" 
+        "digitsprites.bin"
+         
     ],
     "build": "debug",
     "definitions": [],
-    "includes": [],
+    "includes": [
+        "../oscar64/oscar64/include/c64/sprites.h",
+        "../oscar64/oscar64/include/c64/vic.h"
+    ],
     "args": [
+        "-DWAS_JUST_G",
+        "-gp",
         "-v2",
         "-dVSPRITES_MAX=16",
         "-dNUM_IRQS=28",
-        "-O2"
+        "-DWAS_JUST_O2_O2",
+        "-DNEW_FROM_HERE",
+        "-n",
+        "-O0",
+        "-strict"
     ],
     "compiler": ""
 }

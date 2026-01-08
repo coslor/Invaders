@@ -4,6 +4,7 @@
 // Invaders...raping!
 //
 
+__export int nums[4]={1};
 
 //byte * const Screen = (byte *)0x400; //(byte *)0xc800;
 //byte * const Color = (byte *)0xd800;
@@ -41,6 +42,8 @@ __export static const char spriteset[128] =  {
 
 #pragma data(data)
 
+__export int lines_used = -1;
+
 int main() {
 
     iocharmap(IOCHM_PETSCII_2);
@@ -49,7 +52,7 @@ int main() {
 
 
     // Change colors
-	vic.color_border = VCOL_GREEN;
+	vic.color_border = VCOL_DARK_GREY;
 	vic.color_back = VCOL_BLACK;
 	//vic.color_back1 = VCOL_WHITE;
 	//vic.color_back2 = VCOL_DARK_GREY;
@@ -64,7 +67,7 @@ int main() {
 	//__asm { sei };
 
 	// Kill CIA interrupts
-	//cia_init();
+	cia_init();
 
     //mmap_set(MMAP_NO_ROM);
     
@@ -76,6 +79,7 @@ int main() {
     spr_init(Screen);
 
 
+    
     // for (int r=0;r<NUM_ROWS;r++) {
     //     for (int c=0;c<INVADERS_PER_ROW;c++) {
 
@@ -98,82 +102,44 @@ int main() {
     // // start raster IRQ processing
 	// rirq_start();
 
+    vic_waitFrame();
+    vic_waitTop();
+
+    IRQ_VECTOR = raster_irq_handler;
+    set_next_irq(inv_start_line[0],raster_irq_handler);
+
     while(1) {
 
-        vic.color_back=VCOL_LT_GREY;
+       // vic.color_back=VCOL_LT_GREY;
 
-        vic_waitTop();
-        vic.color_back=VCOL_BLACK;
+        //vic_waitTop();
+        //vic.color_back=VCOL_BLACK;
 
+        /** NOTHING TO DO IN THE MAIN THREAD (yet)
+
+        
         #pragma unroll(full)
         for (int r=0;r<NUM_ROWS; r++){
             //vic.color_back=10;
             //vic.color_back=VCOL_BROWN;
-            vic_waitBelow(inv_start_line[r]);
-            //vic.color_back=VCOL_GREEN;
-            //vic.color_back = r;
-
-            vic.spr_enable = 0;
+            //vic_waitBelow(inv_start_line[r]);
             //vic.color_back=VCOL_RED;
 
-            //#pragma unroll(full)
-            for (int c=0;c<INVADERS_PER_ROW; c++) {
-                Invader *inv=&invaders[r][c];
-                if (inv->alive) {
-                    vic_sprxy(inv->sprite_num,inv->x, inv->y);
-                    vic.spr_color[inv->sprite_num]= inv->color;
-                    Screen[0x3f8 + inv->sprite_num] = inv->image_handles[inv->image_num];
-                    vic.spr_enable |= (1<<inv->sprite_num);
+            // this should be in the irq handler
+            // draw_sprite_row(current_row_num++);
 
-                    //vic.color_border++;
-                    ////
-                    //  WTF IS HAPPENING HERE???
-                    //          ||
-                    //          ||
-                    //         ----
-                    //          --
-                    ////
-                    flip_image(inv);
-                }
-
-                /*
-                //vic.color_border=i;
-                Invader *inv2=&invaders[j];
-
-                if (inv2->alive) {
-                    //int frames_to_switch=(int)(60.0 / inv->fps);
-
-                    move_invader(inv2);
-                    if (inv2->x <20) {
-                        inv2->speed_x = abs(inv2->speed_x);
-                    }
-                    else {
-                        if (inv2->x >= 320){
-                            inv2->speed_x = -abs(inv2->speed_x);
-                        }
-                    }
-                    
-                    flip_images(inv2);
-
-                    // // spr_image(inv->sprite_num, 
-                    // //     inv->image_handles[inv->image_num]);
-                    vspr_image(inv2->sprite_num, 
-                        inv2->image_handles[inv2->image_num]);
-                }
-                else {
-                    vspr_hide(inv2->sprite_num);
-            // spr_show(inv->sprite_num, inv->alive);        
-                }
-            */
-            }   //for c
+            // if (current_row_num >= NUM_ROWS) {
+            //     current_row_num = 0;
+            // }
 
             //vic.color_back=0;
             vic.color_back=VCOL_BLACK;
 
         }   //for r
         //vic.color_back=VCOL_BLUE;
-        vic_waitBottom();
+        //vic_waitBottom();
         //vic.color_back=VCOL_BLACK;
+        **/
 
         /*
 		// wait for raster IRQ to reach and of frame
@@ -192,10 +158,47 @@ int main() {
         
         //vic.color_border++; 
         //vic.color_border=9;
+        __asm{
+            nop
+        }
     }  
     printf("wtf??\n");
     return 0;
 };
+
+void draw_sprite_row(int row) {
+    int c;
+    //#pragma unroll(full)
+    for (c=0;c<INVADERS_PER_ROW; c++) {
+        Invader *inv=&invaders[row][c];
+        if (inv->alive) {
+            //vic_sprxy(inv->sprite_num,inv->x, inv->y);
+            vic.spr_pos[inv->sprite_num].y = inv->y;
+            vic.spr_pos[inv->sprite_num].x = inv->x & 0xff;
+            if (inv->x & 0x100)
+                vic.spr_msbx |= 1 << inv->sprite_num;
+            else
+                vic.spr_msbx &= ~(1 << inv->sprite_num);
+
+
+            //vic.spr_color[inv->sprite_num]= inv->color;
+            Screen[0x3f8 + inv->sprite_num] = inv->image_handles[inv->image_num];   //TODO fix raw constant
+            vic.spr_enable |= (1<<inv->sprite_num);
+
+            //I'm pretty sure this belongs in the main thread
+            //flip_image(inv);
+        }
+        else {
+            vic.spr_enable &= (0xff - (1<<inv->sprite_num));        //turn bit off
+        }
+
+    }   //for c
+    __asm {
+        nop
+    }
+
+}
+
 
 //__forceinline 
 void flip_image(Invader *inv2) {
@@ -271,3 +274,71 @@ void print_invaders() {
 }
 
 **/
+
+void raster_irq_handler() {
+    int prev_raster=0;
+
+    if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
+
+        prev_raster = vic.raster;
+        current_row_num = 0;
+        for (int i=0;i<NUM_ROWS;i++) {
+            if (prev_raster >= inv_start_line[i]) {
+                current_row_num = i;
+            }
+        }
+        //vic.spr_enable = 0x00;
+
+        //vic.color_back=VCOL_GREEN;
+
+        draw_sprite_row(current_row_num);
+        lines_used=vic.raster - prev_raster;
+
+        //vic.color_back = VCOL_BLACK;
+
+        current_row_num++;
+        if (current_row_num >= NUM_ROWS) {
+            current_row_num = 0;
+        }
+        // IRQ_VECTOR = raster_irq_handler;
+        set_next_irq(inv_start_line[(current_row_num)], raster_irq_handler);
+
+    }
+    __asm{ 
+        asl $d019   //vic.intr_ctrl -- ACK interrupt
+        jmp $ea31   //(old_irq) 
+    }
+
+}
+
+__export void set_next_irq(byte rasterline, void (*irq_handler)()) {
+    //from https://codebase64.com/doku.php?id=base:introduction_to_raster_irqs
+
+    __asm {
+        sei
+    }
+
+    // cia1.sdr=0x7f;
+    // cia2.sdr=0x7f;
+    // byte b=cia1.sdr;
+    // b=cia2.sdr;
+
+      IRQ_VECTOR=irq_handler;                     //shouldn't have to set this every time
+    //IRQ_VECTOR = (void *)0xfa31;
+//     __asm{
+//         lda #<irq_handler
+//         sta $314
+//         lda #>irq_handler
+//         sta $315
+// }
+
+
+    vic.intr_enable = 1;
+	vic.ctrl1 &= 0x7f;                           //MSb of raster line#   //TODO fix this to use MSb
+	vic.raster = rasterline & 0b11111111;        //rest of raster line#
+
+
+    __asm{
+        cli
+    }
+}
