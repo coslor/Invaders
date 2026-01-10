@@ -1,3 +1,5 @@
+#pragma optimize(maxinline)
+
 #define VSPRITES_MAX 16
 #include "invaders.h"
 //
@@ -5,6 +7,7 @@
 //
 
 #define Screen ((char *)0x400)
+#define Color ((char *)0xd800)
 
 // make space until 0x2000 for code and data
 
@@ -55,6 +58,8 @@ int main() {
 	//vic.spr_mcolor1 = VCOL_WHITE;
 
    	memset(Screen, 32, 1000);
+
+    //Screen[0]=1;Color[0]=2;
 
     // is this really necessary? //
     // Disable interrupts while setting up
@@ -173,21 +178,25 @@ int main() {
 };
 
 void draw_sprite_row(int row) {
-    int c;
-    //#pragma unroll(full)
-    for (c=0;c<INVADERS_PER_ROW; c++) {
+    //int c;
+    #pragma unroll(full)
+    for (int c=0; c<INVADERS_PER_ROW; c++) {
+        //Screen[c]=160;Color[c]=2;
+
         Invader *inv=&invaders[row][c];
         if (inv->alive) {
             //vic_sprxy(inv->sprite_num,inv->x, inv->y);
-            vic.spr_pos[inv->sprite_num].y = inv->y;
-            vic.spr_pos[inv->sprite_num].x = inv->x & 0xff;
-            if (inv->x & 0x100)
-                vic.spr_msbx |= 1 << inv->sprite_num;
-            else
-                vic.spr_msbx &= ~(1 << inv->sprite_num);
+            spr_move(inv->sprite_num,inv->x, inv->y);
+            // vic.spr_pos[inv->sprite_num].y = inv->y;
+            // vic.spr_pos[inv->sprite_num].x = inv->x & 0xff;
+            // if (inv->x & 0x100)
+            //     vic.spr_msbx |= 1 << inv->sprite_num;
+            // else
+            //     vic.spr_msbx &= ~(1 << inv->sprite_num);
 
+            //spr_color(inv->sprite_num, row); //inv->color);
+            vic.spr_color[inv->sprite_num]=inv->color;
 
-            //vic.spr_color[inv->sprite_num]= inv->color;
             Screen[0x3f8 + inv->sprite_num] = inv->image_handles[inv->image_num];   //TODO fix raw constant
             vic.spr_enable |= (1<<inv->sprite_num);
 
@@ -197,7 +206,6 @@ void draw_sprite_row(int row) {
         else {
             vic.spr_enable &= (0xff - (1<<inv->sprite_num));        //turn bit off
         }
-
     }   //for c
     __asm {
         nop
@@ -285,10 +293,12 @@ void raster_irq_handler() {
     int prev_raster=0;
 
     if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
+        //vic.color_back=current_row_num+1;
+
+        prev_raster = vic.raster;
 
         vic.intr_ctrl = 0xff;           //ACK irq
 
-        prev_raster = vic.raster;
         // current_row_num = 0;
         // for (int i=0;i<NUM_ROWS;i++) {
         //     if (prev_raster >= inv_start_line[i]) {
@@ -297,11 +307,7 @@ void raster_irq_handler() {
         // }
         //vic.spr_enable = 0x00;
 
-        //NOTE: the row,col have been deliberately switched here
-        vic.color_back=invaders[0][current_row_num].color;;
-
-        //draw_sprite_row(current_row_num);
-        lines_used=vic.raster - prev_raster;
+        draw_sprite_row(current_row_num);
 
         //vic.color_back = VCOL_BLACK;
 
@@ -314,9 +320,14 @@ void raster_irq_handler() {
         // IRQ_VECTOR = raster_irq_handler;
         set_next_irq(inv_start_line[(current_row_num)]);
 
+        lines_used=vic.raster - prev_raster;
+
+        //vic.color_back=0;
+
     }
+
     __asm{ 
-        lsr $d019   //vic.intr_ctrl -- ACK interrupt
+        // lsr $d019   //vic.intr_ctrl -- ACK interrupt
         jmp $ea31   //(old_irq) - 
                     // call $ea31 for original, but scans keyboard twice, not necessary
                     //      $ea81 skips keyboard scan, better
@@ -325,7 +336,7 @@ void raster_irq_handler() {
 
 }
 
-__export void set_next_irq(byte rasterline) {
+void set_next_irq(byte rasterline) {
     //from https://codebase64.com/doku.php?id=base:introduction_to_raster_irqs
 
     __asm {

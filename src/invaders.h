@@ -22,7 +22,7 @@
 
 const int MAX_IMAGE_HANDLES=8;
 
-const int MIN_Y=60;
+const int MIN_Y=50;
 
 typedef struct  {
     byte        alive=0;
@@ -48,8 +48,8 @@ typedef struct  {
 } Invader;
 
 const int NUM_ROWS=4;
-const int INVADERS_PER_ROW=6;
-const int SCANLINES_PER_ROW=20;
+const int INVADERS_PER_ROW=5;
+const int SCANLINES_PER_ROW=28;
 
 int current_row_num=0;
 
@@ -64,12 +64,12 @@ int current_row_num=0;
 Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
     {
 //alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,max_frames,color
-        {1, 50, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},0, 2,16, 0},
-        {1,100, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},1, 3,16, 2},
-        {0,150, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},0, 4,16, 3},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},1, 5,16, 4},
-        {1,250, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},0, 6,16, 5},
-        {1,300, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},1, 7,16, 6},
+        {1, 50, MIN_Y, 1,0,2,{128,129},0, 2,16, 3},
+        {1,100, MIN_Y, 1,0,2,{128,129},1, 3,16, 4},
+        {1,150, MIN_Y, 1,0,2,{128,129},0, 4,16, 5},
+        {1,200, MIN_Y, 1,0,2,{128,129},1, 5,16, 6},
+        {1,250, MIN_Y, 1,0,2,{128,129},0, 6,16, 7},
+        // {1,300, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},1, 7,16, 6},
     },
     {
         {1, 50, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0, 2,16, 2},
@@ -77,24 +77,24 @@ Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
         {1,150, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0, 4,16, 4},
         {1,200, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 5,16, 5},
         {0,250, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0, 6,16, 6},
-        {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 7,16, 7}
+        // {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 7,16, 7}
     },
-    // {
-    //     {1, 50, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 2,16, 1},
-    //     {1,100, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 3,16, 3},
-    //     {1,150, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 4,16, 4},
-    //     {1,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 5,16, 5},
-    //     {1,250, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 6,16, 6},
-    //     {1,300, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 7,16, 7}
-    // },
-    // {
-    //     {1, 50, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0, 2,16, 1},
-    //     {1,100, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},1, 3,16, 3},
-    //     {1,150, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0, 4,16, 4},
-    //     {1,200, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},1, 5,16, 5},
-    //     {1,250, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0, 6,16, 6},
-    //     {1,300, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},1, 7,16, 7}
-    // },
+    {
+        {1, 50, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0, 2,16, 3},
+        {1,100, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1, 3,16, 4},
+        {1,150, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0, 4,16, 5},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1, 5,16, 6},
+        {1,250, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0, 6,16, 7},
+        //{1,300, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1, 7,16, 7}
+    },
+    {
+        {1, 50, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 2,16, 5},
+        {1,100, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 3,16, 6},
+        {1,150, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 4,16, 7},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 5,16, 8},
+        {1,250, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 6,16, 9},
+        //{1,300, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 7,16, 7}
+    },
     // {
     //     {1, 50, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0, 2,16, 1},
     //     {1,100, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},1, 3,16, 3},
@@ -114,11 +114,11 @@ Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
 };
 
 int inv_start_line[NUM_ROWS] = {
-    MIN_Y,//MIN_Y-SCANLINES_PER_ROW*0+5,
-    MIN_Y+SCANLINES_PER_ROW*1,
-    MIN_Y+SCANLINES_PER_ROW*2,
-    MIN_Y+SCANLINES_PER_ROW*3,
-    // MIN_Y+SCANLINES_PER_ROW*4,
+    0,//MIN_Y-SCANLINES_PER_ROW*0+5,
+    MIN_Y+1,
+    MIN_Y+SCANLINES_PER_ROW+1,
+    MIN_Y+SCANLINES_PER_ROW*2+1,
+    //MIN_Y+SCANLINES_PER_ROW*3+1,
     // MIN_Y+SCANLINES_PER_ROW*5,
 };
 
