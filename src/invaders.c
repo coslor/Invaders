@@ -4,12 +4,6 @@
 // Invaders...raping!
 //
 
-__export int nums[4]={1};
-
-//byte * const Screen = (byte *)0x400; //(byte *)0xc800;
-//byte * const Color = (byte *)0xd800;
-//byte * Sprites = (byte *)0x340; //0xd800;
-
 #define Screen ((char *)0x400)
 
 // make space until 0x2000 for code and data
@@ -64,10 +58,10 @@ int main() {
 
     // is this really necessary? //
     // Disable interrupts while setting up
-	//__asm { sei };
+	__asm { sei };
 
 	// Kill CIA interrupts
-	cia_init();
+	//cia_init();
 
     //mmap_set(MMAP_NO_ROM);
     
@@ -76,10 +70,24 @@ int main() {
 
 	// initialize sprite multiplexer
 	//vspr_init(Screen);
-    spr_init(Screen);
+    //spr_init(Screen);
 
 
-    
+    //Instead of dealing with the CIA stuff here and in the irq routine, I should
+    //  probably turn them off completely. What exactly does this code do?
+    cia1.icr=0x7f;
+    cia2.icr=0x7f;
+    // byte b=cia1.sdr;
+    // b=cia2.sdr;
+
+
+    //IRQ_VECTOR = (void *)0xfa31;
+    IRQ_VECTOR=raster_irq_handler;
+
+    set_next_irq(inv_start_line[0]);
+
+    __asm { cli }
+
     // for (int r=0;r<NUM_ROWS;r++) {
     //     for (int c=0;c<INVADERS_PER_ROW;c++) {
 
@@ -102,11 +110,9 @@ int main() {
     // // start raster IRQ processing
 	// rirq_start();
 
-    vic_waitFrame();
-    vic_waitTop();
+    //vic_waitFrame();
+    //vic_waitTop();
 
-    IRQ_VECTOR = raster_irq_handler;
-    set_next_irq(inv_start_line[0],raster_irq_handler);
 
     while(1) {
 
@@ -280,50 +286,58 @@ void raster_irq_handler() {
 
     if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
 
+        vic.intr_ctrl = 0xff;           //ACK irq
+
         prev_raster = vic.raster;
-        current_row_num = 0;
-        for (int i=0;i<NUM_ROWS;i++) {
-            if (prev_raster >= inv_start_line[i]) {
-                current_row_num = i;
-            }
-        }
+        // current_row_num = 0;
+        // for (int i=0;i<NUM_ROWS;i++) {
+        //     if (prev_raster >= inv_start_line[i]) {
+        //         current_row_num = i;
+        //     }
+        // }
         //vic.spr_enable = 0x00;
 
-        //vic.color_back=VCOL_GREEN;
+        //NOTE: the row,col have been deliberately switched here
+        vic.color_back=invaders[0][current_row_num].color;;
 
-        draw_sprite_row(current_row_num);
+        //draw_sprite_row(current_row_num);
         lines_used=vic.raster - prev_raster;
 
         //vic.color_back = VCOL_BLACK;
+
+        vic.intr_enable = 1;                                                                //$d01a
 
         current_row_num++;
         if (current_row_num >= NUM_ROWS) {
             current_row_num = 0;
         }
         // IRQ_VECTOR = raster_irq_handler;
-        set_next_irq(inv_start_line[(current_row_num)], raster_irq_handler);
+        set_next_irq(inv_start_line[(current_row_num)]);
 
     }
     __asm{ 
-        asl $d019   //vic.intr_ctrl -- ACK interrupt
-        jmp $ea31   //(old_irq) 
+        lsr $d019   //vic.intr_ctrl -- ACK interrupt
+        jmp $ea31   //(old_irq) - 
+                    // call $ea31 for original, but scans keyboard twice, not necessary
+                    //      $ea81 skips keyboard scan, better
+                    //      $febc skips kernal stuff altogether
     }
 
 }
 
-__export void set_next_irq(byte rasterline, void (*irq_handler)()) {
+__export void set_next_irq(byte rasterline) {
     //from https://codebase64.com/doku.php?id=base:introduction_to_raster_irqs
 
     __asm {
         sei
     }
 
-    // cia1.sdr=0x7f;
-    // cia2.sdr=0x7f;
-    // byte b=cia1.sdr;
-    // b=cia2.sdr;
+    cia1.sdr=0x7f;
+    cia2.sdr=0x7f;
+    byte b=cia1.sdr;
+    b=cia2.sdr;
 
-      IRQ_VECTOR=irq_handler;                     //shouldn't have to set this every time
+      //IRQ_VECTOR=irq_handler;                     //shouldn't have to set this every time
     //IRQ_VECTOR = (void *)0xfa31;
 //     __asm{
 //         lda #<irq_handler
@@ -335,7 +349,7 @@ __export void set_next_irq(byte rasterline, void (*irq_handler)()) {
 
     vic.intr_enable = 1;
 	vic.ctrl1 &= 0x7f;                           //MSb of raster line#   //TODO fix this to use MSb
-	vic.raster = rasterline & 0b11111111;        //rest of raster line#
+	vic.raster = rasterline;                    //rest of raster line#  //TODO fix for MSB
 
 
     __asm{
