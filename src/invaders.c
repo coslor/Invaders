@@ -37,7 +37,10 @@ __export static const char spriteset[128] =  {
     #embed spd_sprites "invaders-both.spd"
 };
 
+
 #pragma data(data)
+
+int prev_raster=0;
 
 __export int lines_used = -1;
 
@@ -64,6 +67,25 @@ int main() {
     // is this really necessary? //
     // Disable interrupts while setting up
 	__asm { sei };
+
+    //Kill **all** other interrupts?
+    __asm {
+        lda #$7f
+        sta $dc0d		 //turn off all types of cia irq/nmi.
+        sta $dd0d
+        lda $dc0d
+        lda $dd0d
+        lda #$ff
+        sta $D019
+        lda #$00
+        sta $D01a
+        sta $dc0e
+        sta $dc0f
+        sta $dd0e
+        sta $dd0f
+        lda $d01e
+        lda $d01f
+    }
 
 	// Kill CIA interrupts
 	//cia_init();
@@ -178,15 +200,31 @@ int main() {
 };
 
 void draw_sprite_row(int row) {
-    //int c;
-    #pragma unroll(full)
-    for (int c=0; c<INVADERS_PER_ROW; c++) {
-        //Screen[c]=160;Color[c]=2;
 
-        Invader *inv=&invaders[row][c];
-        if (inv->alive) {
+    //set colors before anything else
+    // #pragma unroll(page)
+    // for (int c1=0; c1<INVADERS_PER_ROW; c1++) {
+    #assign c1 0
+    #repeat
+        // Invader *inv=&invaders[row][c];
+        Invader *inv_##c1 = &invaders[row][c1];
+        vic.spr_color[inv_##c1->sprite_num]=inv_##c1->color;
+    #assign c1 c1+1    
+    #until c1 == INVADERS_PER_ROW
+    // }
+
+        lines_used=vic.raster - prev_raster;
+
+    // #pragma unroll(page)
+    // for (int c=0; c<INVADERS_PER_ROW; c++) {
+        Invader *inv;
+
+    #assign c 0
+    #repeat                
+        Invader *inv2##c=&invaders[row][c];
+        if (inv2##c->alive > 0) {
             //vic_sprxy(inv->sprite_num,inv->x, inv->y);
-            spr_move(inv->sprite_num,inv->x, inv->y);
+            spr_move(inv2##c->sprite_num,inv2##c->x, inv2##c->y);
             // vic.spr_pos[inv->sprite_num].y = inv->y;
             // vic.spr_pos[inv->sprite_num].x = inv->x & 0xff;
             // if (inv->x & 0x100)
@@ -195,18 +233,23 @@ void draw_sprite_row(int row) {
             //     vic.spr_msbx &= ~(1 << inv->sprite_num);
 
             //spr_color(inv->sprite_num, row); //inv->color);
-            vic.spr_color[inv->sprite_num]=inv->color;
 
-            Screen[0x3f8 + inv->sprite_num] = inv->image_handles[inv->image_num];   //TODO fix raw constant
-            vic.spr_enable |= (1<<inv->sprite_num);
+            //vic.spr_color[inv->sprite_num]=inv->color;
+
+            Screen[0x3f8 + inv2##c->sprite_num] = inv2##c->image_handles[inv2##c->image_num];   //TODO fix raw constant
+            vic.spr_enable |= (1<<inv2##c->sprite_num);
 
             //I'm pretty sure this belongs in the main thread
             //flip_image(inv);
         }
         else {
-            vic.spr_enable &= (0xff - (1<<inv->sprite_num));        //turn bit off
+            vic.spr_enable &= (0xff - (1<<inv2##c->sprite_num));        //turn bit off
         }
-    }   //for c
+    #assign c c+1
+
+    #until c==INVADERS_PER_ROW
+    #undef c
+    // }   //for c
     __asm {
         nop
     }
@@ -290,7 +333,6 @@ void print_invaders() {
 **/
 
 void raster_irq_handler() {
-    int prev_raster=0;
 
     if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
         //vic.color_back=current_row_num+1;
@@ -306,6 +348,11 @@ void raster_irq_handler() {
         //     }
         // }
         //vic.spr_enable = 0x00;
+
+
+
+        //Screen[c]=160;Color[c]=2;
+
 
         draw_sprite_row(current_row_num);
 
@@ -332,6 +379,7 @@ void raster_irq_handler() {
                     // call $ea31 for original, but scans keyboard twice, not necessary
                     //      $ea81 skips keyboard scan, better
                     //      $febc skips kernal stuff altogether
+                    //      $ea7e ACKs & clears any NMIs & exits
     }
 
 }

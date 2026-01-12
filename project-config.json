@@ -24,7 +24,7 @@
         "-DNEW_FROM_HERE",
         "-n",
         "-O0",
-        "-strict"
+        "-Dstrict"
     ],
     "compiler": ""
 }

@@ -1,3 +1,6 @@
+#ifndef INVADERS_H
+#define INVADERS_H
+
 #include "c64/types.h"
 #include <conio.h>
 
@@ -20,6 +23,15 @@
 
 //#include "invaders.h"
 
+const int NUM_ROWS=4;
+//const int INVADERS_PER_ROW=5;
+#define INVADERS_PER_ROW 6
+const int SCANLINES_PER_ROW=40;
+
+int current_row_num=0;
+
+#define  IRQ_VECTOR *(void **)0x0314
+
 const int MAX_IMAGE_HANDLES=8;
 
 const int MIN_Y=50;
@@ -33,10 +45,9 @@ typedef struct  {
     byte        num_images=0;
     byte        image_handles[MAX_IMAGE_HANDLES];
     byte        image_num=0;
+    byte        max_frames=1;
 
     byte        sprite_num=0;
-
-    byte        max_frames=1;
 
     unsigned short int color=1;
     ////////////auto-initialized from here down////////////////
@@ -47,53 +58,43 @@ typedef struct  {
 
 } Invader;
 
-const int NUM_ROWS=4;
-const int INVADERS_PER_ROW=5;
-const int SCANLINES_PER_ROW=28;
-
-int current_row_num=0;
-
-#define  IRQ_VECTOR *(void **)0x0314
-
-
-
 ////
 // NOTE: C's static array initializers will allow *fewer* elements than
 //          specified in the array definition, but will choke on *more*
 ////          
 Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
     {
-//alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),sprite_num,max_frames,color
-        {1, 50, MIN_Y, 1,0,2,{128,129},0, 2,16, 3},
-        {1,100, MIN_Y, 1,0,2,{128,129},1, 3,16, 4},
-        {1,150, MIN_Y, 1,0,2,{128,129},0, 4,16, 5},
-        {1,200, MIN_Y, 1,0,2,{128,129},1, 5,16, 6},
-        {1,250, MIN_Y, 1,0,2,{128,129},0, 6,16, 7},
-        // {1,300, MIN_Y+SCANLINES_PER_ROW*0, 1,0,2,{128,129},1, 7,16, 6},
+//alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),max_frames,sprite_num,color
+        {1, 40, MIN_Y                    , 1,0,2,{128,129},0, 16, 2, 3},
+        {1, 80, MIN_Y                    , 1,0,2,{128,129},1, 16, 3, 4},
+        {1,120, MIN_Y                    , 1,0,2,{128,129},0, 16, 4, 5},
+        {1,160, MIN_Y                    , 1,0,2,{128,129},1, 16, 5, 6},
+        {1,200, MIN_Y                    , 1,0,2,{128,129},0, 16, 6, 7},
+        {1,240, MIN_Y                    , 1,0,2,{128,129},1, 16, 7, 6},
     },
     {
-        {1, 50, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0, 2,16, 2},
-        {1,100, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 3,16, 3},
-        {1,150, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0, 4,16, 4},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 5,16, 5},
-        {0,250, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0, 6,16, 6},
-        // {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 7,16, 7}
+        {1, 50, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 2, 3},
+        {1,100, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 3, 4},
+        {1,150, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 4, 5},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 5, 6},
+        {1,250, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 6, 7},
+        {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 7,16, 7}
     },
     {
-        {1, 50, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0, 2,16, 3},
-        {1,100, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1, 3,16, 4},
-        {1,150, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0, 4,16, 5},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1, 5,16, 6},
-        {1,250, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0, 6,16, 7},
-        //{1,300, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1, 7,16, 7}
+        {1, 50, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 2, 2},
+        {1,100, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 3, 3},
+        {1,150, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 4, 4},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 5, 5},
+        {1,250, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 6, 6},
+        {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 7, 7}
     },
     {
-        {1, 50, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 2,16, 5},
-        {1,100, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 3,16, 6},
-        {1,150, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 4,16, 7},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 5,16, 8},
-        {1,250, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0, 6,16, 9},
-        //{1,300, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1, 7,16, 7}
+        {1, 50, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 2, 2},
+        {1,100, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 3, 3},
+        {1,150, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 4, 4},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 5, 5},
+        {1,250, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 6, 6},
+        {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 7, 7}
     },
     // {
     //     {1, 50, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0, 2,16, 1},
@@ -114,10 +115,12 @@ Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
 };
 
 int inv_start_line[NUM_ROWS] = {
-    0,//MIN_Y-SCANLINES_PER_ROW*0+5,
-    MIN_Y+1,
-    MIN_Y+SCANLINES_PER_ROW+1,
-    MIN_Y+SCANLINES_PER_ROW*2+1,
+    //0,
+    MIN_Y-SCANLINES_PER_ROW-6,
+    MIN_Y-6,
+
+    MIN_Y+SCANLINES_PER_ROW-6,
+    MIN_Y+SCANLINES_PER_ROW*2-6,
     //MIN_Y+SCANLINES_PER_ROW*3+1,
     // MIN_Y+SCANLINES_PER_ROW*5,
 };
@@ -131,3 +134,6 @@ void raster_irq_handler();
 void set_next_irq(byte);
 
 void draw_sprite_row(int);
+
+#pragma compile("invaders.c")
+#endif
