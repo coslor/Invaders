@@ -23,10 +23,13 @@
 
 //#include "invaders.h"
 
+
 const int NUM_ROWS=4;
 //const int INVADERS_PER_ROW=5;
 #define INVADERS_PER_ROW 6
-const int SCANLINES_PER_ROW=40;
+
+const int SCANLINES_PER_ROW=51;
+const int SCANLINES_TO_DRAW_SPRITE = 45;
 
 int current_row_num=0;
 
@@ -58,6 +61,10 @@ typedef struct  {
 
 } Invader;
 
+//const int COL_SIZE=sizeof(Invader);
+const int ROW_SIZE=INVADERS_PER_ROW;
+const int TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
+
 ////
 // NOTE: C's static array initializers will allow *fewer* elements than
 //          specified in the array definition, but will choke on *more*
@@ -65,36 +72,36 @@ typedef struct  {
 Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
     {
 //alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),max_frames,sprite_num,color
-        {1, 40, MIN_Y                    , 1,0,2,{128,129},0, 16, 2, 3},
-        {1, 80, MIN_Y                    , 1,0,2,{128,129},1, 16, 3, 4},
-        {1,120, MIN_Y                    , 1,0,2,{128,129},0, 16, 4, 5},
-        {1,160, MIN_Y                    , 1,0,2,{128,129},1, 16, 5, 6},
-        {1,200, MIN_Y                    , 1,0,2,{128,129},0, 16, 6, 7},
-        {1,240, MIN_Y                    , 1,0,2,{128,129},1, 16, 7, 6},
+        {1, 40, MIN_Y                    , 1,0,2,{128,129},0, 32, 2, 3},
+        {1, 80, MIN_Y                    , 1,0,2,{128,129},1, 32, 3, 4},
+        {1,120, MIN_Y                    , 1,0,2,{128,129},0, 32, 4, 5},
+        {1,160, MIN_Y                    , 1,0,2,{128,129},1, 32, 5, 6},
+        {1,200, MIN_Y                    , 1,0,2,{128,129},0, 32, 6, 7},
+        {1,240, MIN_Y                    , 1,0,2,{128,129},1, 32, 7, 8},
     },
     {
-        {1, 50, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 2, 3},
-        {1,100, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 3, 4},
-        {1,150, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 4, 5},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 5, 6},
-        {1,250, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 6, 7},
-        {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1, 7,16, 7}
+        {1, 40, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 2, 3},
+        {1, 80, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 3, 4},
+        {1,120, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 4, 5},
+        {1,160, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 5, 6},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 6, 7},
+        {1,240, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 7, 8}
     },
     {
-        {1, 50, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 2, 2},
-        {1,100, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 3, 3},
-        {1,150, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 4, 4},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 5, 5},
-        {1,250, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 6, 6},
-        {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 7, 7}
+        {1, 40, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 2, 2},
+        {1, 80, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 3, 3},
+        {1,120, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 4, 4},
+        {1,160, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 5, 5},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 6, 6},
+        {1,240, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 7, 8}
     },
     {
-        {1, 50, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 2, 2},
-        {1,100, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 3, 3},
-        {1,150, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 4, 4},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 5, 5},
-        {1,250, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 6, 6},
-        {1,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 7, 7}
+        {1, 40, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 2, 2},
+        {1, 80, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 3, 3},
+        {1,120, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 4, 4},
+        {1,160, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 5, 5},
+        {1,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 6, 6},
+        {1,240, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 7, 8}
     },
     // {
     //     {1, 50, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0, 2,16, 1},
@@ -116,11 +123,11 @@ Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
 
 int inv_start_line[NUM_ROWS] = {
     //0,
-    MIN_Y-SCANLINES_PER_ROW-6,
-    MIN_Y-6,
+    MIN_Y-SCANLINES_TO_DRAW_SPRITE, //MIN_Y-SCANLINES_PER_ROW-1,
+    MIN_Y+SCANLINES_PER_ROW*1-SCANLINES_TO_DRAW_SPRITE, //MIN_Y-6,
 
-    MIN_Y+SCANLINES_PER_ROW-6,
-    MIN_Y+SCANLINES_PER_ROW*2-6,
+    MIN_Y+SCANLINES_PER_ROW*2-SCANLINES_TO_DRAW_SPRITE, //MIN_Y+SCANLINES_PER_ROW-6,
+    MIN_Y+SCANLINES_PER_ROW*3-SCANLINES_TO_DRAW_SPRITE, //MIN_Y+SCANLINES_PER_ROW*2-6,
     //MIN_Y+SCANLINES_PER_ROW*3+1,
     // MIN_Y+SCANLINES_PER_ROW*5,
 };

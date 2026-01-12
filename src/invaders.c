@@ -43,26 +43,26 @@ __export static const char spriteset[128] =  {
 int prev_raster=0;
 
 __export int lines_used = -1;
+__export int total_invs;
+__export int invs_size = sizeof(Invader);
 
 int main() {
 
+    // for (int i=2;i<8;i++) {
+    //     //spr_image(i,128); 
+    //     Screen[0x3f8 + i] = 128;   //TODO fix raw constant          
+    // }
+
     iocharmap(IOCHM_PETSCII_2);
 
-        // memset((char *)0x2000,0xff,128);
-
+    // memset((char *)0x2000,0xff,128);
 
     // Change colors
 	vic.color_border = VCOL_DARK_GREY;
 	vic.color_back = VCOL_BLACK;
-	//vic.color_back1 = VCOL_WHITE;
-	//vic.color_back2 = VCOL_DARK_GREY;
-
-	//vic.spr_mcolor0 = VCOL_DARK_GREY;
-	//vic.spr_mcolor1 = VCOL_WHITE;
 
    	memset(Screen, 32, 1000);
 
-    //Screen[0]=1;Color[0]=2;
 
     // is this really necessary? //
     // Disable interrupts while setting up
@@ -97,7 +97,7 @@ int main() {
 
 	// initialize sprite multiplexer
 	//vspr_init(Screen);
-    //spr_init(Screen);
+    spr_init(Screen);
 
 
     //Instead of dealing with the CIA stuff here and in the irq routine, I should
@@ -108,6 +108,8 @@ int main() {
     // b=cia2.sdr;
 
 
+
+
     //IRQ_VECTOR = (void *)0xfa31;
     IRQ_VECTOR=raster_irq_handler;
 
@@ -115,82 +117,27 @@ int main() {
 
     __asm { cli }
 
-    // for (int r=0;r<NUM_ROWS;r++) {
-    //     for (int c=0;c<INVADERS_PER_ROW;c++) {
-
-    //         Invader *inv1=&invaders[r][c];
-    //         if (inv1->alive) {
-    //             vspr_set(inv1->sprite_num,
-    //                 inv1->x, inv1->y,
-    //                 inv1->image_handles[inv1->image_num],
-    //                 inv1->color
-    //             );
-    //         }
-    //     }
-    // }
- 
-    // // initial sort and update
-	// vspr_sort();
-	// vspr_update();
-	// rirq_sort();
-
-    // // start raster IRQ processing
-	// rirq_start();
-
-    //vic_waitFrame();
-    //vic_waitTop();
-
 
     while(1) {
 
-       // vic.color_back=VCOL_LT_GREY;
+        int a=sizeof(Invader);
+        vic_waitBottom();
+        //vic_waitLine(255);
+        byte flip_lines = vic.raster;
 
-        //vic_waitTop();
-        //vic.color_back=VCOL_BLACK;
+        //REFACTOR: get rid of row,col stuff to eliminate multiplication used
+        //          to get each inv address.
+        Invader *inv=&invaders[0][0];
+        total_invs = TOTAL_INVS_SIZE;
+        Invader *end_inv = inv + TOTAL_INVS_SIZE;   //11b0
+        //for (byte r=0;r<NUM_ROWS;r++) {
+        //    for (byte c=0;c<INVADERS_PER_ROW;c++) {
+        do {
+                flip_image(inv++);
+        } while (inv < end_inv);
+        //}
+        byte flip_lines_used=vic.raster - flip_lines;
 
-        /** NOTHING TO DO IN THE MAIN THREAD (yet)
-
-        
-        #pragma unroll(full)
-        for (int r=0;r<NUM_ROWS; r++){
-            //vic.color_back=10;
-            //vic.color_back=VCOL_BROWN;
-            //vic_waitBelow(inv_start_line[r]);
-            //vic.color_back=VCOL_RED;
-
-            // this should be in the irq handler
-            // draw_sprite_row(current_row_num++);
-
-            // if (current_row_num >= NUM_ROWS) {
-            //     current_row_num = 0;
-            // }
-
-            //vic.color_back=0;
-            vic.color_back=VCOL_BLACK;
-
-        }   //for r
-        //vic.color_back=VCOL_BLUE;
-        //vic_waitBottom();
-        //vic.color_back=VCOL_BLACK;
-        **/
-
-        /*
-		// wait for raster IRQ to reach and of frame
-		rirq_wait();
-
-    	// sort virtual sprites by y position
-		vspr_sort();
-
-		// update sprites back to normal and set up raster IRQ for sprites 8 to 31
-		vspr_update();
-
-		// sort raster IRQs
-		rirq_sort();
-
-        */
-        
-        //vic.color_border++; 
-        //vic.color_border=9;
         __asm{
             nop
         }
@@ -201,30 +148,42 @@ int main() {
 
 void draw_sprite_row(int row) {
 
+    //assert(row < NUM_ROWS);
+
+/*  REMOVE COLOR CODE FOR NOW
     //set colors before anything else
     // #pragma unroll(page)
-    // for (int c1=0; c1<INVADERS_PER_ROW; c1++) {
-    #assign c1 0
-    #repeat
-        // Invader *inv=&invaders[row][c];
-        Invader *inv_##c1 = &invaders[row][c1];
-        vic.spr_color[inv_##c1->sprite_num]=inv_##c1->color;
-    #assign c1 c1+1    
-    #until c1 == INVADERS_PER_ROW
-    // }
+    for (int c=0; c<INVADERS_PER_ROW; c++) {
+    //#assign c1 0
+    //#repeat
+    //    assert(c1 < INVADERS_PER_ROW);
+        Invader *inv=&invaders[row][c];
+        vic.spr_color[inv->sprite_num]=inv->color;
+        //Invader *inv_##c1 = &invaders[row][c1];
+        // vic.spr_color[inv_##c1->sprite_num]=inv_##c1->color;
+    //#assign c1 c1+1    
+    //#until c1 == INVADERS_PER_ROW
+    }
 
-        lines_used=vic.raster - prev_raster;
+    lines_used=vic.raster - prev_raster;
+*/
 
     // #pragma unroll(page)
     // for (int c=0; c<INVADERS_PER_ROW; c++) {
         Invader *inv;
 
     #assign c 0
-    #repeat                
+    #repeat
+        //pass "-NDEBUG" to compiler to remove assertion code
+        //  ...or not. Maybe -DNDEBUG?
+        //assert(c < INVADERS_PER_ROW);
+
         Invader *inv2##c=&invaders[row][c];
         if (inv2##c->alive > 0) {
             //vic_sprxy(inv->sprite_num,inv->x, inv->y);
             spr_move(inv2##c->sprite_num,inv2##c->x, inv2##c->y);
+            spr_color(inv2##c->sprite_num,inv2##c->color);
+            spr_image(inv2##c->sprite_num,inv2##c->image_handles[inv2##c->image_num]);
             // vic.spr_pos[inv->sprite_num].y = inv->y;
             // vic.spr_pos[inv->sprite_num].x = inv->x & 0xff;
             // if (inv->x & 0x100)
@@ -232,15 +191,9 @@ void draw_sprite_row(int row) {
             // else
             //     vic.spr_msbx &= ~(1 << inv->sprite_num);
 
-            //spr_color(inv->sprite_num, row); //inv->color);
-
-            //vic.spr_color[inv->sprite_num]=inv->color;
-
-            Screen[0x3f8 + inv2##c->sprite_num] = inv2##c->image_handles[inv2##c->image_num];   //TODO fix raw constant
+            //Screen[0x3f8 + inv2##c->sprite_num] = inv2##c->image_handles[inv2##c->image_num];   //TODO fix raw constant
             vic.spr_enable |= (1<<inv2##c->sprite_num);
 
-            //I'm pretty sure this belongs in the main thread
-            //flip_image(inv);
         }
         else {
             vic.spr_enable &= (0xff - (1<<inv2##c->sprite_num));        //turn bit off
@@ -257,38 +210,37 @@ void draw_sprite_row(int row) {
 }
 
 
+/** PROBLEM: flip_image() is just too damn slow. Like by an order of magnitude.
+*       As in it takes like a full frame just to flip the images (and no, not counting the waitBottom).
+*       Maybe instead of keeping track of frames for each Invader, we do it once & check each 
+*       Invader to see if it's ready to flip? Or something? 'Cause this ain't gonna work.
+*       Maybe...we don't really need to redraw every sprite every frame? That might mean that 
+*       movement gets choppier (like move 4px every 4th frame or whatever), but then that's hypothetical right now anyway.
+*       Hell, maybe we only work on 1 Invader per frame...
+*/
+
 //__forceinline 
 void flip_image(Invader *inv2) {
-    __assume(inv2->frame_num<256);
-    __assume(inv2->max_frames<256);
-    __assume(inv2->image_num<256);
-    __assume(inv2->num_images<256);
+    //__assume(inv2->frame_num<256);
+    //__assume(inv2->max_frames<256);
+    //__assume(inv2->image_num<256);
+    //__assume(inv2->num_images<256);
 
-    //byte spr_num, byte **image_handles, byte num_images, float fps) {
-
-    //assert(inv->fps>0);
-
-
-    //int max_frames=(int)(60.0/inv->fps);
-    //static int frames=0;
-    //static int image_num=0;
-
-    //vic.color_back=VCOL_PURPLE;
-    //int frame_num = inv->frame_num;
-    //int image_num=inv->image_num;
-
-    //inv->frames++;
     if ((++inv2->frame_num) >= inv2->max_frames) {
-        if (++(inv2->image_num) >= inv2->num_images) {
-            inv2->image_num=0;
-        }
-        inv2->frame_num=0;
-    }
-    // else {
-    //     (inv->frame_num)++;
+        inv2->image_num++;
+        inv2->image_num=(inv2->image_num & 1);
+        //inv2->image_num = (inv2->image_num + 1) & 1;//num_images-1
+        inv2->frame_num = 0;
+    //     if (++(inv2->image_num) >= inv2->num_images) {
+    //         inv2->image_num=0;
+    //     }
+    //     inv2->frame_num=0;
     // }
-    //inv2->frame_num ++;
-    //vic.color_back=VCOL_BLACK;
+    // // else {
+    // //     (inv->frame_num)++;
+    }
+    // //inv2->frame_num ++;
+    // //vic.color_back=VCOL_BLACK;
 }
 
  __forceinline void move_invader(Invader* inv) {
@@ -309,54 +261,17 @@ void flip_image(Invader *inv2) {
     // vspr_move(inv->sprite_num,inv->x,inv->y);
 }
 
-/**
-void print_invaders() {
-    printf("# invaders=%d\n",NUM_INVADERS);
-
-    for (byte i=0;i<NUM_INVADERS;i++) {
-        printf("Invader %d:\n");
-        printf("\tactive=%d x=%d y=%d speed-x=%d speed-y=%d\n", 
-            invaders[i].alive,
-            invaders[i].x,          invaders[i].y,
-            invaders[i].speed_x,    invaders[i].speed_y);
-
-        printf("\tnum-images=%d image-handles=[");
-        for (byte j=0;j<invaders[i].num_images;j++) {
-            printf("%d,", invaders[i].image_handles[j]);
-        }
-        printf("]\n");
-
-        printf("\tfps=%f\n", invaders[i].fps);
-    }
-}
-
-**/
 
 void raster_irq_handler() {
 
-    if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
-        //vic.color_back=current_row_num+1;
+    //if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
 
         prev_raster = vic.raster;
 
         vic.intr_ctrl = 0xff;           //ACK irq
 
-        // current_row_num = 0;
-        // for (int i=0;i<NUM_ROWS;i++) {
-        //     if (prev_raster >= inv_start_line[i]) {
-        //         current_row_num = i;
-        //     }
-        // }
-        //vic.spr_enable = 0x00;
-
-
-
-        //Screen[c]=160;Color[c]=2;
-
-
         draw_sprite_row(current_row_num);
 
-        //vic.color_back = VCOL_BLACK;
 
         vic.intr_enable = 1;                                                                //$d01a
 
@@ -371,7 +286,7 @@ void raster_irq_handler() {
 
         //vic.color_back=0;
 
-    }
+    //}
 
     __asm{ 
         // lsr $d019   //vic.intr_ctrl -- ACK interrupt
