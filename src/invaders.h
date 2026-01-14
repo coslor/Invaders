@@ -3,33 +3,31 @@
 
 #include "c64/types.h"
 #include <conio.h>
-
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
-
-
 #include <c64/joystick.h>
 #include <c64/vic.h>
 #include <c64/sprites.h>
 #include <c64/memmap.h>
 #include <c64/rasterirq.h>
 #include <c64/cia.h>
-
-
 #include <math.h>
-
 //#include "invaders.h"
 
 
-const int NUM_ROWS=4;
+#define NUM_ROWS 6
 //const int INVADERS_PER_ROW=5;
 #define INVADERS_PER_ROW 6
 
-const int SCANLINES_PER_ROW=51;
-const int SCANLINES_TO_DRAW_SPRITE = 45;
+const bool CHANGE_COLOR_BY_ROW  =false;
+const bool MOVE_X_BY_ROW        =false;
+const bool CHANGE_IMAGE_BY_ROW  =false;
+
+const int SCANLINES_TO_DRAW_SPRITE = 30;
+const int SCANLINES_PER_ROW=30;
 
 int current_row_num=0;
 
@@ -37,12 +35,15 @@ int current_row_num=0;
 
 const int MAX_IMAGE_HANDLES=8;
 
-const int MIN_Y=50;
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+
+const int MIN_Y=MAX(SCANLINES_PER_ROW,50);
 
 typedef struct  {
-    byte        alive=0;
-    signed int  x=0;
-    byte        y=0;
+    bool        alive=false;
+    signed int x=0;
+    signed int y=0;
     signed int  speed_x=0,speed_y=0; //pixels per frame
 
     byte        num_images=0;
@@ -52,7 +53,7 @@ typedef struct  {
 
     byte        sprite_num=0;
 
-    unsigned short int color=1;
+    byte        color=1;
     ////////////auto-initialized from here down////////////////
     long        frame_num=0;
 
@@ -72,64 +73,88 @@ const int TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
     {
 //alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),max_frames,sprite_num,color
-        {1, 40, MIN_Y                    , 1,0,2,{128,129},0, 32, 2, 3},
-        {1, 80, MIN_Y                    , 1,0,2,{128,129},1, 32, 3, 4},
-        {1,120, MIN_Y                    , 1,0,2,{128,129},0, 32, 4, 5},
-        {1,160, MIN_Y                    , 1,0,2,{128,129},1, 32, 5, 6},
-        {1,200, MIN_Y                    , 1,0,2,{128,129},0, 32, 6, 7},
-        {1,240, MIN_Y                    , 1,0,2,{128,129},1, 32, 7, 8},
+        {false, 25, MIN_Y, 1,0,2,{128,129},0, 32, 2, 1},
+        {true, 50, MIN_Y, 1,0,2,{128,129},1, 32, 3, 2},
+        {true, 75, MIN_Y, 1,0,2,{128,129},0, 32, 4, 3},
+        {true,100, MIN_Y, 1,0,2,{128,129},1, 32, 5, 4},
+        {true,125, MIN_Y, 1,0,2,{128,129},0, 32, 6, 5},
+        {true,150, MIN_Y, 1,0,2,{128,129},1, 32, 7, 6},
     },
+    #if (NUM_ROWS > 1)
     {
-        {1, 40, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 2, 3},
-        {1, 80, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 3, 4},
-        {1,120, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 4, 5},
-        {1,160, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 5, 6},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,16, 6, 7},
-        {1,240, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,16, 7, 8}
+        {true, 50, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,32, 2, 1},
+        {false,100, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,32, 3, 2},
+        {true,150, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,32, 4, 3},
+        {true,200, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,32, 5, 4},
+        {true,250, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},1,32, 6, 5},
+        {true,300, MIN_Y+SCANLINES_PER_ROW*1, 1,0,2,{128,129},0,32, 7, 6}
     },
+    #endif
+    #if (NUM_ROWS>2)
     {
-        {1, 40, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 2, 2},
-        {1, 80, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 3, 3},
-        {1,120, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 4, 4},
-        {1,160, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 5, 5},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,16, 6, 6},
-        {1,240, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,16, 7, 8}
+        {true, 50, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,32, 2, 2},
+        {true,100, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,32, 3, 3},
+        {false,150, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,32, 4, 4},
+        {true,200, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,32, 5, 5},
+        {true,250, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},1,32, 6, 6},
+        {true,300, MIN_Y+SCANLINES_PER_ROW*2, 1,0,2,{128,129},0,32, 7, 8}
     },
+    #endif
+    #if (NUM_ROWS > 3)
     {
-        {1, 40, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 2, 2},
-        {1, 80, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 3, 3},
-        {1,120, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 4, 4},
-        {1,160, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 5, 5},
-        {1,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,16, 6, 6},
-        {1,240, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,16, 7, 8}
+        {true, 40, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,32, 2, 2},
+        {true, 80, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,32, 3, 4},
+        {true,120, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,32, 4, 6},
+        {false,160, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,32, 5, 8},
+        {true,200, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},0,32, 6,10},
+        {true,240, MIN_Y+SCANLINES_PER_ROW*3, 1,0,2,{128,129},1,32, 7,12}
     },
-    // {
-    //     {1, 50, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0, 2,16, 1},
-    //     {1,100, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},1, 3,16, 3},
-    //     {1,150, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0, 4,16, 4},
-    //     {1,200, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},1, 5,16, 5},
-    //     {1,250, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0, 6,16, 6},
-    //     {1,300, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},1, 7,16, 7}
-    // },
-    // {
-    //     {1, 50,MIN_Y0, 1,0,2,{128,129},0, 2,16, 1},
-    //     {1,100,MIN_Y0, 1,0,2,{128,129},1, 3,16, 3},
-    //     {1,150,MIN_Y0, 1,0,2,{128,129},0, 4,16, 4},
-    //     {1,200,MIN_Y0, 1,0,2,{128,129},1, 5,16, 5},
-    //     {1,250,MIN_Y0, 1,0,2,{128,129},0, 6,16, 6},
-    //     {1,300,MIN_Y0, 1,0,2,{128,129},1, 7,16, 7}
-    // }
+    #endif
+    #if (NUM_ROWS > 4)
+    {
+        {true, 40, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0,32, 2, 7},
+        {true, 80, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0,32, 3, 6},
+        {true,120, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0,32, 4, 5},
+        {true,160, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0,32, 5, 4},
+        {false,200, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0,32, 6, 3},
+        {true,240, MIN_Y+SCANLINES_PER_ROW*4, 1,0,2,{128,129},0,32, 7, 2}
+    },
+    #endif
+    #if (NUM_ROWS > 5)
+    {
+        {true, 50, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0,32, 2, 1},
+        {true,100, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0,32, 3, 3},
+        {true,150, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0,32, 4, 5},
+        {true,200, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0,32, 5, 7},
+        {true,250, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0,32, 6, 9},
+        {false,300, MIN_Y+SCANLINES_PER_ROW*5, 1,0,2,{128,129},0,32, 7, 11}
+    }
+    #endif
 };
 
-int inv_start_line[NUM_ROWS] = {
+const unsigned int inv_start_line[NUM_ROWS] = {
     //0,
-    MIN_Y-SCANLINES_TO_DRAW_SPRITE, //MIN_Y-SCANLINES_PER_ROW-1,
-    MIN_Y+SCANLINES_PER_ROW*1-SCANLINES_TO_DRAW_SPRITE, //MIN_Y-6,
-
-    MIN_Y+SCANLINES_PER_ROW*2-SCANLINES_TO_DRAW_SPRITE, //MIN_Y+SCANLINES_PER_ROW-6,
-    MIN_Y+SCANLINES_PER_ROW*3-SCANLINES_TO_DRAW_SPRITE, //MIN_Y+SCANLINES_PER_ROW*2-6,
-    //MIN_Y+SCANLINES_PER_ROW*3+1,
-    // MIN_Y+SCANLINES_PER_ROW*5,
+    //MIN_Y-SCANLINES_PER_ROW-1,
+    MIN_Y-SCANLINES_TO_DRAW_SPRITE, 
+    #if (NUM_ROWS>1)
+    //MIN_Y-6,
+    MIN_Y+SCANLINES_PER_ROW*1-SCANLINES_TO_DRAW_SPRITE, 
+    #endif
+    #if (NUM_ROWS > 2)
+    //MIN_Y+SCANLINES_PER_ROW-6,
+    MIN_Y+SCANLINES_PER_ROW*2-SCANLINES_TO_DRAW_SPRITE, 
+    #endif
+    #if (NUM_ROWS > 3)
+    //MIN_Y+SCANLINES_PER_ROW*2-6,
+    MIN_Y+SCANLINES_PER_ROW*3-SCANLINES_TO_DRAW_SPRITE, 
+    #endif
+    #if (NUM_ROWS > 4)
+    MIN_Y+SCANLINES_PER_ROW*4-SCANLINES_TO_DRAW_SPRITE,
+    #endif
+    #if (NUM_ROWS > 5)
+    //MIN_Y+SCANLINES_PER_ROW*5,
+    MIN_Y+SCANLINES_PER_ROW*5-SCANLINES_TO_DRAW_SPRITE
+    #endif
 };
 
 void flip_image(Invader* inv);
@@ -138,9 +163,9 @@ void move_invader(Invader* inv);
 
 void raster_irq_handler();
 
-void set_next_irq(byte);
+void set_next_irq(int);
 
-void draw_sprite_row(int);
+void draw_sprite_row(int, bool, bool, bool);
 
 #pragma compile("invaders.c")
 #endif
