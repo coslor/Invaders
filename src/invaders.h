@@ -27,7 +27,7 @@ const bool MOVE_X_BY_ROW        =false;
 const bool CHANGE_IMAGE_BY_ROW  =false;
 
 const int SCANLINES_TO_DRAW_SPRITE = 30;
-const int SCANLINES_PER_ROW=30;
+const int SCANLINES_PER_ROW=45;
 
 int current_row_num=0;
 
@@ -72,6 +72,8 @@ const int TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 ////          
 Invader invaders[NUM_ROWS][INVADERS_PER_ROW] = {
     {
+
+//NOTE: one Invader per row is disabled on purpose to show that that works
 //alive,x,y,speed_x,speed_y,num_images,image_handles,image_num (to start),max_frames,sprite_num,color
         {false, 25, MIN_Y, 1,0,2,{128,129},0, 32, 2, 1},
         {true, 50, MIN_Y, 1,0,2,{128,129},1, 32, 3, 2},
