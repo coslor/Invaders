@@ -40,11 +40,12 @@ int prev_raster=0;
 
 __export int lines_used = -1;
 __export int total_invs;
-__export int invs_size = sizeof(Invader);
 
 bool first_time=true;
 
 int main() {
+
+    init_invaders();
 
     // for (int i=2;i<8;i++) {
     //     //spr_image(i,128); 
@@ -137,7 +138,7 @@ int main() {
         #pragma unroll(full)
             for (byte c=0;c<INVADERS_PER_ROW;c++) {
         //do {    
-                flip_image(&(invaders[r][c]));
+                flip_image(r,c);
             }
             // rn++;
             // rn %= 4;
@@ -160,7 +161,7 @@ void draw_sprite_row(int row, bool change_color_by_row, bool move_x_by_row, bool
 
     #pragma unroll(full)
     for (int c=0; c<INVADERS_PER_ROW; c++) {
-        Invader *inv=&invaders[row][c];
+        //Invader *inv=&invaders[row][c];
 
     // int cc=-1;
 
@@ -172,30 +173,32 @@ void draw_sprite_row(int row, bool change_color_by_row, bool move_x_by_row, bool
 
         // cc=c;
         // Invader *inv2_##c=&invaders[row][c];
-        if (inv->alive) {
+        if (inv_alive[row][c]) {
         // if (inv2_##c->alive) {
             //vic_sprxy(inv->sprite_num,inv->x, inv->y);
             // spr_move(inv2_##c->sprite_num,inv2_##c->x, inv2_##c->y);
 
             //We always have to move Y, otherwise no rows
-            vic.spr_pos[inv->sprite_num].y = inv->y;
+            vic.spr_pos[inv_sprite_num[row][c]].y = inv_y[row][c];
 
-            //But maybe Invaders don't need unique X positions between rows
+            //But maybe Invaders don't need unique X positions between rows?
             if (move_x_by_row || first_time) {
-                spr_move(inv->sprite_num, inv->x, inv->y);
-                vic.spr_pos[inv->sprite_num].x = inv->x & 0xff;
-                if (inv->x & 0x100)
-                    vic.spr_msbx |= 1 << inv->sprite_num;
+                spr_move(inv_sprite_num[row][c], inv_x[row][c], inv_y[row][c]);
+                vic.spr_pos[inv_sprite_num[row][c]].x = inv_x[row][c] & 0xff;
+                if (inv_x[row][c] & 0x100)
+                    vic.spr_msbx |= 1 << inv_sprite_num[row][c];
                 else
-                    vic.spr_msbx &= ~(1 << inv->sprite_num);
+                    vic.spr_msbx &= ~(1 << inv_sprite_num[row][c]);
             }
 
             // spr_color(inv2_##c->sprite_num,inv2_##c->color);
             if (change_color_by_row || first_time) {
-                spr_color(inv->sprite_num, inv->color);
+                spr_color(inv_sprite_num[row][c], inv_color[row][c]);
             }
             // spr_image(inv2_##c->sprite_num,inv2_##c->image_handles[inv2_##c->image_num]);
-            if (first_time) spr_image(inv->sprite_num,inv->image_handles[inv->image_num]);
+            if (change_image_by_row || first_time) {
+                spr_image(inv_sprite_num[row][c],inv_image_handles[row][c][inv_image_num[row][c]]);
+            }
             // vic.spr_pos[inv->sprite_num].y = inv->y;
             // vic.spr_pos[inv->sprite_num].x = inv->x & 0xff;
             // if (inv->x & 0x100)
@@ -204,12 +207,12 @@ void draw_sprite_row(int row, bool change_color_by_row, bool move_x_by_row, bool
             //     vic.spr_msbx &= ~(1 << inv->sprite_num);
 
             //Screen[0x3f8 + inv2##c->sprite_num] = inv2##c->image_handles[inv2##c->image_num];   //TODO fix raw constant
-            spr_show(inv->sprite_num,true);
+            spr_show(inv_sprite_num[row][c],true);
             //vic.spr_enable |= (1<<inv2_##c->sprite_num);
 
         }
         else {
-            spr_show(inv->sprite_num,false);
+            spr_show(inv_sprite_num[row][c],false);
             //vic.spr_enable &= (0xff - (1<<inv2_##c->sprite_num));        //turn bit off
         }
     //#assign c c+1
@@ -239,17 +242,17 @@ void draw_sprite_row(int row, bool change_color_by_row, bool move_x_by_row, bool
 */
 
 //__forceinline 
-void flip_image(Invader *inv2) {
+void flip_image(byte r, byte c) {
     //__assume(inv2->frame_num<256);
     //__assume(inv2->max_frames<256);
     //__assume(inv2->image_num<256);
     //__assume(inv2->num_images<256);
 
-    if ((++(inv2->frame_num)) >= inv2->max_frames) {
-        inv2->image_num++;
-        inv2->image_num=(inv2->image_num & 1);
+    if ((++(inv_frame_num[r][c])) >= inv_max_frames[r][c]) {
+        inv_image_num[r][c]++;
+        inv_image_num[r][c]=(inv_image_num[r][c] & 1);
         //inv2->image_num = (inv2->image_num + 1) & 1;//num_images-1
-        inv2->frame_num = 0;
+        inv_frame_num[r][c] = 0;
     //     if (++(inv2->image_num) >= inv2->num_images) {
     //         inv2->image_num=0;
     //     }
@@ -262,17 +265,17 @@ void flip_image(Invader *inv2) {
     // //vic.color_back=VCOL_BLACK;
 }
 
- __forceinline void move_invader(Invader* inv) {
+ __forceinline void move_invader(byte r, byte c) {
     //Invader* inv=&invaders[inv_num];
-    inv->x += inv->speed_x;
-    inv->y += inv->speed_y;
+    inv_x[r][c] += inv_speed_x[r][c];
+    inv_y += inv_speed_y[r][c];
 
-    if (inv->x <20) {
-        inv->speed_x = abs(inv->speed_x);
+    if (inv_x[r][c] <20) {
+        inv_speed_x[r][c] = abs(inv_speed_x[r][c]);
     }
     else {
-        if (inv->x >= 320){
-            inv->speed_x = -abs(inv->speed_x);
+        if (inv_x[r][c] >= 320){
+            inv_speed_x[r][c] = -abs(inv_speed_x[r][c]);
         }
     }
 
@@ -353,5 +356,27 @@ void set_next_irq(int rasterline) {
 
     __asm{
         cli
+    }
+}
+
+void init_invaders() {
+    for (int r=0;r<NUM_ROWS; r++) {
+        for (int c=0;c<INVADERS_PER_ROW; c++) {
+            inv_alive[r][c]         = true;
+            inv_x[r][c]             = c*25;
+            inv_y[r][c]             = MIN_Y + SCANLINES_PER_ROW * r;
+            inv_speed_x[r][c]       =1;
+            inv_speed_y[r][c]       =0;
+            inv_num_images[r][c]    =2;
+            inv_image_handles[r][c][0] = 128;
+            inv_image_handles[r][c][1] = 129;
+            inv_image_num[r][c]     = 128 + (c & 1);
+            inv_max_frames[r][c]    = 32;
+            inv_sprite_num[r][c]    = 2 + c;
+            inv_color[r][c]         = c + (r & 3);
+            inv_frame_num[r][c]     =0;
+            inv_old_x[r][c]         =0;
+            inv_old_y[r][c]         =0;
+        }
     }
 }
