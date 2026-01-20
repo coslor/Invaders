@@ -23,7 +23,7 @@
         "-DWAS_JUST_O2_O2",
         "-DNEW_FROM_HERE",
         "-n",
-        "-O3",
+        "-O0",
         "-Dstrict"
     ],
     "compiler": ""

@@ -18,22 +18,22 @@
 //#include "invaders.h"
 
 
-#define NUM_ROWS 4
+#define NUM_ROWS 5
 //const int INVADERS_PER_ROW=5;
 #define INVADERS_PER_ROW 6
 
-const bool CHANGE_COLOR_BY_ROW  =false;
-const bool MOVE_X_BY_ROW        =false;
-const bool CHANGE_IMAGE_BY_ROW  =true;
+__export const bool CHANGE_COLOR_BY_ROW  =false;
+__export const bool MOVE_X_BY_ROW        =false;
+__export const bool CHANGE_IMAGE_BY_ROW  =true;
 
-const int SCANLINES_TO_DRAW_SPRITE =35;
+const int SCANLINES_TO_DRAW_SPRITE=38;
 const int SCANLINES_PER_ROW=40;
 
 int current_row_num=0;
 
 #define  IRQ_VECTOR *(void **)0x0314
 
-const int MAX_IMAGE_HANDLES=8;
+const int MAX_IMAGE_HANDLES=2;
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
@@ -57,6 +57,12 @@ byte        inv_frame_num[TOTAL_INVS_SIZE];
 signed int  inv_old_x[TOTAL_INVS_SIZE];
 signed int  inv_old_y[TOTAL_INVS_SIZE];
 
+signed int  row_y[NUM_ROWS];
+byte        row_num_images[NUM_ROWS];
+byte        row_image_handles[TOTAL_INVS_SIZE][MAX_IMAGE_HANDLES];
+byte        row_image_num[TOTAL_INVS_SIZE];
+byte        row_max_frames[TOTAL_INVS_SIZE];
+byte        row_frame_num[TOTAL_INVS_SIZE];
 
 
 //const int COL_SIZE=sizeof(Invader);
@@ -99,6 +105,8 @@ void set_next_irq(int rasterline);
 void draw_sprite_row(int row, bool change_color_by_row, bool move_x_by_row, bool change_image_by_row);
 
 void init_invaders();
+
+void init_sprites();
 
 #pragma compile("invaders.c")
 #endif
