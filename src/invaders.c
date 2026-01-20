@@ -1,3 +1,5 @@
+//A test comment
+
 #pragma optimize(maxinline)
 
 //#define VSPRITES_MAX 16
