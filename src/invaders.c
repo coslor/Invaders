@@ -44,6 +44,8 @@ int prev_raster=0;
 __export int lines_used = -1;
 __export int total_invs;
 
+__export int flip_lines_used = -1;
+
 bool first_time=true;
 
 int main() {
@@ -186,7 +188,7 @@ int main() {
 #endif
         }
         
-        byte flip_lines_used=vic.raster - flip_lines;
+        flip_lines_used=vic.raster - flip_lines;
 
         __asm{
             nop
@@ -203,14 +205,18 @@ void draw_sprite_row(byte offset, byte row, bool change_color_by_row, bool move_
     //assert(row < NUM_ROWS);
 
     byte raster_dsr = vic.raster;
-    //#pragma unroll(full)
+    #pragma unroll(full)
     for (int i=0;i<INVADERS_PER_ROW; i++) {
-        byte raster_i=vic.raster; //*(char*)0xd012;
+        //byte raster_i=vic.raster; //*(char*)0xd012;
         byte spr_num=i+2;
         vic.spr_pos[spr_num].y=row_y[row];
 
-        int spr_pos_x=vic.spr_pos[spr_num].x | ((vic.spr_msbx & (1 << spr_num)) ? 256 : 0);
-        spr_pos_x = col_x_offset[i] + row_x_offset[i];
+        // // int spr_pos_x = vic.str_pos[spr_num].x;
+        // // if (vic.spr_msbx & (1<<spr_num)) {
+        // //     spr_pos_x += 256;
+        // // }
+        // int spr_pos_x=vic.spr_pos[spr_num].x | ((vic.spr_msbx & (1 << spr_num)) ? 256 : 0);
+        int spr_pos_x = col_x_offset[i] + row_x_offset[i];
 
         vic.spr_pos[spr_num].x = spr_pos_x & 0xff;
         if (spr_pos_x & 0x100)
@@ -300,61 +306,6 @@ void draw_sprite_row(byte offset, byte row, bool change_color_by_row, bool move_
 }
 
 
-/** PROBLEM: flip_image() is just too damn slow. Like by an order of magnitude.
-*       As in it takes like a full frame just to flip the images (and no, not counting the waitBottom).
-*       Maybe instead of keeping track of frames for each Invader, we do it once & check each 
-*       Invader to see if it's ready to flip? Or something? 'Cause this ain't gonna work.
-*       Maybe...we don't really need to redraw every sprite every frame? That might mean that 
-*       movement gets choppier (like move 4px every 4th frame or whatever), but then that's hypothetical right now anyway.
-*       Hell, maybe we only work on 1 Invader per frame...
-*
-        BASICALLY SOLVED: We just run flip_image() in the main thread.
-*/
-
-//__forceinline 
-void flip_image(int fi_offset) {
-    //__assume(inv2->frame_num<256);
-    //__assume(inv2->max_frames<256);
-    //__assume(inv2->image_num<256);
-    //__assume(inv2->num_images<256);
-
-    byte image_num=inv_image_num[fi_offset];
-    if ((++(inv_frame_num[fi_offset])) >= inv_max_frames[fi_offset]) {
-        inv_image_num[fi_offset]=((inv_image_num[fi_offset]+1) % inv_num_images[fi_offset]);
-        inv_frame_num[fi_offset]=0;
-        //inv2->image_num = (inv2->image_num + 1) & 1;//num_images-1
-    //     if (++(inv2->image_num) >= inv2->num_images) {
-    //         inv2->image_num=0;
-    //     }
-    //     inv2->frame_num=0;
-    // }
-    // // else {
-    // //     (inv->frame_num)++;
-    }
-    // //inv2->frame_num ++;
-    // //vic.color_back=VCOL_BLACK;
-}
-
-
-byte flip_row(byte row) {
-    if ((++(row_frame_num[row])) >= row_max_frames[row]) {
-        row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
-        row_frame_num[row]=0;
-
-        row_x_offset[row] +=row_x_frame_speed[row];
-        if (row_x_offset[row] >= MAX_ROW_X_OFFSET) {
-            row_x_frame_speed[row]*=-1;
-            row_x_offset[row] = MAX_ROW_X_OFFSET_MINUS_1;
-        }
-        else if (row_x_offset[row] <=MIN_ROW_X_OFFSET) {
-            row_x_frame_speed[row]*=-1;
-            row_x_offset[row] = MIN_ROW_X_OFFSET_PLUS_1;
-        }
-
-    }
-
-}
-
  __forceinline void move_invader(int offset) {
     //Invader* inv=&invaders[inv_num];
     inv_x[offset] += inv_speed_x[offset];
@@ -428,16 +379,6 @@ void set_next_irq(int rasterline) {
     byte b=cia1.sdr;
     b=cia2.sdr;
 
-      //IRQ_VECTOR=irq_handler;                     //shouldn't have to set this every time
-    //IRQ_VECTOR = (void *)0xfa31;
-//     __asm{
-//         lda #<irq_handler
-//         sta $314
-//         lda #>irq_handler
-//         sta $315
-// }
-
-
     if (rasterline < 256) {
 	    vic.ctrl1 &= 0b01111111; //0x7f;                           //MSb of raster line#
     }
@@ -452,6 +393,49 @@ void set_next_irq(int rasterline) {
     __asm{
         cli
     }
+}
+
+byte flip_row(byte row) {
+    if ((++(row_frame_num[row])) >= row_max_frames[row]) {
+        row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
+        row_frame_num[row]=0;
+
+        // row_x_offset[row] +=row_x_frame_speed[row];
+        // if (row_x_offset[row] >= MAX_ROW_X_OFFSET) {
+        //     row_x_frame_speed[row]*=-1;
+        //     row_x_offset[row] = MAX_ROW_X_OFFSET_MINUS_1;
+        // }
+        // else if (row_x_offset[row] <=MIN_ROW_X_OFFSET) {
+        //     row_x_frame_speed[row]*=-1;
+        //     row_x_offset[row] = MIN_ROW_X_OFFSET_PLUS_1;
+        // }
+
+    }
+
+}
+
+//__forceinline 
+void flip_image(int fi_offset) {
+    //__assume(inv2->frame_num<256);
+    //__assume(inv2->max_frames<256);
+    //__assume(inv2->image_num<256);
+    //__assume(inv2->num_images<256);
+
+    byte image_num=inv_image_num[fi_offset];
+    if ((++(inv_frame_num[fi_offset])) >= inv_max_frames[fi_offset]) {
+        inv_image_num[fi_offset]=((inv_image_num[fi_offset]+1) % inv_num_images[fi_offset]);
+        inv_frame_num[fi_offset]=0;
+        //inv2->image_num = (inv2->image_num + 1) & 1;//num_images-1
+    //     if (++(inv2->image_num) >= inv2->num_images) {
+    //         inv2->image_num=0;
+    //     }
+    //     inv2->frame_num=0;
+    // }
+    // // else {
+    // //     (inv->frame_num)++;
+    }
+    // //inv2->frame_num ++;
+    // //vic.color_back=VCOL_BLACK;
 }
 
 void init_invaders() {

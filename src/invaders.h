@@ -26,7 +26,7 @@ __export const bool CHANGE_COLOR_BY_ROW  =false;
 __export const bool MOVE_X_BY_ROW        =false;
 __export const bool CHANGE_IMAGE_BY_ROW  =true;
 
-const int SCANLINES_TO_DRAW_SPRITE=21;
+const int SCANLINES_TO_DRAW_SPRITE=20;
 const int SCANLINES_PER_ROW=22;
 
 int current_row_num=0;
