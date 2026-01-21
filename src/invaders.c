@@ -211,6 +211,17 @@ void draw_sprite_row(byte offset, byte row, bool change_color_by_row, bool move_
         byte spr_num=i+2;
         vic.spr_pos[spr_num].y=row_y[row];
 
+        byte new_handle = row_image_handles[row][row_image_num[row]];
+
+        ////
+        // PROBLEM: even though we're trying to update the image for the next sprite row down,
+        //          we're still writing to the image while sprites are being drawn!
+        //          I think we're going to need to wait until we're past a row before we can 
+        //          update the image of any sprite. Set 2 IRQ's / row? Just waitUntil(right_after_this_row)?
+        ////
+        Screen[0x3f8 + spr_num] = new_handle;
+
+        if (row_dirty[i]) {
         // // int spr_pos_x = vic.str_pos[spr_num].x;
         // // if (vic.spr_msbx & (1<<spr_num)) {
         // //     spr_pos_x += 256;
@@ -224,23 +235,17 @@ void draw_sprite_row(byte offset, byte row, bool change_color_by_row, bool move_
         else
             vic.spr_msbx &= ~(1 << spr_num);
 
-        byte old_screen = Screen[0x3f8 + spr_num];
-        byte new_handle = row_image_handles[row][row_image_num[row]];
+        //byte old_screen = Screen[0x3f8 + spr_num];
 
-        ////
-        // PROBLEM: even though we're trying to update the image for the next sprite row,
-        //          we're still writing to the image white sprites are being drawn!
-        //          I think we're going to need to wait until we're past a row before we can 
-        //          update the image of any sprite. Set 2 IRQ's / row? Just waitUntil(right_after_this_row)?
-        ////
-        Screen[0x3f8 + spr_num] = new_handle;
-
+        //row_dirty[row]=false;
         byte raster_i2 = vic.raster;
         i=i;
+        }
+        row_dirty[i] = false;
 
 
     }
-
+/*
     // for (int c=0; c<INVADERS_PER_ROW; c++) {
     //     //Invader *inv=&invaders[row][c];
 
@@ -296,7 +301,7 @@ void draw_sprite_row(byte offset, byte row, bool change_color_by_row, bool move_
     // }   //for c
    
     // first_time=false;
-
+*/
     byte raster_dsr2 = vic.raster;
 
     __asm {
@@ -335,26 +340,16 @@ void raster_irq_handler() {
 
         vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
 
-
-        //todo take this calc out
-        //int offset = (current_row_num)*INVADERS_PER_ROW;
-
         draw_sprite_row(0, current_row_num, CHANGE_COLOR_BY_ROW, MOVE_X_BY_ROW, CHANGE_IMAGE_BY_ROW);
+        
 
         if (++current_row_num >= NUM_ROWS) {
             current_row_num = 0;
         }
 
-        //vic.intr_enable = 1;                                                                //$d01a
-
-        // IRQ_VECTOR = raster_irq_handler;
         set_next_irq(inv_start_line[(current_row_num)]);
 
         lines_used=vic.raster - prev_raster;
-
-        //vic.color_back=0;
-
-    //}
 
     __asm{ 
         // lsr $d019   //vic.intr_ctrl -- ACK interrupt
@@ -400,16 +395,16 @@ byte flip_row(byte row) {
         row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
         row_frame_num[row]=0;
 
-        // row_x_offset[row] +=row_x_frame_speed[row];
-        // if (row_x_offset[row] >= MAX_ROW_X_OFFSET) {
-        //     row_x_frame_speed[row]*=-1;
-        //     row_x_offset[row] = MAX_ROW_X_OFFSET_MINUS_1;
-        // }
-        // else if (row_x_offset[row] <=MIN_ROW_X_OFFSET) {
-        //     row_x_frame_speed[row]*=-1;
-        //     row_x_offset[row] = MIN_ROW_X_OFFSET_PLUS_1;
-        // }
-
+        row_x_offset[row] +=row_x_frame_speed[row];
+        if (row_x_offset[row] >= MAX_ROW_X_OFFSET) {
+            row_x_frame_speed[row]*=-1;
+            row_x_offset[row] = MAX_ROW_X_OFFSET_MINUS_1;
+        }
+        else if (row_x_offset[row] <=MIN_ROW_X_OFFSET) {
+            row_x_frame_speed[row]*=-1;
+            row_x_offset[row] = MIN_ROW_X_OFFSET_PLUS_1;
+        }
+        row_dirty[row]=true;
     }
 
 }
@@ -450,6 +445,8 @@ void init_invaders() {
         row_frame_num[r]        = 0;
         row_x_offset[r]         = 50;
         row_x_frame_speed[r]    = 4;
+
+        row_dirty[r] = true;
 
         for (int c=0;c<INVADERS_PER_ROW; c++) {
             byte offset=r*INVADERS_PER_ROW+c;

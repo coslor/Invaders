@@ -26,8 +26,8 @@ __export const bool CHANGE_COLOR_BY_ROW  =false;
 __export const bool MOVE_X_BY_ROW        =false;
 __export const bool CHANGE_IMAGE_BY_ROW  =true;
 
-const int SCANLINES_TO_DRAW_SPRITE=20;
-const int SCANLINES_PER_ROW=22;
+const int SCANLINES_TO_DRAW_SPRITE=16;
+const int SCANLINES_PER_ROW=21;
 
 int current_row_num=0;
 
@@ -67,6 +67,8 @@ byte        row_image_num[NUM_ROWS];
 byte        row_max_frames[NUM_ROWS];
 byte        row_frame_num[NUM_ROWS];
 byte        row_x_offset[NUM_ROWS];
+
+bool        row_dirty[NUM_ROWS];  
 
 const int   MIN_ROW_X_OFFSET=50;
 const int   MIN_ROW_X_OFFSET_PLUS_1 = MIN_ROW_X_OFFSET + 1;
