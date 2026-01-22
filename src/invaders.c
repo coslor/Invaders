@@ -31,7 +31,6 @@
 //      with __export or #pragma reference(name), or it will be optimized away!
 ////
 __export static const char spriteset[] =  {
-//    #embed spd_sprites "invaders-both.spd"
     #embed spd_sprites "invaders-2600.spd"
 
 };
@@ -48,21 +47,22 @@ __export int flip_lines_used = -1;
 
 bool first_time=true;
 
-int main() {
+byte target_row = 0;
 
-    // for (int i=2;i<8;i++) {
-    //     //spr_image(i,128); 
-    //     Screen[0x3f8 + i] = 128;   //TODO fix raw constant          
-    // }
+//The PETSCII values go {F1,F3,F5,f7,f2,f4,f6}. This array maps them so we can use simple code
+//  to decide which fn key goes with what row.  
+const byte fn_key_row[7] = {
+    0,2,4,0,1,3,5
+};
+
+int main() {
+    //Bad things happen if these two get out of sync
+    my_assert(SCANLINES_PER_ROW > SCANLINES_TO_DRAW_SPRITE, "scanlines constants are out of sync");
 
     iocharmap(IOCHM_PETSCII_2);
 
-    // memset((char *)0x2000,0xff,128);
-
-    // Change colors
 	vic.color_border = VCOL_DARK_GREY;
 	vic.color_back = VCOL_BLACK;
-
 
    	memset(Screen, 32, 1000);
 
@@ -96,21 +96,17 @@ int main() {
 	// Kill CIA interrupts
 	//cia_init();
 
+    //We really don't have any need to map ROM out at this point,
+    //  and not doing so has certain advantages (like being able
+    //  to use getchs() ).
+    //mmap_trampoline();
     //mmap_set(MMAP_NO_ROM);
     
-    // enable raster interrupt via direct path
-	// rirq_init(1);
-
-	// initialize sprite multiplexer
-	//vspr_init(Screen);
     spr_init(Screen);
 
     init_sprites();
 
     vic.spr_multi=0b11111100;
-    //vic.spr_expand_x=0b11111100;
-    //vic.spr_expand_y=0b11111100;
-
     //Instead of dealing with the CIA stuff here and in the irq routine, I should
     //  probably turn them off completely. What exactly does this code do?
     cia1.icr=0x7f;
@@ -126,192 +122,181 @@ int main() {
 
     } 
 
-    //IRQ_VECTOR = (void *)0xfa31;
     IRQ_VECTOR=raster_irq_handler;
 
     set_next_irq(inv_start_line[0]);
 
     __asm { cli }
 
-
-    int rn = 0;
-
-    while(1) {
+    int row_num = 0;
 
 
-        //int a=sizeof(Invader);
+    while(playing) {
+
+        
+        char key = getchx();
+        if (key>='1' && key <= '6') {
+            byte col=(key-'1');
+            shoot_invader(target_row, col);
+        }
+        else if (key>=0x85 && key <= 0x8b) {
+            target_row = fn_key_row[key - 0x85];
+
+        }
+
         //vic_waitBottom();
         vic_waitLine(255);
         byte flip_lines = vic.raster;
 
-        //REFACTOR: get rid of row,col stuff to eliminate multiplication used
-        //          to get each inv address.
-        //Invader *inv=&invaders[0][0];
-        //total_invs = TOTAL_INVS_SIZE;
-        //Invader *end_inv = inv + TOTAL_INVS_SIZE;   //11b0
-
         int main_offset=0;
         //#pragma unroll(full)
         for (byte mr=0;mr<NUM_ROWS;mr++) {
-
-        //#pragma unroll(full)
-            // for (byte mc=0;mc<INVADERS_PER_ROW;mc++) {
 
 #ifdef SYNC_MAIN_THREAD
             __asm {
                 sei
             }
 #endif
-            //     //flip_image(main_offset++);
-                
-            ////
-            //FIXME un-comment
             flip_row(mr);
-            ////
+
             byte raster=vic.raster;
             __asm {
                 nop;
             }
             
-            // row_x_offset[mr] +=row_x_speed[mr];
-            // if (row_x_offset[mr] >= 60) {
-            //     row_x_speed[mr]=-1;
-            // }
-            // else if (row_x_offset[mr] <=1) {
-            //     row_x_speed[mr]=1;
-            // }
-
 #ifdef SYNC_MAIN_THREAD
             __asm {
                 cli
             }
 #endif
         }
-        
         flip_lines_used=vic.raster - flip_lines;
 
+        //for debugging
         __asm{
             nop
         }
     }
+    vic.color_back=1;
     printf("wtf??\n");
     return 0;
 };
 
-void draw_sprite_row(byte offset, byte row, bool change_color_by_row, bool move_x_by_row, bool change_image_by_row) {
+void shoot_invader(byte si_row, byte si_col) {
+    vic.color_border++;
+    byte row_offset = row_inv_offset[si_row];
+    byte inv_offset = row_offset + si_col;
 
-    byte* new_vic=(byte *)0xd000;
+    //my_assert(inv_alive[offset],"zombie Invaders");
+    if (! inv_alive[inv_offset] ){
+        //We've already killed this invader, so ignore it
+        return;
+    }
 
-    //assert(row < NUM_ROWS);
+    inv_alive[inv_offset]=false;
+    row_last_inv_alive[si_row] = ROW_NO_INVS_ALIVE;
+    for (byte last_inv_col=INVADERS_PER_ROW - 1;last_inv_col >= 0; last_inv_col--) {
+        if (inv_alive[row_offset + last_inv_col]) {
+            row_last_inv_alive[si_row] = row_offset + last_inv_col;
+            break;
+        }
+    }
+    __asm {
+
+        nop
+    }
+
+    row_first_inv_alive[si_row] = ROW_NO_INVS_ALIVE;
+    for (int first_inv_col=0; first_inv_col < INVADERS_PER_ROW; first_inv_col) {
+        if (inv_alive[row_offset + first_inv_col]) {
+            row_first_inv_alive[si_row] = row_offset + first_inv_col;
+            break;
+        }
+    }
+    __asm{
+        nop
+    }
+
+    if (row_last_inv_alive[si_row] == ROW_NO_INVS_ALIVE) {
+        row_alive[si_row] = false;
+    }
+
+    // if (--row_invs_alive[row] <= 0) {
+    //     row_alive[row] = false;
+    // }
+    row_dirty[si_row] = true;
+
+    byte spr_mask=0;
+    for (int c=0;c<INVADERS_PER_ROW;c++) {
+        int off=row_inv_offset[si_row]+c;
+        if (inv_alive[off]) {
+            spr_mask |= 1<<inv_sprite_num[off];
+        }
+    }
+    row_sprite_enable_mask[si_row] = spr_mask;
+
+}
+
+
+void draw_sprite_row(byte spr_row) {
+
+    if (spr_row == target_row) {
+        vic.color_back=VCOL_BLACK;
+    }
+
+    my_assert(spr_row < NUM_ROWS,"spr_row too high");
 
     byte raster_dsr = vic.raster;
-    #pragma unroll(full)
-    for (int i=0;i<INVADERS_PER_ROW; i++) {
-        //byte raster_i=vic.raster; //*(char*)0xd012;
-        byte spr_num=i+2;
-        vic.spr_pos[spr_num].y=row_y[row];
 
-        byte new_handle = row_image_handles[row][row_image_num[row]];
+    //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
+    //          in shoot_invader()
+    vic.spr_enable = row_sprite_enable_mask[spr_row];
+
+    //We have to at least disable display of the dead row before exiting
+    if (!row_alive[spr_row]) {
+        return;
+    }
+
+    #pragma unroll(full)
+    for (byte c=0;c<INVADERS_PER_ROW; c++) {
+        byte inv_offset = row_inv_offset[spr_row] + c; //row * INVADERS_PER_ROW + c;
+        byte spr_num=c+2;
+
+        vic.spr_pos[spr_num].y=row_y[spr_row];
+
+        byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
 
         ////
         // PROBLEM: even though we're trying to update the image for the next sprite row down,
         //          we're still writing to the image while sprites are being drawn!
         //          I think we're going to need to wait until we're past a row before we can 
         //          update the image of any sprite. Set 2 IRQ's / row? Just waitUntil(right_after_this_row)?
+        //
+        //          ...or have enough space between SCANLINES_TO_DRAW_SPRITE and SCANLINES_PER_ROW
+        //          so that the image update happens in the space in between. Not sure how reliable 
+        //          this 2nd method will be though.
         ////
         Screen[0x3f8 + spr_num] = new_handle;
 
-        if (row_dirty[i]) {
-        // // int spr_pos_x = vic.str_pos[spr_num].x;
-        // // if (vic.spr_msbx & (1<<spr_num)) {
-        // //     spr_pos_x += 256;
-        // // }
-        // int spr_pos_x=vic.spr_pos[spr_num].x | ((vic.spr_msbx & (1 << spr_num)) ? 256 : 0);
-        int spr_pos_x = col_x_offset[i] + row_x_offset[i];
+        int spr_pos_x = col_x_offset[c] + row_x_offset[spr_row];
 
         vic.spr_pos[spr_num].x = spr_pos_x & 0xff;
         if (spr_pos_x & 0x100)
             vic.spr_msbx |= 1 << spr_num;
         else
             vic.spr_msbx &= ~(1 << spr_num);
-
-        //byte old_screen = Screen[0x3f8 + spr_num];
-
-        //row_dirty[row]=false;
-        byte raster_i2 = vic.raster;
-        i=i;
-        }
-        row_dirty[i] = false;
-
-
+        
     }
-/*
-    // for (int c=0; c<INVADERS_PER_ROW; c++) {
-    //     //Invader *inv=&invaders[row][c];
 
-    //     //pass "-NDEBUG" to compiler to remove assertion code
-    //     //  ...or not. Maybe -DNDEBUG?
-    //     assert(c < INVADERS_PER_ROW);
-
-    //     //byte c_offset=offset+c;
-
-    //     if (first_time || move_x_by_row || change_color_by_row || change_image_by_row) {
-    //         byte spr_num=inv_sprite_num[offset];
-
-    //         if (inv_alive[offset]) {
-
-    //             //We always have to move Y, otherwise no rows
-    //             vic.spr_pos[spr_num].y = inv_y[offset];
-
-    //             //But maybe Invaders don't need unique X positions between rows?
-    //             if (move_x_by_row || first_time) {
-    //                 //spr_move(inv_sprite_num[offset], inv_x[offset], inv_y[offset]);
-    //                 vic.spr_pos[spr_num].x = inv_x[offset] & 0xff;
-    //                 if (inv_x[offset] & 0x100)
-    //                     vic.spr_msbx |= 1 << spr_num;
-    //                 else
-    //                     vic.spr_msbx &= ~(1 << spr_num);
-    //             }
-
-    //             if (change_color_by_row || first_time) {
-    //                 spr_color(spr_num, inv_color[offset]);
-    //             }
-    //             if (change_image_by_row || first_time) {
-    //                 spr_image(spr_num,inv_image_handles[offset][inv_image_num[offset]]);
-    //             }
-
-    //             spr_show(spr_num,true);
-
-    //         }
-    //         else {
-    //             spr_show(spr_num,false);
-    //         }
-
-    //     } else {
-    //         if (inv_alive[offset]) {
-    //             byte sprite_num=inv_sprite_num[offset];
-    //             vic.spr_pos[sprite_num].y = inv_y[offset];
-    //             spr_show(sprite_num,true);
-    //             //spr_image(inv_sprite_num[offset],inv_image_handles[offset][inv_image_num[offset]]);
-    //             Screen[0x3f8 + sprite_num] = inv_image_handles[offset][inv_image_num[offset]];   //TODO fix raw constant
-    //         }
-    //     }
-
-    //     offset++;
-    // }   //for c
-   
-    // first_time=false;
-*/
-    byte raster_dsr2 = vic.raster;
-
+    //for debugging
     __asm {
         nop
     }
-
+    vic.color_back = VCOL_DARK_GREY;
 }
 
 
- __forceinline void move_invader(int offset) {
+ __forceinline void move_invader(byte offset) {
     //Invader* inv=&invaders[inv_num];
     inv_x[offset] += inv_speed_x[offset];
     inv_y += inv_speed_y[offset];
@@ -340,7 +325,9 @@ void raster_irq_handler() {
 
         vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
 
-        draw_sprite_row(0, current_row_num, CHANGE_COLOR_BY_ROW, MOVE_X_BY_ROW, CHANGE_IMAGE_BY_ROW);
+        vic.color_border = VCOL_GREEN;
+        draw_sprite_row(current_row_num);
+        vic.color_border = VCOL_DARK_GREY;
         
 
         if (++current_row_num >= NUM_ROWS) {
@@ -390,47 +377,46 @@ void set_next_irq(int rasterline) {
     }
 }
 
-byte flip_row(byte row) {
+void flip_row(byte row) {
+    if (!row_alive[row]) return;
+
     if ((++(row_frame_num[row])) >= row_max_frames[row]) {
+        row_dirty[row]=true;
+
         row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
         row_frame_num[row]=0;
 
         row_x_offset[row] +=row_x_frame_speed[row];
-        if (row_x_offset[row] >= MAX_ROW_X_OFFSET) {
+
+        byte last_inv_offset = row_last_inv_alive[row];
+        byte last_col_alive = (last_inv_offset % INVADERS_PER_ROW);
+        int spr_pos_x = col_x_offset[last_col_alive] + row_x_offset[row];
+
+        if (spr_pos_x > MAX_SPR_X) {
+        //if (row_x_offset[row] >= MAX_ROW_X_OFFSET) {
             row_x_frame_speed[row]*=-1;
-            row_x_offset[row] = MAX_ROW_X_OFFSET_MINUS_1;
+            row_x_offset[row] = MAX_SPR_X - 1;
+            row_y[row] +=10;
+            if (row_y[row] > MAX_Y_ROW) {
+                vic.color_back = VCOL_RED;
+                playing = false;
+            }
+            inv_start_line[row] += 10;
         }
-        else if (row_x_offset[row] <=MIN_ROW_X_OFFSET) {
+        //else if (row_x_offset[row] <=MIN_ROW_X_OFFSET) {
+        else if (spr_pos_x < MIN_SPR_X) {
             row_x_frame_speed[row]*=-1;
-            row_x_offset[row] = MIN_ROW_X_OFFSET_PLUS_1;
+            row_x_offset[row] = MIN_SPR_X - 1;
+            row_y[row] += 10;
+            if (row_y[row] > MAX_Y_ROW) {
+                vic.color_back = VCOL_RED;
+                playing = false;
+            }
+            inv_start_line[row] += 10;
         }
-        row_dirty[row]=true;
+        
     }
 
-}
-
-//__forceinline 
-void flip_image(int fi_offset) {
-    //__assume(inv2->frame_num<256);
-    //__assume(inv2->max_frames<256);
-    //__assume(inv2->image_num<256);
-    //__assume(inv2->num_images<256);
-
-    byte image_num=inv_image_num[fi_offset];
-    if ((++(inv_frame_num[fi_offset])) >= inv_max_frames[fi_offset]) {
-        inv_image_num[fi_offset]=((inv_image_num[fi_offset]+1) % inv_num_images[fi_offset]);
-        inv_frame_num[fi_offset]=0;
-        //inv2->image_num = (inv2->image_num + 1) & 1;//num_images-1
-    //     if (++(inv2->image_num) >= inv2->num_images) {
-    //         inv2->image_num=0;
-    //     }
-    //     inv2->frame_num=0;
-    // }
-    // // else {
-    // //     (inv->frame_num)++;
-    }
-    // //inv2->frame_num ++;
-    // //vic.color_back=VCOL_BLACK;
 }
 
 void init_invaders() {
@@ -445,34 +431,29 @@ void init_invaders() {
         row_frame_num[r]        = 0;
         row_x_offset[r]         = 50;
         row_x_frame_speed[r]    = 4;
+        row_alive[r]            = true;
+        row_last_inv_alive[r]   = INVADERS_PER_ROW - 1;
+        row_first_inv_alive[r]  = 0;
+        row_inv_offset[r]       = r * INVADERS_PER_ROW;
 
         row_dirty[r] = true;
+        row_sprite_enable_mask[r] = 255;
 
         for (int c=0;c<INVADERS_PER_ROW; c++) {
             byte offset=r*INVADERS_PER_ROW+c;
             inv_alive[offset]           = true;
-            //inv_x[offset]               = c*35+24 + 50;
-            //inv_y[offset]             = MIN_Y + SCANLINES_PER_ROW * r;
             inv_speed_x[offset]         =1;
             inv_speed_y[offset]         =0;
-            // inv_num_images[offset]    =2;
-            // inv_image_handles[offset][0] = 140+(r*2);
-            // inv_image_handles[offset][1] = 141+(r*2);
-            // inv_image_num[offset]     = 0;
-            // inv_max_frames[offset]    = 32;
             inv_sprite_num[offset]      = 2 + c;
             inv_color[offset]           = c + (r & 3)+1;
-            //inv_frame_num[offset]     =0;
             inv_old_x[offset]           =0;
             inv_old_y[offset]           =0;
-            //offset++;
             col_x_offset[c]             =0 + c*35;
 
 
         }
     }
-
-
+    //row_alive[3]=false;
 }
 
 void init_sprites() {

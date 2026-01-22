@@ -5,7 +5,8 @@
     "sources": [
         "src/invaders.h",
         "src/invaders.c",
-        "digitsprites.bin"
+        "src/my_assert.h",
+        "src/my_assert.c"
          
     ],
     "build": "debug",
@@ -23,6 +24,7 @@
         "-DWAS_JUST_O2_O2",
         "-DNEW_FROM_HERE",
         "-n",
+        "-DEBUG",
         "-O0",
         "-Dstrict"
     ],
