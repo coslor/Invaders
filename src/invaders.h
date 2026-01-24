@@ -119,6 +119,31 @@ int         MAX_Y_ROW = 220;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
+typedef struct {
+    int         x = 0;
+    signed int  speed_x = 0;
+    byte        y = 0;
+    signed int  speed_y = 0;
+    bool        alive = false;
+    byte        sprite_num = 0xff;
+    byte        sprite_color = 1;
+    byte        image_handle = 0xff;
+} PlayerObject;
+
+PlayerObject    ship,bullet;
+
+
+// int         ship_x = 160;
+// int         ship_speed_x = 0;
+// byte        ship_y = 250;
+// int         ship_speed_y = 0;
+// bool        ship_alive        
+
+// int         bullet_x = 160;
+// int         bullet_speed_x = 0;
+// byte        bullet_y=140;
+// int         bullet_speed_y = -1;
+// bool        bullet_alive = false;
 
 //const 
 unsigned int inv_start_line[NUM_ROWS] = {
@@ -166,6 +191,12 @@ void shoot_invader(byte row, byte col);
 void bounce_rows();
 
 void move_rows_down(byte px_down);
+
+void read_joy();
+
+void move_object(PlayerObject *obj);
+
+void draw_object(PlayerObject obj);
 
 #pragma compile("invaders.c")
 #endif

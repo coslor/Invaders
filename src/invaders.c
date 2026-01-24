@@ -46,6 +46,7 @@ __export int total_invs;
 
 __export int flip_lines_used = -1;
 
+__export signed int useless =0;
 bool first_time=true;
 
 byte target_row = 0;
@@ -55,6 +56,7 @@ byte target_row = 0;
 const byte fn_key_row[7] = {
     0,2,4,0,1,3,5
 };
+const byte asdf_row[6] = "asdfgh";
 
 int main() {
     //Bad things happen if these two get out of sync
@@ -107,7 +109,11 @@ int main() {
 
     init_sprites();
 
-    vic.spr_multi=0b11111100;
+    //All sprites are multicolor
+    vic.spr_multi=0b11111111;
+    vic.spr_mcolor0 = VCOL_LT_GREEN;
+    vic.spr_mcolor1 = VCOL_RED;
+
     //Instead of dealing with the CIA stuff here and in the irq routine, I should
     //  probably turn them off completely. What exactly does this code do?
     cia1.icr=0x7f;
@@ -121,7 +127,17 @@ int main() {
         spr_move(inv_sprite_num[c], inv_x[c], inv_y[c]);
         spr_color(inv_sprite_num[c], inv_color[c]);
 
-    } 
+    }
+
+    ship.alive = true;
+    ship.x = 160;
+    ship.y = 230;
+    ship.sprite_num = 0;
+    ship.sprite_color = 1;
+    ship.image_handle = 152;
+
+    bullet.alive = false;
+    bullet.image_handle = 153;
 
     IRQ_VECTOR=raster_irq_handler;
 
@@ -145,6 +161,7 @@ int main() {
             target_row = fn_key_row[key - 0x85];
 
         }
+
 
 #ifdef USE_BORDER
         vic.color_border = VCOL_BLUE;
@@ -188,6 +205,13 @@ int main() {
         }
         flip_lines_used=vic.raster - flip_lines;
 
+        read_joy();
+        move_object(&ship);
+        move_object(&bullet);
+
+        draw_object(ship);
+        draw_object(bullet);
+
        // bounce_rows();
 
         //for debugging
@@ -217,55 +241,7 @@ void shoot_invader(byte si_row, byte si_col) {
     }
 
     inv_alive[inv_index]=false;
-
-    for (int row=0;row<NUM_ROWS;row++) {
-
-    }
-    // row_max_inv_alive[si_row] = NO_INVS_ALIVE;
-    // for (byte right_inv_col=INVADERS_PER_ROW - 1;last_inv_col >= 0; last_inv_col--) {
-    //     if (inv_alive[row_index + last_inv_col]) {
-
-    //         row_max_x = row_index + right_inv_col
-    //         row_max_inv_alive[si_row] = row_index + last_inv_col;
-    //         break;
-    //     }
-    // }
-    // __asm {
-
-    //     nop
-    // }
-
-    // row_min_inv_alive[si_row] = NO_INVS_ALIVE;
-    // for (int left_inv_col=0; first_inv_col < INVADERS_PER_ROW; first_inv_col) {
-    //     if (inv_alive[row_index + first_inv_col]) {
-    //         row_min_inv_alive[si_row] = row_index + first_inv_col;
-    //         break;
-    //     }
-    // }
-    // __asm{
-    //     nop
-    // }
-
-    // if (row_max_inv_alive[si_row] == NO_INVS_ALIVE) {
-    //     row_alive[si_row] = false;
-    // }
-
-    // for (byte row2=0; row2 < INVADERS_PER_ROW; row2++) {
-    //     if (row_min_inv_alive[row2] != NO_INVS_ALIVE) {
-    //         rows_min_spr_x = row_min_inv_alive[row2];
-    //         break;
-    //     }
-    // }
-
-    // for (int row3=INVADERS_PER_ROW-1; row3>=0; row3++) {
-    //     if (row_max_inv_alive[row3]) {
-    //         rows_max_inv_alive_spr_x = row_max_inv_alive[row3];
-    //         break;
-    //     }
-    // }
-
-    //int spr_pos_x = col_x_index[last_col_alive] + row_x_index[row];
-
+    
     row_dirty[si_row] = true;
 
     byte spr_mask=0;
@@ -435,34 +411,6 @@ void flip_row(byte row) {
         row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
         row_frame_num[row]=0;
 
-        //row_x_index[row] +=row_x_frame_speed[row];
-
-        // byte last_inv_index = row_max_inv_alive[row];
-        // byte last_col_alive = (last_inv_index % INVADERS_PER_ROW);
-        // int spr_pos_x = col_x_index[last_col_alive] + row_x_index[row];
-
-        // if (spr_pos_x > MAX_SPR_X) {
-        // //if (row_x_index[row] >= MAX_ROW_X_OFFSET) {
-        //     row_x_frame_speed[row]*=-1;
-        //     row_x_index[row] = MAX_SPR_X - 1;
-        //     row_y[row] +=10;
-        //     if (row_y[row] > MAX_Y_ROW) {
-        //         vic.color_back = VCOL_RED;
-        //         playing = false;
-        //     }
-        //     inv_start_line[row] += 10;
-        // }
-        // //else if (row_x_index[row] <=MIN_ROW_X_OFFSET) {
-        // else if (spr_pos_x < MIN_SPR_X) {
-        //     row_x_frame_speed[row]*=-1;
-        //     row_x_index[row] = MIN_SPR_X - 1;
-        //     row_y[row] += 10;
-        //     if (row_y[row] > MAX_Y_ROW) {
-        //         vic.color_back = VCOL_RED;
-        //         playing = false;
-        //     }
-        //     inv_start_line[row] += 10;
-        // }
         
     }
 
@@ -546,6 +494,8 @@ void find_min_max_spr_x() {
 
 void bounce_rows() {
     find_min_max_spr_x();
+    //TODO: we need to add a corresponding find_max_spr_y(), so that we know
+    //      when the Invaders have won!
 
     if (rows_max_spr_x > MAX_SPR_X) {
         move_rows_down(Y_INC);
@@ -564,12 +514,53 @@ void bounce_rows() {
 void move_rows_down(byte px_down) {
     for (int r8=0;r8<NUM_ROWS;r8++) {
         row_y[r8] += px_down;
+        //TODO use max_spr_y (or maybe just check for alive rows here?) to 
+        //      find out when the Invaders have won.
         if (row_y[r8] > MAX_Y_ROW) {
             vic.color_back = VCOL_RED;
-            //exit(-1);
             playing = false;
         }
         inv_start_line[r8] += px_down;
 
     }
+}
+
+void read_joy() {
+    joy_poll(0);
+    ship.speed_x = joyx[0];
+    if (ship.speed_x < 0) {
+        useless=ship.speed_x;
+    }
+}
+
+void move_object(PlayerObject *obj) {
+    if (obj->speed_x > 0) {
+        if (obj->x < 320) {
+            obj->x += obj->speed_x;
+        }
+    }
+    else if (obj->speed_x < 0) {
+        if (obj->x > 25) {
+            obj->x += obj->speed_x;
+        }
+    }
+
+    if (obj->speed_y > 0) {
+        if (obj->y < 255) {
+            obj->y += obj->speed_y;
+        }
+        else if (obj->speed_y < 0) {
+            if (obj->y > 50) {
+                obj->y -= obj->speed_y;
+            }
+        }
+    }
+}
+
+void draw_object(PlayerObject obj2) {
+    if (obj2.alive) {
+        spr_move(obj2.sprite_num, obj2.x, obj2.y);
+        spr_image(obj2.sprite_num, obj2.image_handle);
+    }
+    spr_show(obj2.sprite_num, obj2.alive);
 }
