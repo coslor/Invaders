@@ -25,7 +25,8 @@
         "-DNEW_FROM_HERE",
         "-n",
         "-DEBUG",
-        "-O0",
+        "-O3",
+        "-DUSE_BORDER",
         "-Dstrict"
     ],
     "compiler": ""

@@ -38,6 +38,7 @@ __export static const char spriteset[] =  {
 
 #pragma data(data)
 
+
 int prev_raster=0;
 
 __export int lines_used = -1;
@@ -61,7 +62,7 @@ int main() {
 
     iocharmap(IOCHM_PETSCII_2);
 
-	vic.color_border = VCOL_DARK_GREY;
+	vic.color_border = VCOL_WHITE;
 	vic.color_back = VCOL_BLACK;
 
    	memset(Screen, 32, 1000);
@@ -132,8 +133,9 @@ int main() {
 
 
     while(playing) {
+        //rows_max_spr_x = MIN_SPR_X;
+        //rows_min_spr_x = MAX_SPR_X;
 
-        
         char key = getchx();
         if (key>='1' && key <= '6') {
             byte col=(key-'1');
@@ -144,11 +146,23 @@ int main() {
 
         }
 
+#ifdef USE_BORDER
+        vic.color_border = VCOL_BLUE;
+#endif
         //vic_waitBottom();
         vic_waitLine(255);
+#ifdef USE_BORDER
+        vic.color_border = VCOL_WHITE;
+#endif
+
         byte flip_lines = vic.raster;
 
-        int main_offset=0;
+        if ((++(rows_frame_num)) >= rows_max_frames) {
+            rows_x_shift += rows_x_frame_speed;
+            rows_frame_num = 0;
+            bounce_rows();
+        }
+
         //#pragma unroll(full)
         for (byte mr=0;mr<NUM_ROWS;mr++) {
 
@@ -157,8 +171,10 @@ int main() {
                 sei
             }
 #endif
+
             flip_row(mr);
 
+            
             byte raster=vic.raster;
             __asm {
                 nop;
@@ -172,63 +188,89 @@ int main() {
         }
         flip_lines_used=vic.raster - flip_lines;
 
+       // bounce_rows();
+
         //for debugging
         __asm{
             nop
         }
     }
-    vic.color_back=1;
+    vic.color_back=VCOL_RED;
     printf("wtf??\n");
     return 0;
 };
 
-void shoot_invader(byte si_row, byte si_col) {
-    vic.color_border++;
-    byte row_offset = row_inv_offset[si_row];
-    byte inv_offset = row_offset + si_col;
 
-    //my_assert(inv_alive[offset],"zombie Invaders");
-    if (! inv_alive[inv_offset] ){
+
+void shoot_invader(byte si_row, byte si_col) {
+
+#ifdef USE_BORDER
+    vic.color_border++;
+#endif
+    byte row_index = row_inv_index[si_row];
+    byte inv_index = row_index + si_col;
+
+    //my_assert(inv_alive[index],"zombie Invaders");
+    if (! inv_alive[inv_index] ){
         //We've already killed this invader, so ignore it
         return;
     }
 
-    inv_alive[inv_offset]=false;
-    row_last_inv_alive[si_row] = ROW_NO_INVS_ALIVE;
-    for (byte last_inv_col=INVADERS_PER_ROW - 1;last_inv_col >= 0; last_inv_col--) {
-        if (inv_alive[row_offset + last_inv_col]) {
-            row_last_inv_alive[si_row] = row_offset + last_inv_col;
-            break;
-        }
-    }
-    __asm {
+    inv_alive[inv_index]=false;
 
-        nop
-    }
+    for (int row=0;row<NUM_ROWS;row++) {
 
-    row_first_inv_alive[si_row] = ROW_NO_INVS_ALIVE;
-    for (int first_inv_col=0; first_inv_col < INVADERS_PER_ROW; first_inv_col) {
-        if (inv_alive[row_offset + first_inv_col]) {
-            row_first_inv_alive[si_row] = row_offset + first_inv_col;
-            break;
-        }
     }
-    __asm{
-        nop
-    }
+    // row_max_inv_alive[si_row] = NO_INVS_ALIVE;
+    // for (byte right_inv_col=INVADERS_PER_ROW - 1;last_inv_col >= 0; last_inv_col--) {
+    //     if (inv_alive[row_index + last_inv_col]) {
 
-    if (row_last_inv_alive[si_row] == ROW_NO_INVS_ALIVE) {
-        row_alive[si_row] = false;
-    }
-
-    // if (--row_invs_alive[row] <= 0) {
-    //     row_alive[row] = false;
+    //         row_max_x = row_index + right_inv_col
+    //         row_max_inv_alive[si_row] = row_index + last_inv_col;
+    //         break;
+    //     }
     // }
+    // __asm {
+
+    //     nop
+    // }
+
+    // row_min_inv_alive[si_row] = NO_INVS_ALIVE;
+    // for (int left_inv_col=0; first_inv_col < INVADERS_PER_ROW; first_inv_col) {
+    //     if (inv_alive[row_index + first_inv_col]) {
+    //         row_min_inv_alive[si_row] = row_index + first_inv_col;
+    //         break;
+    //     }
+    // }
+    // __asm{
+    //     nop
+    // }
+
+    // if (row_max_inv_alive[si_row] == NO_INVS_ALIVE) {
+    //     row_alive[si_row] = false;
+    // }
+
+    // for (byte row2=0; row2 < INVADERS_PER_ROW; row2++) {
+    //     if (row_min_inv_alive[row2] != NO_INVS_ALIVE) {
+    //         rows_min_spr_x = row_min_inv_alive[row2];
+    //         break;
+    //     }
+    // }
+
+    // for (int row3=INVADERS_PER_ROW-1; row3>=0; row3++) {
+    //     if (row_max_inv_alive[row3]) {
+    //         rows_max_inv_alive_spr_x = row_max_inv_alive[row3];
+    //         break;
+    //     }
+    // }
+
+    //int spr_pos_x = col_x_index[last_col_alive] + row_x_index[row];
+
     row_dirty[si_row] = true;
 
     byte spr_mask=0;
     for (int c=0;c<INVADERS_PER_ROW;c++) {
-        int off=row_inv_offset[si_row]+c;
+        int off=row_inv_index[si_row]+c;
         if (inv_alive[off]) {
             spr_mask |= 1<<inv_sprite_num[off];
         }
@@ -259,7 +301,7 @@ void draw_sprite_row(byte spr_row) {
 
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
-        byte inv_offset = row_inv_offset[spr_row] + c; //row * INVADERS_PER_ROW + c;
+        byte inv_index = row_inv_index[spr_row] + c; //row * INVADERS_PER_ROW + c;
         byte spr_num=c+2;
 
         vic.spr_pos[spr_num].y=row_y[spr_row];
@@ -278,8 +320,9 @@ void draw_sprite_row(byte spr_row) {
         ////
         Screen[0x3f8 + spr_num] = new_handle;
 
-        int spr_pos_x = col_x_offset[c] + row_x_offset[spr_row];
-
+        //NOTE: move all this to shoot
+        int spr_pos_x = col_x_index[c] + rows_x_shift; //row_x_index[spr_row];
+        inv_spr_pos_x[inv_index] = spr_pos_x;
         vic.spr_pos[spr_num].x = spr_pos_x & 0xff;
         if (spr_pos_x & 0x100)
             vic.spr_msbx |= 1 << spr_num;
@@ -292,21 +335,21 @@ void draw_sprite_row(byte spr_row) {
     __asm {
         nop
     }
-    vic.color_back = VCOL_DARK_GREY;
+    vic.color_back = VCOL_BLACK;
 }
 
 
- __forceinline void move_invader(byte offset) {
+ __forceinline void move_invader(byte index) {
     //Invader* inv=&invaders[inv_num];
-    inv_x[offset] += inv_speed_x[offset];
-    inv_y += inv_speed_y[offset];
+    inv_x[index] += inv_speed_x[index];
+    inv_y += inv_speed_y[index];
 
-    if (inv_x[offset] <20) {
-        inv_speed_x[offset] = abs(inv_speed_x[offset]);
+    if (inv_x[index] <20) {
+        inv_speed_x[index] = abs(inv_speed_x[index]);
     }
     else {
-        if (inv_x[offset] >= 320){
-            inv_speed_x[offset] = -abs(inv_speed_x[offset]);
+        if (inv_x[index] >= 320){
+            inv_speed_x[index] = -abs(inv_speed_x[index]);
         }
     }
 
@@ -325,9 +368,15 @@ void raster_irq_handler() {
 
         vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
 
+        
+#ifdef USE_BORDER
         vic.color_border = VCOL_GREEN;
+#endif
         draw_sprite_row(current_row_num);
-        vic.color_border = VCOL_DARK_GREY;
+
+#ifdef USE_BORDER
+        vic.color_border = VCOL_WHITE;
+#endif
         
 
         if (++current_row_num >= NUM_ROWS) {
@@ -386,69 +435,70 @@ void flip_row(byte row) {
         row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
         row_frame_num[row]=0;
 
-        row_x_offset[row] +=row_x_frame_speed[row];
+        //row_x_index[row] +=row_x_frame_speed[row];
 
-        byte last_inv_offset = row_last_inv_alive[row];
-        byte last_col_alive = (last_inv_offset % INVADERS_PER_ROW);
-        int spr_pos_x = col_x_offset[last_col_alive] + row_x_offset[row];
+        // byte last_inv_index = row_max_inv_alive[row];
+        // byte last_col_alive = (last_inv_index % INVADERS_PER_ROW);
+        // int spr_pos_x = col_x_index[last_col_alive] + row_x_index[row];
 
-        if (spr_pos_x > MAX_SPR_X) {
-        //if (row_x_offset[row] >= MAX_ROW_X_OFFSET) {
-            row_x_frame_speed[row]*=-1;
-            row_x_offset[row] = MAX_SPR_X - 1;
-            row_y[row] +=10;
-            if (row_y[row] > MAX_Y_ROW) {
-                vic.color_back = VCOL_RED;
-                playing = false;
-            }
-            inv_start_line[row] += 10;
-        }
-        //else if (row_x_offset[row] <=MIN_ROW_X_OFFSET) {
-        else if (spr_pos_x < MIN_SPR_X) {
-            row_x_frame_speed[row]*=-1;
-            row_x_offset[row] = MIN_SPR_X - 1;
-            row_y[row] += 10;
-            if (row_y[row] > MAX_Y_ROW) {
-                vic.color_back = VCOL_RED;
-                playing = false;
-            }
-            inv_start_line[row] += 10;
-        }
+        // if (spr_pos_x > MAX_SPR_X) {
+        // //if (row_x_index[row] >= MAX_ROW_X_OFFSET) {
+        //     row_x_frame_speed[row]*=-1;
+        //     row_x_index[row] = MAX_SPR_X - 1;
+        //     row_y[row] +=10;
+        //     if (row_y[row] > MAX_Y_ROW) {
+        //         vic.color_back = VCOL_RED;
+        //         playing = false;
+        //     }
+        //     inv_start_line[row] += 10;
+        // }
+        // //else if (row_x_index[row] <=MIN_ROW_X_OFFSET) {
+        // else if (spr_pos_x < MIN_SPR_X) {
+        //     row_x_frame_speed[row]*=-1;
+        //     row_x_index[row] = MIN_SPR_X - 1;
+        //     row_y[row] += 10;
+        //     if (row_y[row] > MAX_Y_ROW) {
+        //         vic.color_back = VCOL_RED;
+        //         playing = false;
+        //     }
+        //     inv_start_line[row] += 10;
+        // }
         
     }
 
 }
 
 void init_invaders() {
-    //int offset=0;
+    //int index=0;
     for (int r=0;r<NUM_ROWS; r++) {
         row_y[r]                = MIN_Y + SCANLINES_PER_ROW * r;
         row_num_images[r]       = 2;
         row_image_handles[r][0] = 140+(r*2);
         row_image_handles[r][1] = 141+(r*2);
         row_image_num[r]        = 0;
-        row_max_frames[r]       = 32;
+        row_max_frames[r]       = ROW_MAX_FRAMES;
         row_frame_num[r]        = 0;
-        row_x_offset[r]         = 50;
-        row_x_frame_speed[r]    = 4;
+//        rows_x_index         = 50;
+//        rows_x_frame_speed    = 4;
         row_alive[r]            = true;
-        row_last_inv_alive[r]   = INVADERS_PER_ROW - 1;
-        row_first_inv_alive[r]  = 0;
-        row_inv_offset[r]       = r * INVADERS_PER_ROW;
+        //row_max_inv_alive[r]   = INVADERS_PER_ROW - 1;
+        //row_min_inv_alive[r]  = 0;
+        row_inv_index[r]       = r * INVADERS_PER_ROW;
 
         row_dirty[r] = true;
         row_sprite_enable_mask[r] = 255;
 
         for (int c=0;c<INVADERS_PER_ROW; c++) {
-            byte offset=r*INVADERS_PER_ROW+c;
-            inv_alive[offset]           = true;
-            inv_speed_x[offset]         =1;
-            inv_speed_y[offset]         =0;
-            inv_sprite_num[offset]      = 2 + c;
-            inv_color[offset]           = c + (r & 3)+1;
-            inv_old_x[offset]           =0;
-            inv_old_y[offset]           =0;
-            col_x_offset[c]             =0 + c*35;
+            byte index=r*INVADERS_PER_ROW+c;
+            inv_alive[index]            = true;
+            inv_speed_x[index]          = 1;
+            inv_speed_y[index]          = 0;
+            inv_sprite_num[index]       = 2 + c;
+            inv_color[index]            = c + (r & 3)+1;
+            inv_old_x[index]            = 0;
+            inv_old_y[index]            = 0;
+            col_x_index[c]              = 0 + c*35;
+            inv_spr_pos_x[index]        = 0;
 
 
         }
@@ -465,6 +515,61 @@ void init_sprites() {
         spr_move(spr_num, ic*35+24 + 50,0);          //just ignore the Y coord for now
         spr_color(spr_num,ic+1);
         spr_show(spr_num,true);
+
+    }
+}
+
+void find_min_max_spr_x() {
+    rows_min_spr_x = MAX_SPR_X;
+    rows_max_spr_x = MIN_SPR_X;
+
+    for (int row=0;row<NUM_ROWS;row++) {
+        if (! row_alive[row]) continue;
+
+        byte row_index = row_inv_index[row];
+
+        for (int col=0;col<INVADERS_PER_ROW;col++) {
+            byte inv_index = row_index + col;
+
+            if (! inv_alive[inv_index]) continue;
+
+            if (inv_spr_pos_x[inv_index] < rows_min_spr_x) {
+                rows_min_spr_x = inv_spr_pos_x[inv_index];
+            } else {
+                if (inv_spr_pos_x[inv_index] > rows_max_spr_x) {
+                    rows_max_spr_x = inv_spr_pos_x[inv_index];
+                } //if inv_spr_pos_x >
+            }//else inv_spr_pos_x <
+        }//int col
+    }//int row
+}//find_min_max_spr_x
+
+void bounce_rows() {
+    find_min_max_spr_x();
+
+    if (rows_max_spr_x > MAX_SPR_X) {
+        move_rows_down(Y_INC);
+        rows_x_frame_speed *= -1;
+
+        rows_x_shift -= X_INC;
+    }
+     if (rows_min_spr_x < MIN_SPR_X) {
+        move_rows_down(Y_INC);
+        rows_x_frame_speed *= -1;
+
+        rows_x_shift += X_INC;
+    }
+}
+
+void move_rows_down(byte px_down) {
+    for (int r8=0;r8<NUM_ROWS;r8++) {
+        row_y[r8] += px_down;
+        if (row_y[r8] > MAX_Y_ROW) {
+            vic.color_back = VCOL_RED;
+            //exit(-1);
+            playing = false;
+        }
+        inv_start_line[r8] += px_down;
 
     }
 }

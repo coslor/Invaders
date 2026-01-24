@@ -27,7 +27,7 @@
 // __export const bool MOVE_X_BY_ROW        =false;
 // __export const bool CHANGE_IMAGE_BY_ROW  =true;
 
-const byte SCANLINES_TO_DRAW_SPRITE=15;
+const byte SCANLINES_TO_DRAW_SPRITE=17;
 const byte SCANLINES_PER_ROW=22;
 
 
@@ -61,6 +61,7 @@ byte        inv_color[TOTAL_INVS_SIZE];
 byte        inv_frame_num[TOTAL_INVS_SIZE];
 signed int  inv_old_x[TOTAL_INVS_SIZE];
 signed int  inv_old_y[TOTAL_INVS_SIZE];
+int         inv_spr_pos_x[TOTAL_INVS_SIZE];
 
 signed int  row_y[NUM_ROWS];
 byte        row_num_images[NUM_ROWS];
@@ -70,33 +71,54 @@ byte        row_max_frames[NUM_ROWS];
 byte        row_frame_num[NUM_ROWS];
 
 bool        row_alive[NUM_ROWS];
-byte        row_last_inv_alive[NUM_ROWS];
-byte        row_first_inv_alive[NUM_ROWS];
-const int   ROW_NO_INVS_ALIVE = -1;
+//byte        row_max_inv_alive[NUM_ROWS];
+//byte        row_min_inv_alive[NUM_ROWS];
+//const byte   NO_INVS_ALIVE = -1;
+//int         row_max_x[NUM_ROWS];
+//int         row_min_x[NUM_ROWS];
+
+const int   MIN_SPR_X = 25;
+const int   MAX_SPR_X = 320;
 
 
-byte        row_x_offset[NUM_ROWS];
-byte        row_x_frame_speed[NUM_ROWS];                    //pixels moved / frame
+//left & right-most borders for all rows
+int         rows_max_spr_x = MIN_SPR_X;
+int         rows_min_spr_x = MAX_SPR_X;
+
+
+//byte        row_x_index[NUM_ROWS];
+//byte        row_x_frame_speed[NUM_ROWS];                    //pixels moved / frame
+
+int         rows_x_shift = 50;
+//X motion speed
+int         rows_x_frame_speed = 4;
+
+byte        rows_frame_num = 0;
+byte        rows_max_frames = 32;
+
 
 bool        row_dirty[NUM_ROWS];  
-byte        row_inv_offset[NUM_ROWS];
+byte        row_inv_index[NUM_ROWS];
 byte        row_sprite_enable_mask[NUM_ROWS];
 
-const int   MIN_ROW_X_OFFSET=50;
-const int   MIN_ROW_X_OFFSET_PLUS_1 = MIN_ROW_X_OFFSET + 1;
-const int   MAX_ROW_X_OFFSET=100;
-const int   MAX_ROW_X_OFFSET_MINUS_1 = MAX_ROW_X_OFFSET - 1;
-
-const int  MIN_SPR_X = 35;
-const int  MAX_SPR_X = 300;
+// const int   MIN_ROW_X_OFFSET=50;
+// const int   MIN_ROW_X_OFFSET_PLUS_1 = MIN_ROW_X_OFFSET + 1;
+// const int   MAX_ROW_X_OFFSET=100;
+// const int   MAX_ROW_X_OFFSET_MINUS_1 = MAX_ROW_X_OFFSET - 1;
 
 
-byte        col_x_offset[INVADERS_PER_ROW];
+byte        col_x_index[INVADERS_PER_ROW];
 
-const byte  MAX_FLIP_FRAMES=32;
+//TODO come up with better names for these
+const byte  MAX_FRAMES=32;      //determines speed of invader X motion
+const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
 
 bool        playing = true;
-int         MAX_Y_ROW = 200;
+int         MAX_Y_ROW = 220;
+
+const byte  Y_INC = 5;
+const int   X_INC = 5;
+
 
 //const 
 unsigned int inv_start_line[NUM_ROWS] = {
@@ -124,9 +146,9 @@ unsigned int inv_start_line[NUM_ROWS] = {
     #endif
 };
 
-void flip_image(byte offset);
+void flip_image(byte index);
 void print_invaders();
-__forceinline void move_invader(byte offset);
+__forceinline void move_invader(byte index);
 
 void raster_irq_handler();
 
@@ -140,6 +162,10 @@ void init_sprites();
 void flip_row(byte row);
 
 void shoot_invader(byte row, byte col);
+
+void bounce_rows();
+
+void move_rows_down(byte px_down);
 
 #pragma compile("invaders.c")
 #endif
