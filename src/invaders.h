@@ -51,10 +51,6 @@ signed int  inv_x[TOTAL_INVS_SIZE]; // = {
 signed int  inv_y[TOTAL_INVS_SIZE]; // = {
 signed int  inv_speed_x[TOTAL_INVS_SIZE];
 signed int  inv_speed_y[TOTAL_INVS_SIZE];
-byte        inv_num_images[TOTAL_INVS_SIZE];
-byte        inv_image_handles[TOTAL_INVS_SIZE][MAX_IMAGE_HANDLES];
-byte        inv_image_num[TOTAL_INVS_SIZE];
-byte        inv_max_frames[TOTAL_INVS_SIZE];
 byte        inv_sprite_num[TOTAL_INVS_SIZE];
 byte        inv_color[TOTAL_INVS_SIZE];
 byte        inv_frame_num[TOTAL_INVS_SIZE];
@@ -65,10 +61,13 @@ byte        inv_spr_pos_y[TOTAL_INVS_SIZE];
 byte        inv_row[TOTAL_INVS_SIZE];
 byte        inv_col[TOTAL_INVS_SIZE];
 
-signed int  row_y[NUM_ROWS];
+
+int         row_y[NUM_ROWS];
 byte        row_num_images[NUM_ROWS];
 byte        row_image_handles[NUM_ROWS][MAX_IMAGE_HANDLES];
+byte        row_image_row_index[NUM_ROWS];
 byte        row_image_num[NUM_ROWS];
+
 byte        row_max_frames[NUM_ROWS];
 byte        row_frame_num[NUM_ROWS];
 

@@ -141,7 +141,7 @@ int main() {
     ship.y = 230;
     ship.sprite_num = 0;
     ship.sprite_color = 1;
-    ship.image_handle = 152;
+    ship.image_handle = 154;
     ship.type = TYPE_SHIP;
 
     bullet.alive = false;
@@ -332,11 +332,7 @@ void shoot_invader(byte si_row, byte si_col) {
 
 void draw_sprite_row(byte spr_row) {
 
-    // if (spr_row == target_row) {
-    //     vic.color_back=VCOL_BLACK;
-    // }
-
-    //my_assert(spr_row < NUM_ROWS,"spr_row too high");
+  
 
     byte raster_dsr = vic.raster;
 
@@ -344,7 +340,7 @@ void draw_sprite_row(byte spr_row) {
     //          in shoot_invader()
     vic.spr_enable = row_sprite_enable_mask[spr_row];
 
-    //We have to at least disable display of the dead row before exiting
+    //We should at least disable display of the dead row before exiting
     if (!row_alive[spr_row]) {
         return;
     }
