@@ -20,15 +20,14 @@
 
 
 #define NUM_ROWS 6
-//const int INVADERS_PER_ROW=5;
 #define INVADERS_PER_ROW 6
 
 // __export const bool CHANGE_COLOR_BY_ROW  =false;
 // __export const bool MOVE_X_BY_ROW        =false;
 // __export const bool CHANGE_IMAGE_BY_ROW  =true;
 
-const byte SCANLINES_TO_DRAW_SPRITE=17;
-const byte SCANLINES_PER_ROW=22;
+const byte SCANLINES_TO_DRAW_SPRITE=19;
+const byte SCANLINES_PER_ROW=26;
 
 
 byte current_row_num=0;
@@ -47,7 +46,7 @@ const int MIN_Y=MAX(SCANLINES_PER_ROW,50);
 
 const int TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
-byte        inv_alive[TOTAL_INVS_SIZE]; // = {
+bool        inv_alive[TOTAL_INVS_SIZE]; // = {
 signed int  inv_x[TOTAL_INVS_SIZE]; // = {
 signed int  inv_y[TOTAL_INVS_SIZE]; // = {
 signed int  inv_speed_x[TOTAL_INVS_SIZE];
@@ -62,6 +61,9 @@ byte        inv_frame_num[TOTAL_INVS_SIZE];
 signed int  inv_old_x[TOTAL_INVS_SIZE];
 signed int  inv_old_y[TOTAL_INVS_SIZE];
 int         inv_spr_pos_x[TOTAL_INVS_SIZE];
+byte        inv_spr_pos_y[TOTAL_INVS_SIZE];
+byte        inv_row[TOTAL_INVS_SIZE];
+byte        inv_col[TOTAL_INVS_SIZE];
 
 signed int  row_y[NUM_ROWS];
 byte        row_num_images[NUM_ROWS];
@@ -119,19 +121,25 @@ int         MAX_Y_ROW = 220;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
+enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET};
+
 typedef struct {
-    int         x = 0;
-    signed int  speed_x = 0;
-    byte        y = 0;
-    signed int  speed_y = 0;
-    bool        alive = false;
-    byte        sprite_num = 0xff;
-    byte        sprite_color = 1;
-    byte        image_handle = 0xff;
+    int                 x = 0;
+    signed int          speed_x = 0;
+    byte                y = 0;
+    signed int          speed_y = 0;
+    bool                alive = false;
+    byte                sprite_num = 0xff;
+    byte                sprite_color = 1;
+    byte                image_handle = 0xff;
+    PlayerObjectType    type;
 } PlayerObject;
+
 
 PlayerObject    ship,bullet;
 
+//byte collision_reg[NUM_ROWS];
+byte collided_inv_index=-1;
 
 // int         ship_x = 160;
 // int         ship_speed_x = 0;
@@ -171,32 +179,35 @@ unsigned int inv_start_line[NUM_ROWS] = {
     #endif
 };
 
+const byte pow2[8] = {
+    0b00000001,
+    0b00000010,
+    0b00000100,
+    0b00001000,
+    0b00010000,
+    0b00100000,
+    0b01000000,
+    0b10000000,
+};
+
 void flip_image(byte index);
 void print_invaders();
 __forceinline void move_invader(byte index);
-
 void raster_irq_handler();
-
-void set_next_irq(int rasterline);
-
+bool set_next_irq(int rasterline, bool calling_from_irq);
 void draw_sprite_row(byte current_row_num);
 void init_invaders();
-
 void init_sprites();
-
 void flip_row(byte row);
-
 void shoot_invader(byte row, byte col);
-
 void bounce_rows();
-
 void move_rows_down(byte px_down);
-
 void read_joy();
-
-void move_object(PlayerObject *obj);
-
-void draw_object(PlayerObject obj);
+void move_object(PlayerObject* obj);
+void draw_object(PlayerObject* obj);
+void fire_bullet(PlayerObject *obj);
+void kill_bullet(PlayerObject *b);
+byte wait_line_and_watch_for_collisions(int line);
 
 #pragma compile("invaders.c")
 #endif
