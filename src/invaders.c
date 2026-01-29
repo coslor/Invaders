@@ -321,14 +321,16 @@ void shoot_invader(byte si_row, byte si_col) {
     }
 
     inv_alive[inv_index]=false;
+    my_assert(col_invs_left_alive[si_col] > 0, "mismatch in col-invs--left-alive");
+    col_invs_left_alive[si_col]--;
     
     //row_dirty[si_row] = true;
 
     byte spr_mask=0;
 
     #pragma unroll(full)
-    for (int c=0;c<INVADERS_PER_ROW;c++) {
-        int off=row_inv_index[si_row]+c;
+    for (byte c=0;c<INVADERS_PER_ROW;c++) {
+        byte off=row_inv_index[si_row]+c;
         if (inv_alive[off]) {
             spr_mask |= 1<<inv_sprite_num[off];
         }
@@ -532,6 +534,7 @@ void init_invaders() {
 
     current_row_num=0;
     
+    my_assert(NUM_ROWS == 6, "**GURU MEDITATION ERROR**");
     for (int c=0;c<INVADERS_PER_ROW;c++) {
         col_invs_left_alive[c]  = NUM_ROWS;
     }
@@ -560,7 +563,6 @@ void init_invaders() {
 
         row_sprite_enable_mask[r] = 255;
 
-        
         #pragma unroll(full)
         for (int c=0;c<INVADERS_PER_ROW; c++) {
             byte index=r*INVADERS_PER_ROW+c;

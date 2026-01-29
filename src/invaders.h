@@ -94,7 +94,7 @@ byte        row_sprite_enable_mask[NUM_ROWS];
 
 byte        rows_inv_spr_pos_x[INVADERS_PER_ROW];
 
-bool        col_invs_left_alive[INVADERS_PER_ROW];
+byte        col_invs_left_alive[INVADERS_PER_ROW];
 int         col_x[INVADERS_PER_ROW];
 
 //TODO come up with better names for these

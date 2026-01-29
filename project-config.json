@@ -27,6 +27,7 @@
         "-DEBUG",
         "-O3",
         "-DUSE_BORDER",
+        "-DMY_ASSERT",
         "-Dstrict"
     ],
     "compiler": ""
