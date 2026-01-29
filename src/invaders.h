@@ -19,6 +19,8 @@
 #include "my_assert.h" 
 
 
+//I used #defines here so that I could use them in the #if's later on
+//  in the Invs static initializers.
 #define     NUM_ROWS 6
 #define     INVADERS_PER_ROW 6
 
@@ -29,22 +31,17 @@ byte        current_row_num=0;
 
 #define     IRQ_VECTOR *(void **)0x0314
 
-//not sure this does anything
-//#define SYNC_MAIN_THREAD    true
-
 const       byte MAX_IMAGE_HANDLES=2;
 
-#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
-#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+#define     MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define     MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 const int   MIN_Y=MAX(SCANLINES_PER_ROW,50);
 
 const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
-__export const signed int   MIN_SPR_X = 35;
-//#define MIN_SPR_X 25
-__export const signed int   MAX_SPR_X = 320;
-//#define MAX_SPR_X   320
+const signed int MIN_SPR_X = 35;
+const signed int MAX_SPR_X = 320;
 
 bool        inv_alive[TOTAL_INVS_SIZE]; // = {
 signed int  inv_x[TOTAL_INVS_SIZE]; // = {
@@ -52,15 +49,10 @@ signed int  inv_y[TOTAL_INVS_SIZE]; // = {
 signed int  inv_speed_x[TOTAL_INVS_SIZE];
 signed int  inv_speed_y[TOTAL_INVS_SIZE];
 byte        inv_sprite_num[TOTAL_INVS_SIZE];
-// byte        inv_color[TOTAL_INVS_SIZE];
-//byte        inv_frame_num[TOTAL_INVS_SIZE];
-signed int  inv_old_x[TOTAL_INVS_SIZE];
-signed int  inv_old_y[TOTAL_INVS_SIZE];
 int         inv_spr_pos_x[TOTAL_INVS_SIZE];
 byte        inv_spr_pos_y[TOTAL_INVS_SIZE];
 byte        inv_row[TOTAL_INVS_SIZE];
 byte        inv_col[TOTAL_INVS_SIZE];
-
 
 int         row_y[NUM_ROWS];
 
@@ -71,45 +63,45 @@ byte        row_image_handle_row[NUM_ROWS];
 byte        row_image_row_index[NUM_ROWS];
 byte        row_image_num[NUM_ROWS];
 
-byte        row_max_frames[NUM_ROWS];
-byte        row_frame_num[NUM_ROWS];
-
 byte        row_color[NUM_ROWS];
 byte        row_mcolor0[NUM_ROWS];              //Invaders should be drawn with mcolor0 & mcolor1
 byte        row_mcolor1[NUM_ROWS];
 
 bool        row_alive[NUM_ROWS];
 
-
 //left & right-most borders for all rows
-signed int         rows_max_spr_x = MIN_SPR_X;
-signed int         rows_min_spr_x = MAX_SPR_X;
+signed int  rows_max_spr_x = MIN_SPR_X;
+signed int  rows_min_spr_x = MAX_SPR_X;
+
+signed int  rows_x_shift;
+
+//TODO: this is more movement speed, not frame speed
+signed int  rows_x_frame_speed;             //X motion speed
 
 
-signed int         rows_x_shift = 50;
-signed int         rows_x_frame_speed = 4;             //X motion speed
+//TODO Fix this--it's halfway all rows (for movement) and halfway by row (for images)
 
+//# of frames for Invaders between moving/flipping images
+//This is for Invader rows movement
 byte        rows_frame_num = 0;
-byte        rows_max_frames = 32;
+const byte  ROWS_MAX_FRAMES = 32;
+//This is for invader row image flipping
+byte        row_max_frames[NUM_ROWS];
+byte        row_frame_num[NUM_ROWS];
 
-
-bool        row_dirty[NUM_ROWS];  
 byte        row_inv_index[NUM_ROWS];
 byte        row_sprite_enable_mask[NUM_ROWS];
 
 byte        rows_inv_spr_pos_x[INVADERS_PER_ROW];
 
-//TODO this is cheating
-bool        col_invs_left_alive[INVADERS_PER_ROW] = 
-                {INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW };
-
-int        col_x[INVADERS_PER_ROW];
+bool        col_invs_left_alive[INVADERS_PER_ROW];
+int         col_x[INVADERS_PER_ROW];
 
 //TODO come up with better names for these
 //const byte  MAX_FRAMES=32;      //determines speed of invader X motion
 const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
 
-bool        playing = true;
+bool        playing;
 const int   MAX_Y_ROW = 220;
 
 const byte  Y_INC = 5;
@@ -154,31 +146,31 @@ int collided_inv_index=0xff;
 //byte            ship_mcolor0  = VCOL_GREEN;
 //byte            ship_mcolor1  = VCOL_RED;
 
-unsigned int inv_start_line[NUM_ROWS + 1] = {
-    //0,
-    //MIN_Y-SCANLINES_PER_ROW-1,
-    MIN_Y-SCANLINES_TO_DRAW_SPRITE, 
-    #if (NUM_ROWS>1)
-    //MIN_Y-6,
-    MIN_Y+SCANLINES_PER_ROW*1-SCANLINES_TO_DRAW_SPRITE, 
-    #endif
-    #if (NUM_ROWS > 2)
-    //MIN_Y+SCANLINES_PER_ROW-6,
-    MIN_Y+SCANLINES_PER_ROW*2-SCANLINES_TO_DRAW_SPRITE, 
-    #endif
-    #if (NUM_ROWS > 3)
-    //MIN_Y+SCANLINES_PER_ROW*2-6,
-    MIN_Y+SCANLINES_PER_ROW*3-SCANLINES_TO_DRAW_SPRITE, 
-    #endif
-    #if (NUM_ROWS > 4)
-    MIN_Y+SCANLINES_PER_ROW*4-SCANLINES_TO_DRAW_SPRITE,
-    #endif
-    #if (NUM_ROWS > 5)
-    //MIN_Y+SCANLINES_PER_ROW*5,
-    MIN_Y+SCANLINES_PER_ROW*5-SCANLINES_TO_DRAW_SPRITE,
-    #endif
-    230
-};
+unsigned int inv_start_line[NUM_ROWS + 1]; // = {
+//     //0,
+//     //MIN_Y-SCANLINES_PER_ROW-1,
+//     MIN_Y-SCANLINES_TO_DRAW_SPRITE, 
+//     #if (NUM_ROWS>1)
+//     //MIN_Y-6,
+//     MIN_Y+SCANLINES_PER_ROW*1-SCANLINES_TO_DRAW_SPRITE, 
+//     #endif
+//     #if (NUM_ROWS > 2)
+//     //MIN_Y+SCANLINES_PER_ROW-6,
+//     MIN_Y+SCANLINES_PER_ROW*2-SCANLINES_TO_DRAW_SPRITE, 
+//     #endif
+//     #if (NUM_ROWS > 3)
+//     //MIN_Y+SCANLINES_PER_ROW*2-6,
+//     MIN_Y+SCANLINES_PER_ROW*3-SCANLINES_TO_DRAW_SPRITE, 
+//     #endif
+//     #if (NUM_ROWS > 4)
+//     MIN_Y+SCANLINES_PER_ROW*4-SCANLINES_TO_DRAW_SPRITE,
+//     #endif
+//     #if (NUM_ROWS > 5)
+//     //MIN_Y+SCANLINES_PER_ROW*5,
+//     MIN_Y+SCANLINES_PER_ROW*5-SCANLINES_TO_DRAW_SPRITE,
+//     #endif
+//     230
+// };
 
 const byte pow2[8] = {
     0b00000001,

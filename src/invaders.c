@@ -22,7 +22,6 @@
 // everything beyond will be code, data, bss and heap to the end
 #pragma region( main, 0x2800, 0xa000, , , {code, data, bss, heap, stack} )
 
-
 // spriteset at fixed location
 
 #pragma data(spriteset)
@@ -47,8 +46,8 @@ __export int total_invs;
 
 __export int flip_lines_used = -1;
 
-__export signed int useless =-1;
-bool first_time=true;
+//__export signed int useless =-1;
+//bool first_time=true;
 
 byte target_row = 0;
 
@@ -62,10 +61,10 @@ const byte asdf_row[6] = "asdfgh";
 __export byte coll_spr_num=0xff;
 __export byte coll_spr_y = 0xff;
 
-//__export const int max_spr_x = MAX_SPR_X;
-//__export const int min_spr_x = MIN_SPR_X;
-
+//MAIN THREAD
 int main() {
+
+    //TODO clean up this ugly main() code & move a bunch of it off to separate routines
     //Bad things happen if these two get out of sync
     my_assert(SCANLINES_PER_ROW > SCANLINES_TO_DRAW_SPRITE, "scanlines constants are out of sync");
 
@@ -81,32 +80,30 @@ int main() {
     init_invaders();
     init_sprites();
 
-
-    // is this really necessary? //
     // Disable interrupts while setting up
 	__asm { sei };
 
-    //Kill **all** other interrupts?
-    __asm {
-        lda #$7f
-        sta $dc0d		 //turn off all types of cia irq/nmi.
-        sta $dd0d
-        lda $dc0d
-        lda $dd0d
-        lda #$ff
-        sta $D019
-        lda #$00
-        sta $D01a
-        sta $dc0e
-        sta $dc0f
-        sta $dd0e
-        sta $dd0f
-        lda $d01e
-        lda $d01f
-    }
+    // //Kill **all** other interrupts?
+    // __asm {
+    //     lda #$7f
+    //     sta $dc0d		 //turn off all types of cia irq/nmi.
+    //     sta $dd0d
+    //     lda $dc0d
+    //     lda $dd0d
+    //     lda #$ff
+    //     sta $D019
+    //     lda #$00
+    //     sta $D01a
+    //     sta $dc0e
+    //     sta $dc0f
+    //     sta $dd0e
+    //     sta $dd0f
+    //     lda $d01e
+    //     lda $d01f
+    // }
 
 	// Kill CIA interrupts
-	//cia_init();
+	cia_init();
 
     //We really don't have any need to map ROM out at this point,
     //  and not doing so has certain advantages (like being able
@@ -119,25 +116,25 @@ int main() {
     init_sprites();
 
     //All sprites are multicolor
-    vic.spr_multi=0b11111111;
+    vic.spr_multi   = 0b11111111;
     vic.spr_mcolor0 = VCOL_LT_GREEN;
     vic.spr_mcolor1 = VCOL_RED;
 
     //Instead of dealing with the CIA stuff here and in the irq routine, I should
     //  probably turn them off completely. What exactly does this code do?
-    cia1.icr=0x7f;
-    cia2.icr=0x7f;
+    cia1.icr        = 0x7f;
+    cia2.icr        = 0x7f;
     // byte b=cia1.sdr;
     // b=cia2.sdr;
 
 
 
-    #pragma unroll(full)
-    for (int c=0;c<INVADERS_PER_ROW;c++) {
-        spr_move(inv_sprite_num[c], inv_x[c], inv_y[c]);
-        spr_color(inv_sprite_num[c], 1); //inv_color[c]);
+    // #pragma unroll(full)
+    // for (int c=0;c<INVADERS_PER_ROW;c++) {
+    //     spr_move(inv_sprite_num[c], inv_x[c], inv_y[c]);
+    //     spr_color(inv_sprite_num[c], 1); //inv_color[c]);
 
-    }
+    // }
 
     ship.alive = true;
     ship.x = 160;
@@ -167,35 +164,45 @@ int main() {
 
     collided_inv_index = 0xff;
 
+    rows_x_shift = 50;
+    rows_x_frame_speed = 4;
+
+    rows_frame_num = 0;
+
+    collided_inv_index=0xff;
+
+    playing = true;
+
     while(playing) {
 
-        // char key = getchx();
-        // if (key>='1' && key <= '6') {
-        //     byte col=(key-'1');
-        //     shoot_invader(target_row, col);
-        // }
-        // else if (key>=0x85 && key <= 0x8b) {
-        //     target_row = fn_key_row[key - 0x85];
+        //Cheat keys
+        // f1-f7    : choose the current row
+        // 1-6      : shoot the invader on the current row, in that column
+        char key = getchx();
+        if (key>='1' && key <= '6') {
+            byte col=(key-'1');
+            shoot_invader(target_row, col);
+        }
+        else if (key>=0x85 && key <= 0x8b) {
+            target_row = fn_key_row[key - 0x85];
 
-        // }
+        }
 
 
 #ifdef USE_BORDER
         vic.color_border = VCOL_BLUE;
 #endif
         vic_waitBottom();
+        //TODO fix this & get collisions working
         //wait_line_and_watch_for_collisions(255);
 #ifdef USE_BORDER
         vic.color_border = VCOL_WHITE;
 #endif
-        //rows_min_spr_x = MAX_SPR_X;
-        //rows_max_spr_x = MIN_SPR_X;
-
         set_sprites_for_all();
         
         byte flip_lines = vic.raster;
 
-        if ((++(rows_frame_num)) >= rows_max_frames) {
+        if ((++(rows_frame_num)) >= ROWS_MAX_FRAMES) {
 
             my_assert(rows_x_frame_speed == -4 || rows_x_frame_speed == 4,
                 "rows_x_frame_speed bad value in main\n");
@@ -206,24 +213,8 @@ int main() {
         }
 
         #pragma unroll(full)
-        for (byte mr=0;mr<NUM_ROWS;mr++) {
-
-#ifdef SYNC_MAIN_THREAD
-            __asm {
-                sei
-            }
-#endif
-
-            flip_row_image(mr);
-
-            byte raster=vic.raster;
-
-            
-#ifdef SYNC_MAIN_THREAD
-            __asm {
-                cli
-            }
-#endif
+        for (byte row=0;row<NUM_ROWS;row++) {
+            flip_row_image(row);
         }
         flip_lines_used=vic.raster - flip_lines;
 
@@ -266,7 +257,6 @@ int main() {
         // coll_spr_num == 0xff;
         // collided_inv_index = 0xff;
 
-       // bounce_rows();
 
         //for debugging
         __asm{
@@ -315,6 +305,7 @@ int main() {
 //     return r*INVADERS_PER_ROW + c;
 // }
 
+//MAIN THREAD
 void shoot_invader(byte si_row, byte si_col) {
 
 #ifdef USE_BORDER
@@ -331,7 +322,7 @@ void shoot_invader(byte si_row, byte si_col) {
 
     inv_alive[inv_index]=false;
     
-    row_dirty[si_row] = true;
+    //row_dirty[si_row] = true;
 
     byte spr_mask=0;
 
@@ -346,13 +337,11 @@ void shoot_invader(byte si_row, byte si_col) {
 
 }
 
+//MAIN THREAD
 void set_sprites_for_all() {
     #pragma unroll(full)
     for (int c=0;c<INVADERS_PER_ROW;c++) {
         byte spr_num = c+2;
-        //byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
-       // byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
-        //byte spr_num = c + 2;
 
         int spr_pos_x = col_x[c] + rows_x_shift; //row_x_index[spr_row];
         rows_inv_spr_pos_x[c]    = spr_pos_x;
@@ -362,8 +351,6 @@ void set_sprites_for_all() {
             vic.spr_msbx |= 1 << spr_num;
         else
             vic.spr_msbx &= ~(1 << spr_num);
-        
-        //vic.spr_color[spr_num] = this_row_color; //inv_color[inv_index];
 
 
     }
@@ -371,7 +358,6 @@ void set_sprites_for_all() {
 
 //IRQ THREAD
 void draw_sprite_row(byte spr_row) {
-    //byte raster_dsr = vic.raster;
 
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
     //          in shoot_invader()
@@ -400,50 +386,9 @@ void draw_sprite_row(byte spr_row) {
         }
 
         byte spr_num = c + 2;
-
-        ////
-        // PROBLEM: even though we're trying to update the image for the next sprite row down,
-        //          we're still writing to the image while sprites are being drawn!
-        //          I think we're going to need to wait until we're past a row before we can 
-        //          update the image of any sprite. Set 2 IRQ's / row? Just waitUntil(right_after_this_row)?
-        //
-        //          ...or have enough space between SCANLINES_TO_DRAW_SPRITE and SCANLINES_PER_ROW
-        //          so that the image update happens in the space in between. Not sure how reliable 
-        //          this 2nd method will be though.
-        ////
         Screen[0x3f8 + spr_num] = new_handle;
-
-        //int spr_pos_x = col_x[c] + rows_x_shift; //row_x_index[spr_row];
-        // if (spr_pos_x < rows_min_spr_x) {
-        //     rows_min_spr_x = spr_pos_x;
-        // }
-        // if (spr_pos_x > rows_max_spr_x) {
-        //     rows_max_spr_x = spr_pos_x;
-        // }
-
-        // inv_spr_pos_x[inv_index]    = spr_pos_x;
-
-        // my_assert(spr_num < 8, "bad spr-num in draw-sprite-row");
-        // vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
-        // if (spr_pos_x & 0x100)
-        //     vic.spr_msbx |= 1 << spr_num;
-        // else
-        //     vic.spr_msbx &= ~(1 << spr_num);
-        
-        // //vic.spr_color[spr_num] = this_row_color; //inv_color[inv_index];
-
-        //inv_spr_pos_x[inv_index] = vic_sprgetx(spr_num);
-        //inv_spr_pos_y[inv_index] = this_row_y;
         vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
-        // if (this_row_y > MAX_Y_ROW) {
-        //     //TODO: unreachable code??
-        //     playing = false;
-        //     printf("Exit in draw-sprite-row\n");
-        //     return;
-        // }
-
     }
-
 
     //for debugging
     __asm {
@@ -477,6 +422,7 @@ void raster_irq_handler() {
     if (playing) {
         int min_y=MIN_Y;
 
+    //TODO needed? Useful?    
     //if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
 
         prev_raster = vic.raster;
@@ -508,11 +454,6 @@ void raster_irq_handler() {
         }
 
         set_next_irq(inv_start_line[current_row_num], true);
-        //TODO try to fix this
-        // if (! set_next_irq(inv_start_line[current_row_num])) {
-        //     byte next_line = current_row_num < NUM_ROWS-1 ? (current_row_num + 1) : 0;
-        //     set_next_irq(inv_start_line[next_line]);
-        // }
 
         lines_used=vic.raster - prev_raster;
     }
@@ -553,29 +494,17 @@ bool set_next_irq(int rasterline, bool calling_from_irq) {
     byte b=cia1.sdr;
     b=cia2.sdr;
 
-    //A simplified version of some code to prevent flickering, from here:
-    //  https://cadaver.github.io/rants/sprite.html
-    //  ...and it doesn't work, unless I give it a lot of buffer. Maybe take it out?
-    //int vic_raster = vic.raster + ((vic.ctrl1 & 0b10000000) * 256);
-    //byte new_ras = rasterline - vic_raster;
-    
-    //if ((new_ras) >= 4) {
 
-        if (rasterline < 256) {
-            vic.ctrl1 &= 0b01111111; //0x7f;                           //MSb of raster line#
-        }
-        else {
-            vic.ctrl1 |= 0b10000000;
-        }
+    if (rasterline < 256) {
+        vic.ctrl1 &= 0b01111111; //0x7f;                           //MSb of raster line#
+    }
+    else {
+        vic.ctrl1 |= 0b10000000;
+    }
 
-
-        vic.raster = (byte)rasterline&0b11111111;                    //rest of raster line# 
-        vic.intr_enable = 1;
-        ok = true;
-    //}
-    //else {
-    //    ok=false;
-    //}
+    vic.raster = (byte)rasterline&0b11111111;                    //rest of raster line# 
+    vic.intr_enable = 1;
+    ok = true;
 
     //NOTE:see note above
     if (! calling_from_irq) {
@@ -591,21 +520,31 @@ void flip_row_image(byte row) {
     if (!row_alive[row]) return;
 
     if ((++(row_frame_num[row])) >= row_max_frames[row]) {
-        row_dirty[row]=true;
 
         row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
-        row_frame_num[row]=0;
-
-        
+        row_frame_num[row]=0;        
     }
-
 }
 
+//MAIN thread
 void init_invaders() {
     //int index=0;
 
-    #pragma unroll(full)
-    for (int r=0;r<NUM_ROWS; r++) {
+    current_row_num=0;
+    
+    for (int c=0;c<INVADERS_PER_ROW;c++) {
+        col_invs_left_alive[c]  = NUM_ROWS;
+    }
+
+    for (int i=0;i<NUM_ROWS;i++) {
+        inv_start_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
+    }
+    //TODO cheating
+    inv_start_line[NUM_ROWS+1] = 230;
+
+    //TODO: oscar64 bug? If I do #pragma(unroll) on this loop, row_y[0] gets corrupted
+    //#pragma unroll(full)
+    for (byte r=0;r<NUM_ROWS; r++) {
         row_y[r]                = MIN_Y + SCANLINES_PER_ROW * r;
         row_num_images[r]       = 2;
         row_image_handles[r][0] = 140+(r*2);
@@ -619,7 +558,6 @@ void init_invaders() {
         row_mcolor0[r]          = (r + 2) % 16;
         row_mcolor1[r]          = (row_mcolor0[r] == VCOL_RED ? VCOL_GREEN : VCOL_RED);
 
-        row_dirty[r] = true;
         row_sprite_enable_mask[r] = 255;
 
         
@@ -630,9 +568,6 @@ void init_invaders() {
             inv_speed_x[index]          = 1;
             inv_speed_y[index]          = 0;
             inv_sprite_num[index]       = 2 + c;
-            //inv_color[index]            = r + 3; //c + (r & 3)+3;
-            inv_old_x[index]            = 0;
-            inv_old_y[index]            = 0;
             col_x[c]              = 0 + c*35;
             inv_spr_pos_x[index]        = 0;
             inv_row[index]              = r;
@@ -659,7 +594,9 @@ void init_sprites() {
     }
 }
 
-//This is about as fast as it's going to get with this approach
+//MAIN thread
+//This is about as fast as it's going to get with this approach.
+//  Not a huge deal as it's running in the main thread anyway.
 void find_min_max_spr_x() {
     rows_min_spr_x = MAX_SPR_X;
     rows_max_spr_x = MIN_SPR_X;
@@ -677,30 +614,6 @@ void find_min_max_spr_x() {
             }
         }
     }
-    // #pragma unroll(full)
-    // for (int row=0;row<NUM_ROWS;row++) {
-    //     if (! row_alive[row]) continue;
-
-    //     byte row_index = row_inv_index[row];
-
-        
-    //     #pragma unroll(full)
-    //     for (int col=0;col<INVADERS_PER_ROW;col++) {
-    //         byte inv_index = row_index + col;
-
-    //         if (! inv_alive[inv_index]) continue;
-
-    //         //if (rows_inv_spr_pos_x[])
-
-    //         if (inv_spr_pos_x[inv_index] < rows_min_spr_x) {
-    //             rows_min_spr_x = inv_spr_pos_x[inv_index];
-    //         } else {
-    //             if (inv_spr_pos_x[inv_index] > rows_max_spr_x) {
-    //                 rows_max_spr_x = inv_spr_pos_x[inv_index];
-    //             } //if inv_spr_pos_x >
-    //         }//else inv_spr_pos_x <
-    //     }//int col
-    // }//int row
     __asm {
         nop
     }
@@ -713,9 +626,12 @@ void find_min_max_spr_x() {
  *
  *  Uses rows_max_spr_x, rows_min_spr_x, calculated from previous draw_sprite_row() calls.
 */
+//MAIN thread
 void bounce_rows() {
 
     find_min_max_spr_x();
+
+    //TODO combine these 2 if's
     if ((rows_x_frame_speed > 0) && rows_max_spr_x >= MAX_SPR_X) {
         my_assert((rows_x_frame_speed = 4), "rows_x_frame_speed bad in bounce_rows()");
         move_rows_down(Y_INC);
@@ -730,24 +646,26 @@ void bounce_rows() {
     }
 }
 
+//MAIN thread
 void move_rows_down(byte px_down) {
     
     #pragma unroll(full)
-    for (int r8=0;r8<NUM_ROWS;r8++) {       //"r8" for debugging
-        row_y[r8] += px_down;
+    for (int r=0;r<NUM_ROWS;r++) {       //"r8" for debugging
+        row_y[r] += px_down;
 
         //TODO make a proper GAME OVER
-        if (row_y[r8] > MAX_Y_ROW) {
+        if (row_y[r] > MAX_Y_ROW) {
             vic.color_back = VCOL_RED;
             playing = false;
             printf("exit in move_rows_down()\n");
             return;
         }
-        inv_start_line[r8] += px_down;
+        inv_start_line[r] += px_down;
 
     }
 }
 
+//MAIN thread
 void read_joy() {
     joy_poll(0);
     ship.speed_x = joyx[0];
@@ -759,6 +677,7 @@ void read_joy() {
     }
 }
 
+//MAIN thread
 void fire_bullet(PlayerObject* b) {
     if (b->type == TYPE_BULLET) {
         b->x = ship.x;
@@ -774,6 +693,7 @@ void fire_bullet(PlayerObject* b) {
     }
 }
 
+//MAIN thread
 void move_object(PlayerObject *obj) {
     // if (obj == &bullet && obj->alive) {
     //     useless = (int)obj;          //debugging
@@ -809,6 +729,7 @@ void move_object(PlayerObject *obj) {
     }
 }
 
+//MAIN thread
 void draw_object(PlayerObject *obj2) {
     if (obj2->alive) {
         byte sprite_num = obj2->sprite_num;
@@ -827,6 +748,7 @@ void draw_object(PlayerObject *obj2) {
     spr_show(obj2->sprite_num, obj2->alive);
 }
 
+//MAIN thread
 void kill_bullet(PlayerObject *b) {
     b->alive = false;
     vic.color_back = VCOL_BLACK;
