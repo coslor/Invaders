@@ -22,8 +22,8 @@
 #define     NUM_ROWS 6
 #define     INVADERS_PER_ROW 6
 
-const byte  SCANLINES_TO_DRAW_SPRITE=22;
-const byte  SCANLINES_PER_ROW=28;
+const byte  SCANLINES_TO_DRAW_SPRITE=12;
+const byte  SCANLINES_PER_ROW=22;
 
 byte        current_row_num=0;
 
@@ -97,7 +97,13 @@ bool        row_dirty[NUM_ROWS];
 byte        row_inv_index[NUM_ROWS];
 byte        row_sprite_enable_mask[NUM_ROWS];
 
-byte        col_x_index[INVADERS_PER_ROW];
+byte        rows_inv_spr_pos_x[INVADERS_PER_ROW];
+
+//TODO this is cheating
+bool        col_invs_left_alive[INVADERS_PER_ROW] = 
+                {INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW,INVADERS_PER_ROW };
+
+int        col_x[INVADERS_PER_ROW];
 
 //TODO come up with better names for these
 //const byte  MAX_FRAMES=32;      //determines speed of invader X motion
@@ -193,7 +199,7 @@ bool set_next_irq(int rasterline, bool calling_from_irq);
 void draw_sprite_row(byte current_row_num);
 void init_invaders();
 void init_sprites();
-void flip_row(byte row);
+void flip_row_image(byte row);
 void shoot_invader(byte row, byte col);
 void bounce_rows();
 void move_rows_down(byte px_down);
@@ -203,6 +209,7 @@ void draw_object(PlayerObject* obj);
 void fire_bullet(PlayerObject *obj);
 void kill_bullet(PlayerObject *b);
 byte wait_line_and_watch_for_collisions(int line);
+void set_sprites_for_all();
 
 #pragma compile("invaders.c")
 #endif

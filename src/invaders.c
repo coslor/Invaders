@@ -183,12 +183,16 @@ int main() {
 #ifdef USE_BORDER
         vic.color_border = VCOL_BLUE;
 #endif
-        //vic_waitBottom();
-        wait_line_and_watch_for_collisions(255);
+        vic_waitBottom();
+        //wait_line_and_watch_for_collisions(255);
 #ifdef USE_BORDER
         vic.color_border = VCOL_WHITE;
 #endif
+        //rows_min_spr_x = MAX_SPR_X;
+        //rows_max_spr_x = MIN_SPR_X;
 
+        set_sprites_for_all();
+        
         byte flip_lines = vic.raster;
 
         if ((++(rows_frame_num)) >= rows_max_frames) {
@@ -210,13 +214,10 @@ int main() {
             }
 #endif
 
-            flip_row(mr);
+            flip_row_image(mr);
 
-            
             byte raster=vic.raster;
-            __asm {
-                nop;
-            }
+
             
 #ifdef SYNC_MAIN_THREAD
             __asm {
@@ -345,6 +346,29 @@ void shoot_invader(byte si_row, byte si_col) {
 
 }
 
+void set_sprites_for_all() {
+    #pragma unroll(full)
+    for (int c=0;c<INVADERS_PER_ROW;c++) {
+        byte spr_num = c+2;
+        //byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
+       // byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
+        //byte spr_num = c + 2;
+
+        int spr_pos_x = col_x[c] + rows_x_shift; //row_x_index[spr_row];
+        rows_inv_spr_pos_x[c]    = spr_pos_x;
+
+        vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
+        if (spr_pos_x & 0x100)
+            vic.spr_msbx |= 1 << spr_num;
+        else
+            vic.spr_msbx &= ~(1 << spr_num);
+        
+        //vic.spr_color[spr_num] = this_row_color; //inv_color[inv_index];
+
+
+    }
+}
+
 //IRQ THREAD
 void draw_sprite_row(byte spr_row) {
     //byte raster_dsr = vic.raster;
@@ -371,8 +395,11 @@ void draw_sprite_row(byte spr_row) {
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
         byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
+        if (! inv_alive[inv_index]) {
+            continue;
+        }
+
         byte spr_num = c + 2;
-        my_assert(spr_num < 8, "bad spr-num in draw-sprite-row\n");
 
         ////
         // PROBLEM: even though we're trying to update the image for the next sprite row down,
@@ -386,26 +413,34 @@ void draw_sprite_row(byte spr_row) {
         ////
         Screen[0x3f8 + spr_num] = new_handle;
 
-        int spr_pos_x = col_x_index[c] + rows_x_shift; //row_x_index[spr_row];
-        inv_spr_pos_x[inv_index]    = spr_pos_x;
+        //int spr_pos_x = col_x[c] + rows_x_shift; //row_x_index[spr_row];
+        // if (spr_pos_x < rows_min_spr_x) {
+        //     rows_min_spr_x = spr_pos_x;
+        // }
+        // if (spr_pos_x > rows_max_spr_x) {
+        //     rows_max_spr_x = spr_pos_x;
+        // }
 
-        my_assert(spr_num < 8, "bad spr-num in draw-sprite-row");
-        vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
-        if (spr_pos_x & 0x100)
-            vic.spr_msbx |= 1 << spr_num;
-        else
-            vic.spr_msbx &= ~(1 << spr_num);
+        // inv_spr_pos_x[inv_index]    = spr_pos_x;
+
+        // my_assert(spr_num < 8, "bad spr-num in draw-sprite-row");
+        // vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
+        // if (spr_pos_x & 0x100)
+        //     vic.spr_msbx |= 1 << spr_num;
+        // else
+        //     vic.spr_msbx &= ~(1 << spr_num);
         
-        //vic.spr_color[spr_num] = this_row_color; //inv_color[inv_index];
+        // //vic.spr_color[spr_num] = this_row_color; //inv_color[inv_index];
 
-        inv_spr_pos_y[inv_index] = this_row_y;
-        my_assert(spr_num < 8, "bad spr-num in draw-sprite-row");
+        //inv_spr_pos_x[inv_index] = vic_sprgetx(spr_num);
+        //inv_spr_pos_y[inv_index] = this_row_y;
         vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
-        if (this_row_y > MAX_Y_ROW) {
-            playing = false;
-            printf("Exit in draw-sprite-row\n");
-            return;
-        }
+        // if (this_row_y > MAX_Y_ROW) {
+        //     //TODO: unreachable code??
+        //     playing = false;
+        //     printf("Exit in draw-sprite-row\n");
+        //     return;
+        // }
 
     }
 
@@ -452,7 +487,7 @@ void raster_irq_handler() {
         vic.color_border = VCOL_PURPLE;
 #endif
             my_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
-            vic.spr_color[ship.sprite_num] = ship.sprite_color;
+            //vic.spr_color[ship.sprite_num] = ship.sprite_color;
             vic.spr_mcolor0 = ship.sprite_mcolor0;
             vic.spr_mcolor1 = ship.sprite_mcolor1;
         }
@@ -552,7 +587,7 @@ bool set_next_irq(int rasterline, bool calling_from_irq) {
     return ok;
 }
 
-void flip_row(byte row) {
+void flip_row_image(byte row) {
     if (!row_alive[row]) return;
 
     if ((++(row_frame_num[row])) >= row_max_frames[row]) {
@@ -598,7 +633,7 @@ void init_invaders() {
             //inv_color[index]            = r + 3; //c + (r & 3)+3;
             inv_old_x[index]            = 0;
             inv_old_y[index]            = 0;
-            col_x_index[c]              = 0 + c*35;
+            col_x[c]              = 0 + c*35;
             inv_spr_pos_x[index]        = 0;
             inv_row[index]              = r;
             inv_col[index]              = c;
@@ -624,39 +659,59 @@ void init_sprites() {
     }
 }
 
-//TODO:Fix this - it's way too slow!
+//This is about as fast as it's going to get with this approach
 void find_min_max_spr_x() {
     rows_min_spr_x = MAX_SPR_X;
     rows_max_spr_x = MIN_SPR_X;
 
     
-    #pragma unroll(full)
-    for (int row=0;row<NUM_ROWS;row++) {
-        if (! row_alive[row]) continue;
+    for (byte c=0;c<INVADERS_PER_ROW;c++) {
+        if (col_invs_left_alive[c] > 0) {
+            int spr_col_x = col_x[c] + rows_x_shift;
+            
+            if (spr_col_x < rows_min_spr_x) {
+                rows_min_spr_x = spr_col_x;
+            }
+            if (spr_col_x > rows_max_spr_x) {
+                rows_max_spr_x = spr_col_x;
+            }
+        }
+    }
+    // #pragma unroll(full)
+    // for (int row=0;row<NUM_ROWS;row++) {
+    //     if (! row_alive[row]) continue;
 
-        byte row_index = row_inv_index[row];
+    //     byte row_index = row_inv_index[row];
 
         
-        #pragma unroll(full)
-        for (int col=0;col<INVADERS_PER_ROW;col++) {
-            byte inv_index = row_index + col;
+    //     #pragma unroll(full)
+    //     for (int col=0;col<INVADERS_PER_ROW;col++) {
+    //         byte inv_index = row_index + col;
 
-            if (! inv_alive[inv_index]) continue;
+    //         if (! inv_alive[inv_index]) continue;
 
-            if (inv_spr_pos_x[inv_index] < rows_min_spr_x) {
-                rows_min_spr_x = inv_spr_pos_x[inv_index];
-            } else {
-                if (inv_spr_pos_x[inv_index] > rows_max_spr_x) {
-                    rows_max_spr_x = inv_spr_pos_x[inv_index];
-                } //if inv_spr_pos_x >
-            }//else inv_spr_pos_x <
-        }//int col
-    }//int row
+    //         //if (rows_inv_spr_pos_x[])
+
+    //         if (inv_spr_pos_x[inv_index] < rows_min_spr_x) {
+    //             rows_min_spr_x = inv_spr_pos_x[inv_index];
+    //         } else {
+    //             if (inv_spr_pos_x[inv_index] > rows_max_spr_x) {
+    //                 rows_max_spr_x = inv_spr_pos_x[inv_index];
+    //             } //if inv_spr_pos_x >
+    //         }//else inv_spr_pos_x <
+    //     }//int col
+    // }//int row
+    __asm {
+        nop
+    }
+    return;
 }//find_min_max_spr_x
 
 /*
  * Check to see if the max/min X position has been crossed. If so,
  *  move all of the rows down and reverse their direction.
+ *
+ *  Uses rows_max_spr_x, rows_min_spr_x, calculated from previous draw_sprite_row() calls.
 */
 void bounce_rows() {
 
@@ -788,7 +843,12 @@ byte wait_line_and_watch_for_collisions(int line)
 	do
 	{
         int raster;
-		while (((raster=vic.raster) != lower) ) {
+		//while (((raster=vic.raster) != lower) ) {
+        while (true) {
+            volatile int raster=vic.raster;
+            if (vic.raster == lower) {
+                break;
+            }
             //TODO get collision  handling working
             // int coll = vic.spr_sprcol;
             // if (coll != 0) {
