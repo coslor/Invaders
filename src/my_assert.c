@@ -2,7 +2,7 @@
 #include <c64/memmap.h>
 
 void my_assert(bool condition, void* message) {
-#ifdef DEBUG
+#ifdef MY_ASSERT
     if (! condition) {
         //TODO reset c64 so that message is visible
         mmap_set(MMAP_ROM);

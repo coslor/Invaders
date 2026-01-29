@@ -19,32 +19,32 @@
 #include "my_assert.h" 
 
 
-#define NUM_ROWS 6
-#define INVADERS_PER_ROW 6
+#define     NUM_ROWS 6
+#define     INVADERS_PER_ROW 6
 
-// __export const bool CHANGE_COLOR_BY_ROW  =false;
-// __export const bool MOVE_X_BY_ROW        =false;
-// __export const bool CHANGE_IMAGE_BY_ROW  =true;
+const byte  SCANLINES_TO_DRAW_SPRITE=22;
+const byte  SCANLINES_PER_ROW=28;
 
-const byte SCANLINES_TO_DRAW_SPRITE=19;
-const byte SCANLINES_PER_ROW=26;
+byte        current_row_num=0;
 
-
-byte current_row_num=0;
-
-#define  IRQ_VECTOR *(void **)0x0314
+#define     IRQ_VECTOR *(void **)0x0314
 
 //not sure this does anything
 //#define SYNC_MAIN_THREAD    true
 
-const byte MAX_IMAGE_HANDLES=2;
+const       byte MAX_IMAGE_HANDLES=2;
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
-const int MIN_Y=MAX(SCANLINES_PER_ROW,50);
+const int   MIN_Y=MAX(SCANLINES_PER_ROW,50);
 
-const int TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
+const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
+
+__export const signed int   MIN_SPR_X = 35;
+//#define MIN_SPR_X 25
+__export const signed int   MAX_SPR_X = 320;
+//#define MAX_SPR_X   320
 
 bool        inv_alive[TOTAL_INVS_SIZE]; // = {
 signed int  inv_x[TOTAL_INVS_SIZE]; // = {
@@ -52,8 +52,8 @@ signed int  inv_y[TOTAL_INVS_SIZE]; // = {
 signed int  inv_speed_x[TOTAL_INVS_SIZE];
 signed int  inv_speed_y[TOTAL_INVS_SIZE];
 byte        inv_sprite_num[TOTAL_INVS_SIZE];
-byte        inv_color[TOTAL_INVS_SIZE];
-byte        inv_frame_num[TOTAL_INVS_SIZE];
+// byte        inv_color[TOTAL_INVS_SIZE];
+//byte        inv_frame_num[TOTAL_INVS_SIZE];
 signed int  inv_old_x[TOTAL_INVS_SIZE];
 signed int  inv_old_y[TOTAL_INVS_SIZE];
 int         inv_spr_pos_x[TOTAL_INVS_SIZE];
@@ -63,36 +63,31 @@ byte        inv_col[TOTAL_INVS_SIZE];
 
 
 int         row_y[NUM_ROWS];
+
+//TODO refactor so that we can make these const's
 byte        row_num_images[NUM_ROWS];
 byte        row_image_handles[NUM_ROWS][MAX_IMAGE_HANDLES];
+byte        row_image_handle_row[NUM_ROWS];
 byte        row_image_row_index[NUM_ROWS];
 byte        row_image_num[NUM_ROWS];
 
 byte        row_max_frames[NUM_ROWS];
 byte        row_frame_num[NUM_ROWS];
 
-bool        row_alive[NUM_ROWS];
-//byte        row_max_inv_alive[NUM_ROWS];
-//byte        row_min_inv_alive[NUM_ROWS];
-//const byte   NO_INVS_ALIVE = -1;
-//int         row_max_x[NUM_ROWS];
-//int         row_min_x[NUM_ROWS];
+byte        row_color[NUM_ROWS];
+byte        row_mcolor0[NUM_ROWS];              //Invaders should be drawn with mcolor0 & mcolor1
+byte        row_mcolor1[NUM_ROWS];
 
-const int   MIN_SPR_X = 25;
-const int   MAX_SPR_X = 320;
+bool        row_alive[NUM_ROWS];
 
 
 //left & right-most borders for all rows
-int         rows_max_spr_x = MIN_SPR_X;
-int         rows_min_spr_x = MAX_SPR_X;
+signed int         rows_max_spr_x = MIN_SPR_X;
+signed int         rows_min_spr_x = MAX_SPR_X;
 
 
-//byte        row_x_index[NUM_ROWS];
-//byte        row_x_frame_speed[NUM_ROWS];                    //pixels moved / frame
-
-int         rows_x_shift = 50;
-//X motion speed
-int         rows_x_frame_speed = 4;
+signed int         rows_x_shift = 50;
+signed int         rows_x_frame_speed = 4;             //X motion speed
 
 byte        rows_frame_num = 0;
 byte        rows_max_frames = 32;
@@ -102,20 +97,14 @@ bool        row_dirty[NUM_ROWS];
 byte        row_inv_index[NUM_ROWS];
 byte        row_sprite_enable_mask[NUM_ROWS];
 
-// const int   MIN_ROW_X_OFFSET=50;
-// const int   MIN_ROW_X_OFFSET_PLUS_1 = MIN_ROW_X_OFFSET + 1;
-// const int   MAX_ROW_X_OFFSET=100;
-// const int   MAX_ROW_X_OFFSET_MINUS_1 = MAX_ROW_X_OFFSET - 1;
-
-
 byte        col_x_index[INVADERS_PER_ROW];
 
 //TODO come up with better names for these
-const byte  MAX_FRAMES=32;      //determines speed of invader X motion
+//const byte  MAX_FRAMES=32;      //determines speed of invader X motion
 const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
 
 bool        playing = true;
-int         MAX_Y_ROW = 220;
+const int   MAX_Y_ROW = 220;
 
 const byte  Y_INC = 5;
 const int   X_INC = 5;
@@ -123,14 +112,16 @@ const int   X_INC = 5;
 enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET};
 
 typedef struct {
-    int                 x = 0;
-    signed int          speed_x = 0;
-    byte                y = 0;
-    signed int          speed_y = 0;
-    bool                alive = false;
-    byte                sprite_num = 0xff;
-    byte                sprite_color = 1;
-    byte                image_handle = 0xff;
+    int                 x               = 0;
+    signed int          speed_x         = 0;
+    byte                y               = 0;
+    signed int          speed_y         = 0;
+    bool                alive           = false;
+    byte                sprite_num      = 0xff;
+    byte                sprite_color    = VCOL_WHITE;
+    byte                sprite_mcolor0  = VCOL_GREEN;
+    byte                sprite_mcolor1  = VCOL_RED;
+    byte                image_handle    = 0xff;
     PlayerObjectType    type;
 } PlayerObject;
 
@@ -138,7 +129,7 @@ typedef struct {
 PlayerObject    ship,bullet;
 
 //byte collision_reg[NUM_ROWS];
-byte collided_inv_index=-1;
+int collided_inv_index=0xff;
 
 // int         ship_x = 160;
 // int         ship_speed_x = 0;
@@ -152,8 +143,12 @@ byte collided_inv_index=-1;
 // int         bullet_speed_y = -1;
 // bool        bullet_alive = false;
 
-//const 
-unsigned int inv_start_line[NUM_ROWS] = {
+// 
+//byte            ship_color    = VCOL_WHITE;
+//byte            ship_mcolor0  = VCOL_GREEN;
+//byte            ship_mcolor1  = VCOL_RED;
+
+unsigned int inv_start_line[NUM_ROWS + 1] = {
     //0,
     //MIN_Y-SCANLINES_PER_ROW-1,
     MIN_Y-SCANLINES_TO_DRAW_SPRITE, 
@@ -174,8 +169,9 @@ unsigned int inv_start_line[NUM_ROWS] = {
     #endif
     #if (NUM_ROWS > 5)
     //MIN_Y+SCANLINES_PER_ROW*5,
-    MIN_Y+SCANLINES_PER_ROW*5-SCANLINES_TO_DRAW_SPRITE
+    MIN_Y+SCANLINES_PER_ROW*5-SCANLINES_TO_DRAW_SPRITE,
     #endif
+    230
 };
 
 const byte pow2[8] = {

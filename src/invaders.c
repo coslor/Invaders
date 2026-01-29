@@ -3,6 +3,7 @@
 //#pragma optimize(speed)
 
 //#define VSPRITES_MAX 16
+
 #include "invaders.h"
 //
 // Invaders...raping!
@@ -39,7 +40,6 @@ __export static const char spriteset[] =  {
 
 #pragma data(data)
 
-
 __export int prev_raster=0;
 
 __export int lines_used = -1;
@@ -61,6 +61,9 @@ const byte asdf_row[6] = "asdfgh";
 
 __export byte coll_spr_num=0xff;
 __export byte coll_spr_y = 0xff;
+
+//__export const int max_spr_x = MAX_SPR_X;
+//__export const int min_spr_x = MIN_SPR_X;
 
 int main() {
     //Bad things happen if these two get out of sync
@@ -132,7 +135,7 @@ int main() {
     #pragma unroll(full)
     for (int c=0;c<INVADERS_PER_ROW;c++) {
         spr_move(inv_sprite_num[c], inv_x[c], inv_y[c]);
-        spr_color(inv_sprite_num[c], inv_color[c]);
+        spr_color(inv_sprite_num[c], 1); //inv_color[c]);
 
     }
 
@@ -140,25 +143,29 @@ int main() {
     ship.x = 160;
     ship.y = 230;
     ship.sprite_num = 0;
-    ship.sprite_color = 1;
+    ship.sprite_color = VCOL_WHITE;
+    ship.sprite_mcolor0 = VCOL_GREEN;
+    ship.sprite_mcolor1 = VCOL_RED;
     ship.image_handle = 154;
     ship.type = TYPE_SHIP;
 
     bullet.alive = false;
     bullet.image_handle = 153;
     bullet.sprite_num = 1; 
-    bullet.sprite_color = 2;
+    bullet.sprite_color = VCOL_GREEN;
+    bullet.sprite_mcolor0 = 0xff;
+    bullet.sprite_mcolor1 = 0xff;      //ff = don't change mcolor
     bullet.type = TYPE_BULLET;
 
     IRQ_VECTOR=raster_irq_handler;
 
-    set_next_irq(inv_start_line[0], true);
+    set_next_irq(inv_start_line[0], false);
 
     __asm { cli }
 
     int row_num = 0;
 
-    collided_inv_index = -1;
+    collided_inv_index = 0xff;
 
     while(playing) {
 
@@ -185,6 +192,10 @@ int main() {
         byte flip_lines = vic.raster;
 
         if ((++(rows_frame_num)) >= rows_max_frames) {
+
+            my_assert(rows_x_frame_speed == -4 || rows_x_frame_speed == 4,
+                "rows_x_frame_speed bad value in main\n");
+
             rows_x_shift += rows_x_frame_speed;
             rows_frame_num = 0;
             bounce_rows();
@@ -215,13 +226,14 @@ int main() {
         }
         flip_lines_used=vic.raster - flip_lines;
 
+#ifndef NO_PLAYER
         read_joy();
         move_object(&ship);
         move_object(&bullet);
 
         draw_object(&ship);
         draw_object(&bullet);
-
+#endif
         //int sprcol;
 
         ////
@@ -261,7 +273,11 @@ int main() {
         }
     }
     vic.color_back=VCOL_RED;
-    printf("wtf??\n");
+    printf("Game over. Y rows are:\n");
+    for (int i=0;i<NUM_ROWS;i++) {
+        printf("row y[%d]=%d\n",i,row_y[i]);
+
+    }
     return 0;
 };
 
@@ -329,18 +345,15 @@ void shoot_invader(byte si_row, byte si_col) {
 
 }
 
-
+//IRQ THREAD
 void draw_sprite_row(byte spr_row) {
-
-  
-
-    byte raster_dsr = vic.raster;
+    //byte raster_dsr = vic.raster;
 
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
     //          in shoot_invader()
+    //TODO why doesn't this turn off the player & bullet?
     vic.spr_enable = row_sprite_enable_mask[spr_row];
 
-    //We should at least disable display of the dead row before exiting
     if (!row_alive[spr_row]) {
         return;
     }
@@ -349,12 +362,17 @@ void draw_sprite_row(byte spr_row) {
 
     byte row_index = row_inv_index[spr_row];
 
+    //byte this_row_color = row_color[spr_row];
+    int this_row_y = row_y[spr_row];
+
+    vic.spr_mcolor0 = row_mcolor0[spr_row];
+    vic.spr_mcolor1 = row_mcolor1[spr_row];
+
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
         byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
-        byte spr_num=c+2;
-
-
+        byte spr_num = c + 2;
+        my_assert(spr_num < 8, "bad spr-num in draw-sprite-row\n");
 
         ////
         // PROBLEM: even though we're trying to update the image for the next sprite row down,
@@ -369,21 +387,25 @@ void draw_sprite_row(byte spr_row) {
         Screen[0x3f8 + spr_num] = new_handle;
 
         int spr_pos_x = col_x_index[c] + rows_x_shift; //row_x_index[spr_row];
-        inv_spr_pos_x[inv_index] = spr_pos_x;
-        vic.spr_pos[spr_num].x = spr_pos_x & 0xff;
+        inv_spr_pos_x[inv_index]    = spr_pos_x;
+
+        my_assert(spr_num < 8, "bad spr-num in draw-sprite-row");
+        vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
         if (spr_pos_x & 0x100)
             vic.spr_msbx |= 1 << spr_num;
         else
             vic.spr_msbx &= ~(1 << spr_num);
         
- //       if (vic.spr_sprcol) {
- //           useless = vic.spr_sprcol;
- //       }
+        //vic.spr_color[spr_num] = this_row_color; //inv_color[inv_index];
 
-        vic.spr_color[spr_num] = inv_color[inv_index];
-
-        inv_spr_pos_y[inv_index] = row_y[spr_row];
-        vic.spr_pos[spr_num].y=row_y[spr_row];  //;do this last?
+        inv_spr_pos_y[inv_index] = this_row_y;
+        my_assert(spr_num < 8, "bad spr-num in draw-sprite-row");
+        vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
+        if (this_row_y > MAX_Y_ROW) {
+            playing = false;
+            printf("Exit in draw-sprite-row\n");
+            return;
+        }
 
     }
 
@@ -414,29 +436,39 @@ void draw_sprite_row(byte spr_row) {
     // vspr_move(inv->sprite_num,inv->x,inv->y);
 }
 
-
+//IRQ THREAD
 void raster_irq_handler() {
 
-    int min_y=MIN_Y;
+    if (playing) {
+        int min_y=MIN_Y;
 
     //if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
 
         prev_raster = vic.raster;
 
-        vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
 
-        
+        if (prev_raster >= 230) {
 #ifdef USE_BORDER
-        vic.color_border = VCOL_GREEN;
+        vic.color_border = VCOL_PURPLE;
 #endif
-        draw_sprite_row(current_row_num);
+            my_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
+            vic.spr_color[ship.sprite_num] = ship.sprite_color;
+            vic.spr_mcolor0 = ship.sprite_mcolor0;
+            vic.spr_mcolor1 = ship.sprite_mcolor1;
+        }
+        else {
+
+#ifdef USE_BORDER
+            vic.color_border = VCOL_GREEN;
+#endif
+            draw_sprite_row(current_row_num);
 
 #ifdef USE_BORDER
         vic.color_border = VCOL_WHITE;
 #endif
-        
+        }
 
-        if (++current_row_num >= NUM_ROWS) {
+        if (++current_row_num > NUM_ROWS) {
             current_row_num = 0;
         }
 
@@ -448,6 +480,9 @@ void raster_irq_handler() {
         // }
 
         lines_used=vic.raster - prev_raster;
+    }
+
+    vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
 
     __asm{ 
         // lsr $d019   //vic.intr_ctrl -- ACK interrupt
@@ -464,6 +499,7 @@ void raster_irq_handler() {
  *  Returns true if the raster hasn't already passed the requested line (plus a buffer),
  *      false otherwise.
  */
+ //IRQ THREAD
 bool set_next_irq(int rasterline, bool calling_from_irq) {
     //from https://codebase64.com/doku.php?id=base:introduction_to_raster_irqs
 
@@ -500,7 +536,7 @@ bool set_next_irq(int rasterline, bool calling_from_irq) {
 
         vic.raster = (byte)rasterline&0b11111111;                    //rest of raster line# 
         vic.intr_enable = 1;
-        ok=true;
+        ok = true;
     //}
     //else {
     //    ok=false;
@@ -513,7 +549,7 @@ bool set_next_irq(int rasterline, bool calling_from_irq) {
         }
     }
 
-    return true;
+    return ok;
 }
 
 void flip_row(byte row) {
@@ -544,6 +580,9 @@ void init_invaders() {
         row_frame_num[r]        = 0;
         row_alive[r]            = true;
         row_inv_index[r]        = r * INVADERS_PER_ROW;
+        row_color[r]            = 0;    //Invaders don't use sprite main color
+        row_mcolor0[r]          = (r + 2) % 16;
+        row_mcolor1[r]          = (row_mcolor0[r] == VCOL_RED ? VCOL_GREEN : VCOL_RED);
 
         row_dirty[r] = true;
         row_sprite_enable_mask[r] = 255;
@@ -556,7 +595,7 @@ void init_invaders() {
             inv_speed_x[index]          = 1;
             inv_speed_y[index]          = 0;
             inv_sprite_num[index]       = 2 + c;
-            inv_color[index]            = r + 3; //c + (r & 3)+3;
+            //inv_color[index]            = r + 3; //c + (r & 3)+3;
             inv_old_x[index]            = 0;
             inv_old_y[index]            = 0;
             col_x_index[c]              = 0 + c*35;
@@ -569,6 +608,9 @@ void init_invaders() {
 
 void init_sprites() {
     
+    vic.spr_mcolor0 = 1;
+    vic.spr_mcolor0 = 2;
+
     #pragma unroll(full)
     for (int ic=0;ic<6;ic++) {
         byte spr_num=ic+2;
@@ -617,18 +659,19 @@ void find_min_max_spr_x() {
  *  move all of the rows down and reverse their direction.
 */
 void bounce_rows() {
+
     find_min_max_spr_x();
-    if (rows_max_spr_x > MAX_SPR_X) {
+    if ((rows_x_frame_speed > 0) && rows_max_spr_x >= MAX_SPR_X) {
+        my_assert((rows_x_frame_speed = 4), "rows_x_frame_speed bad in bounce_rows()");
         move_rows_down(Y_INC);
+        rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
         rows_x_frame_speed *= -1;
-
-        rows_x_shift -= X_INC;
     }
-     if (rows_min_spr_x < MIN_SPR_X) {
+    if ((rows_x_frame_speed < 0) && rows_min_spr_x <= MIN_SPR_X) {
+        my_assert((rows_x_frame_speed = -4), "rows_x_frame_speed bad in bounce_rows()");
         move_rows_down(Y_INC);
+        rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
         rows_x_frame_speed *= -1;
-
-        rows_x_shift += X_INC;
     }
 }
 
@@ -642,6 +685,8 @@ void move_rows_down(byte px_down) {
         if (row_y[r8] > MAX_Y_ROW) {
             vic.color_back = VCOL_RED;
             playing = false;
+            printf("exit in move_rows_down()\n");
+            return;
         }
         inv_start_line[r8] += px_down;
 
@@ -711,7 +756,17 @@ void move_object(PlayerObject *obj) {
 
 void draw_object(PlayerObject *obj2) {
     if (obj2->alive) {
-        spr_move(obj2->sprite_num, obj2->x, obj2->y);
+        byte sprite_num = obj2->sprite_num;
+        spr_move(sprite_num, obj2->x, obj2->y);
+
+        spr_color(sprite_num, obj2->sprite_color);
+        if (obj2->sprite_mcolor0 < 0xff) {
+            vic.spr_mcolor0 = obj2->sprite_mcolor0;
+        }
+        if (obj2->sprite_mcolor1 < 0xff) {
+            vic.spr_mcolor1 = obj2->sprite_mcolor1;
+        }
+        
         spr_image(obj2->sprite_num, obj2->image_handle);
     }
     spr_show(obj2->sprite_num, obj2->alive);
