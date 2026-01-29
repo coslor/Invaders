@@ -83,27 +83,34 @@ int main() {
     // Disable interrupts while setting up
 	__asm { sei };
 
-    // //Kill **all** other interrupts?
-    // __asm {
-    //     lda #$7f
-    //     sta $dc0d		 //turn off all types of cia irq/nmi.
-    //     sta $dd0d
-    //     lda $dc0d
-    //     lda $dd0d
-    //     lda #$ff
-    //     sta $D019
-    //     lda #$00
-    //     sta $D01a
-    //     sta $dc0e
-    //     sta $dc0f
-    //     sta $dd0e
-    //     sta $dd0f
-    //     lda $d01e
-    //     lda $d01f
-    // }
 
-	// Kill CIA interrupts
-	cia_init();
+    //TODO BUG: if the lower-right-est Invader is killed, the Player ship is no longer displayed
+
+    //BUG:pressed keys cause all kinds of screen flicker & distortion.
+    //  Answer: bypass the kernal keyboard read code when JMPing at the end of the IRQ handler.
+    //          However, when you do that, you can't use the keyboard (duh!)
+    
+    //Kill **all** other interrupts?
+    __asm {
+        lda #$7f
+        sta $dc0d		 //turn off all types of cia irq/nmi.
+        sta $dd0d
+        lda $dc0d
+        lda $dd0d
+        lda #$ff
+        sta $D019
+        lda #$00
+        sta $D01a
+        sta $dc0e
+        sta $dc0f
+        sta $dd0e
+        sta $dd0f
+        lda $d01e
+        lda $d01f
+    }
+
+	// // Kill CIA interrupts
+	// cia_init();
 
     //We really don't have any need to map ROM out at this point,
     //  and not doing so has certain advantages (like being able
@@ -464,6 +471,11 @@ void raster_irq_handler() {
 
     __asm{ 
         // lsr $d019   //vic.intr_ctrl -- ACK interrupt
+
+        //NOTE: if you JMP to anything but $EA31, they keyboard will be disabled, which gets rid
+        //      of annoying screen flicker when a key is pressed. Of course, you also cannot then
+        //      use getch() to read the keyboard.
+
         jmp $ea31   //(old_irq) - 
                     // call $ea31 for original, but scans keyboard twice, not necessary
                     //      $ea81 skips keyboard scan, better
@@ -652,8 +664,7 @@ void bounce_rows() {
 void move_rows_down(byte px_down) {
     
     #pragma unroll(full)
-    for (int r=0;r<NUM_ROWS;r++) {       //"r8" for debugging
-        row_y[r] += px_down;
+    for (int r=0;r<NUM_ROWS;r++) {       
 
         //TODO make a proper GAME OVER
         if (row_y[r] > MAX_Y_ROW) {
