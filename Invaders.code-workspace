@@ -4,5 +4,7 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"vs64.viceExecutable": "C:\\Users\\chris\\Downloads\\SDL2VICE-3.10-win64-r45962\\x64sc.exe"
+	}
 }

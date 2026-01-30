@@ -6,7 +6,8 @@
         "src/invaders.h",
         "src/invaders.c",
         "src/my_assert.h",
-        "src/my_assert.c"
+        "src/my_assert.c",
+        "src/invaders-2600.spd"
          
     ],
     "build": "debug",
@@ -26,7 +27,7 @@
         "-n",
         "-DEBUG",
         "-O3",
-        "-DUSE_BORDER",
+        "-DxUSE_BORDER",
         "-DMY_ASSERT",
         "-Dstrict"
     ],

@@ -9,6 +9,8 @@
 // Invaders...raping!
 //
 
+#define DO_UNROLL true
+
 #define Screen ((char *)0x400)
 #define Color ((char *)0xd800)
 
@@ -17,7 +19,7 @@
 
 // then space for our sprite data
 #pragma section( spriteset, 0)
-#pragma region( spriteset, 0x2000, 0x2800, , , {spriteset} )
+#pragma region( spriteset, 0x2000, 0x3000, , , {spriteset} )
 
 // everything beyond will be code, data, bss and heap to the end
 #pragma region( main, 0x2800, 0xa000, , , {code, data, bss, heap, stack} )
@@ -61,18 +63,24 @@ const byte asdf_row[6] = "asdfgh";
 __export byte coll_spr_num=0xff;
 __export byte coll_spr_y = 0xff;
 
+
+
 //MAIN THREAD
 int main() {
 
+    bool smooshed = false;
+
     //TODO clean up this ugly main() code & move a bunch of it off to separate routines
+    
     //Bad things happen if these two get out of sync
     my_assert(SCANLINES_PER_ROW > SCANLINES_TO_DRAW_SPRITE, "scanlines constants are out of sync");
 
+    //turn all sprites on
     vic.spr_sprcol = 0xff;
 
     iocharmap(IOCHM_PETSCII_2);
 
-	vic.color_border = VCOL_WHITE;
+	vic.color_border = VCOL_LT_GREY;
 	vic.color_back = VCOL_BLACK;
 
    	memset(Screen, 32, 1000);
@@ -89,7 +97,7 @@ int main() {
     //BUG:pressed keys cause all kinds of screen flicker & distortion.
     //  Answer: bypass the kernal keyboard read code when JMPing at the end of the IRQ handler.
     //          However, when you do that, you can't use the keyboard (duh!)
-    
+
     //Kill **all** other interrupts?
     __asm {
         lda #$7f
@@ -145,16 +153,16 @@ int main() {
 
     ship.alive = true;
     ship.x = 160;
-    ship.y = 230;
+    ship.y = SHIP_Y;
     ship.sprite_num = 0;
-    ship.sprite_color = VCOL_WHITE;
+    ship.sprite_color = VCOL_LT_GREY;
     ship.sprite_mcolor0 = VCOL_GREEN;
     ship.sprite_mcolor1 = VCOL_RED;
-    ship.image_handle = 154;
+    ship.image_handle = SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM;
     ship.type = TYPE_SHIP;
 
     bullet.alive = false;
-    bullet.image_handle = 153;
+    bullet.image_handle = SPRITE_IMAGE_BASE + BULLET_IMAGE_NUM;
     bullet.sprite_num = 1; 
     bullet.sprite_color = VCOL_GREEN;
     bullet.sprite_mcolor0 = 0xff;
@@ -195,36 +203,6 @@ int main() {
 
         }
 
-
-#ifdef USE_BORDER
-        vic.color_border = VCOL_BLUE;
-#endif
-        vic_waitBottom();
-        //TODO fix this & get collisions working
-        //wait_line_and_watch_for_collisions(255);
-#ifdef USE_BORDER
-        vic.color_border = VCOL_WHITE;
-#endif
-        set_sprites_for_all();
-        
-        byte flip_lines = vic.raster;
-
-        if ((++(rows_frame_num)) >= ROWS_MAX_FRAMES) {
-
-            my_assert(rows_x_frame_speed == -4 || rows_x_frame_speed == 4,
-                "rows_x_frame_speed bad value in main\n");
-
-            rows_x_shift += rows_x_frame_speed;
-            rows_frame_num = 0;
-            bounce_rows();
-        }
-
-        #pragma unroll(full)
-        for (byte row=0;row<NUM_ROWS;row++) {
-            flip_row_image(row);
-        }
-        flip_lines_used=vic.raster - flip_lines;
-
 #ifndef NO_PLAYER
         read_joy();
         move_object(&ship);
@@ -233,6 +211,41 @@ int main() {
         draw_object(&ship);
         draw_object(&bullet);
 #endif
+
+        END_BORDER
+
+        START_BORDER(VCOL_WHITE)
+
+        //TODO it seems criminal to waste this time
+        vic_waitBottom();
+        //vic_waitLine(255);
+        //TODO fix this & get collisions working
+        //wait_line_and_watch_for_collisions(255);
+        END_BORDER
+
+        //Actually show the sprites, and move them
+        START_BORDER(VCOL_BLUE)
+        
+        smooshed = ! move_invaders();
+        set_sprites_for_all();
+        if (smooshed) {
+            playing = false;
+            break;
+        }
+        
+        END_BORDER
+
+        //Flip the images
+        START_BORDER(VCOL_BLACK)
+#ifdef DO_UNROLL
+        #pragma unroll(full)
+#endif
+        for (byte row=0;row<NUM_ROWS;row++) {
+            flip_row_image(row);
+        }
+//        flip_lines_used=vic.raster - flip_lines;
+
+        END_BORDER
         //int sprcol;
 
         ////
@@ -270,7 +283,13 @@ int main() {
             nop
         }
     }
-    vic.color_back=VCOL_RED;
+    if (smooshed) {
+        //spr_image(0, SMOOSHED_SHIP_IMAGE_NUM);
+        Screen[0x3f8 + 0] = SPRITE_IMAGE_BASE + SMOOSHED_SHIP_IMAGE_NUM;
+
+        //spr_expand(0,true,false);
+    }
+    //vic.color_back=VCOL_RED;
     printf("Game over. Y rows are:\n");
     for (int i=0;i<NUM_ROWS;i++) {
         printf("row y[%d]=%d\n",i,row_y[i]);
@@ -278,6 +297,7 @@ int main() {
     }
     return 0;
 };
+
 
 /*
 *   Returns the index of the Invader associated with the sprite
@@ -315,9 +335,6 @@ int main() {
 //MAIN THREAD
 void shoot_invader(byte si_row, byte si_col) {
 
-#ifdef USE_BORDER
-    vic.color_border++;
-#endif
     byte row_index = row_inv_index[si_row];
     byte inv_index = row_index + si_col;
 
@@ -335,7 +352,9 @@ void shoot_invader(byte si_row, byte si_col) {
 
     byte spr_mask=0;
 
+#ifdef DO_UNROLL
     #pragma unroll(full)
+#endif
     for (byte c=0;c<INVADERS_PER_ROW;c++) {
         byte off=row_inv_index[si_row]+c;
         if (inv_alive[off]) {
@@ -348,25 +367,34 @@ void shoot_invader(byte si_row, byte si_col) {
 
 //MAIN THREAD
 void set_sprites_for_all() {
+#ifdef DO_UNROLL    
     #pragma unroll(full)
+#endif
     for (int c=0;c<INVADERS_PER_ROW;c++) {
+        //TODO replace with inv_sprite_num?
         byte spr_num = c+2;
+
+        if (! col_invs_left_alive[c]) { continue; }
 
         int spr_pos_x = col_x[c] + rows_x_shift; //row_x_index[spr_row];
         rows_inv_spr_pos_x[c]    = spr_pos_x;
 
+
+        //Using this instead of vic.sprxy() saves us a few cycles by not setting sprite.y
         vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
-        if (spr_pos_x & 0x100)
+        if (spr_pos_x > 0xff)
             vic.spr_msbx |= 1 << spr_num;
         else
             vic.spr_msbx &= ~(1 << spr_num);
-
-
     }
+    //take_vic_snapshot();
+
 }
 
 //IRQ THREAD
 void draw_sprite_row(byte spr_row) {
+
+    my_assert(spr_row<NUM_ROWS,"too many spr rows");
 
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
     //          in shoot_invader()
@@ -387,7 +415,9 @@ void draw_sprite_row(byte spr_row) {
     vic.spr_mcolor0 = row_mcolor0[spr_row];
     vic.spr_mcolor1 = row_mcolor1[spr_row];
 
+#ifdef DO_UNROLL
     #pragma unroll(full)
+#endif
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
         byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
         if (! inv_alive[inv_index]) {
@@ -399,6 +429,7 @@ void draw_sprite_row(byte spr_row) {
         vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
     }
 
+    //take_vic_snapshot();
     //for debugging
     __asm {
         nop
@@ -406,24 +437,25 @@ void draw_sprite_row(byte spr_row) {
     //vic.color_back = VCOL_BLACK;
 }
 
+//TODO either use this or remove it
 
- __forceinline void move_invader(byte index) {
-    //Invader* inv=&invaders[inv_num];
-    inv_x[index] += inv_speed_x[index];
-    inv_y += inv_speed_y[index];
+//  __forceinline void move_invader(byte index) {
+//     //Invader* inv=&invaders[inv_num];
+//     inv_x[index] += inv_speed_x[index];
+//     inv_y += inv_speed_y[index];
 
-    if (inv_x[index] <20) {
-        inv_speed_x[index] = abs(inv_speed_x[index]);
-    }
-    else {
-        if (inv_x[index] >= 320){
-            inv_speed_x[index] = -abs(inv_speed_x[index]);
-        }
-    }
+//     if (inv_x[index] <20) {
+//         inv_speed_x[index] = abs(inv_speed_x[index]);
+//     }
+//     else {
+//         if (inv_x[index] >= 320){
+//             inv_speed_x[index] = -abs(inv_speed_x[index]);
+//         }
+//     }
 
-    // spr_move(inv->sprite_num,inv->x,inv->y);
-    // vspr_move(inv->sprite_num,inv->x,inv->y);
-}
+//     // spr_move(inv->sprite_num,inv->x,inv->y);
+//     // vspr_move(inv->sprite_num,inv->x,inv->y);
+// }
 
 //IRQ THREAD
 void raster_irq_handler() {
@@ -438,24 +470,23 @@ void raster_irq_handler() {
 
 
         if (prev_raster >= 230) {
-#ifdef USE_BORDER
-        vic.color_border = VCOL_PURPLE;
-#endif
-            my_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
+            START_BORDER(VCOL_ORANGE)
+
+            // my_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
             //vic.spr_color[ship.sprite_num] = ship.sprite_color;
-            vic.spr_mcolor0 = ship.sprite_mcolor0;
-            vic.spr_mcolor1 = ship.sprite_mcolor1;
+            if (ship.sprite_mcolor0 < 0xff) {
+                vic.spr_mcolor0 = ship.sprite_mcolor0;
+            }
+            if (ship.sprite_mcolor1 < 0xff) {
+                vic.spr_mcolor1 = ship.sprite_mcolor1;
+            }
+            END_BORDER
         }
         else {
 
-#ifdef USE_BORDER
-            vic.color_border = VCOL_GREEN;
-#endif
+            START_BORDER(VCOL_GREEN)
             draw_sprite_row(current_row_num);
-
-#ifdef USE_BORDER
-        vic.color_border = VCOL_WHITE;
-#endif
+            END_BORDER
         }
 
         if (++current_row_num > NUM_ROWS) {
@@ -469,6 +500,7 @@ void raster_irq_handler() {
 
     vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
 
+    //take_vic_snapshot();
     __asm{ 
         // lsr $d019   //vic.intr_ctrl -- ACK interrupt
 
@@ -495,7 +527,7 @@ bool set_next_irq(int rasterline, bool calling_from_irq) {
 
     bool ok=false;
 
-    //NOTE: this check has GOT to be more expensive than just calling the redundant sei/cli
+    //TODO: this check has GOT to be more expensive than just calling the redundant sei/cli
     if (! calling_from_irq) {
         __asm {
             sei
@@ -509,14 +541,19 @@ bool set_next_irq(int rasterline, bool calling_from_irq) {
     b=cia2.sdr;
 
 
+
+    vic.raster = (byte)rasterline; //&0b11111111;                    //rest of raster line# 
     if (rasterline < 256) {
         vic.ctrl1 &= 0b01111111; //0x7f;                           //MSb of raster line#
     }
     else {
         vic.ctrl1 |= 0b10000000;
     }
-
-    vic.raster = (byte)rasterline&0b11111111;                    //rest of raster line# 
+    //$d01a: 
+    // Bit #0: 1 = Raster interrupt enabled.
+    // Bit #1: 1 = Sprite-background collision interrupt enabled.
+    // Bit #2: 1 = Sprite-sprite collision interrupt enabled.
+    // Bit #3: 1 = Light pen interrupt enabled.
     vic.intr_enable = 1;
     ok = true;
 
@@ -527,10 +564,20 @@ bool set_next_irq(int rasterline, bool calling_from_irq) {
         }
     }
 
+    //take_vic_snapshot();
     return ok;
 }
 
+//MAIN THREAD
+//TODO is this noinline necessary?
+#pragma optimize(noinline)
 void flip_row_image(byte row) {
+
+    //TODO Another Oscar64 bug? If I leave the assert out, row 0 never gets flipped.
+    //  I think it's getting inlined incorrectly
+    //  ...or not, since adding noinline isn't helping
+    my_assert(row<NUM_ROWS, "too many rows to flip");
+
     if (!row_alive[row]) return;
 
     if ((++(row_frame_num[row])) >= row_max_frames[row]) {
@@ -540,73 +587,6 @@ void flip_row_image(byte row) {
     }
 }
 
-//MAIN thread
-void init_invaders() {
-    //int index=0;
-
-    current_row_num=0;
-    
-    my_assert(NUM_ROWS == 6, "**GURU MEDITATION ERROR**");
-    for (int c=0;c<INVADERS_PER_ROW;c++) {
-        col_invs_left_alive[c]  = NUM_ROWS;
-    }
-
-    for (int i=0;i<NUM_ROWS;i++) {
-        inv_start_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
-    }
-    //TODO cheating
-    inv_start_line[NUM_ROWS+1] = 230;
-
-    //TODO: oscar64 bug? If I do #pragma(unroll) on this loop, row_y[0] gets corrupted
-    //#pragma unroll(full)
-    for (byte r=0;r<NUM_ROWS; r++) {
-        row_y[r]                = MIN_Y + SCANLINES_PER_ROW * r;
-        row_num_images[r]       = 2;
-        row_image_handles[r][0] = 140+(r*2);
-        row_image_handles[r][1] = 141+(r*2);
-        row_image_num[r]        = 0;
-        row_max_frames[r]       = ROW_MAX_FRAMES;
-        row_frame_num[r]        = 0;
-        row_alive[r]            = true;
-        row_inv_index[r]        = r * INVADERS_PER_ROW;
-        row_color[r]            = 0;    //Invaders don't use sprite main color
-        row_mcolor0[r]          = (r + 2) % 16;
-        row_mcolor1[r]          = (row_mcolor0[r] == VCOL_RED ? VCOL_GREEN : VCOL_RED);
-
-        row_sprite_enable_mask[r] = 255;
-
-        #pragma unroll(full)
-        for (int c=0;c<INVADERS_PER_ROW; c++) {
-            byte index=r*INVADERS_PER_ROW+c;
-            inv_alive[index]            = true;
-            inv_speed_x[index]          = 1;
-            inv_speed_y[index]          = 0;
-            inv_sprite_num[index]       = 2 + c;
-            col_x[c]              = 0 + c*35;
-            inv_spr_pos_x[index]        = 0;
-            inv_row[index]              = r;
-            inv_col[index]              = c;
-        }
-    }
-}
-
-void init_sprites() {
-    
-    vic.spr_mcolor0 = 1;
-    vic.spr_mcolor0 = 2;
-
-    #pragma unroll(full)
-    for (int ic=0;ic<6;ic++) {
-        byte spr_num=ic+2;
-
-        Screen[0x3f8 + spr_num] = row_image_handles[0][row_image_num[0]];
-
-        spr_move(spr_num, ic*35+24 + 50,0);          //just ignore the Y coord for now
-        spr_color(spr_num,ic+1);
-        spr_show(spr_num,true);
-
-    }
-}
 
 //MAIN thread
 //This is about as fast as it's going to get with this approach.
@@ -634,48 +614,89 @@ void find_min_max_spr_x() {
     return;
 }//find_min_max_spr_x
 
+
 /*
  * Check to see if the max/min X position has been crossed. If so,
  *  move all of the rows down and reverse their direction.
  *
  *  Uses rows_max_spr_x, rows_min_spr_x, calculated from previous draw_sprite_row() calls.
+ *
+ *  Returns true if OK, false if this bounce pushed the Invaders past the max Y allowed
 */
 //MAIN thread
-void bounce_rows() {
+bool bounce_rows() {
+    bool ok = true;
 
     find_min_max_spr_x();
 
-    //TODO combine these 2 if's
+    //TODO combine these 2 if's?
     if ((rows_x_frame_speed > 0) && rows_max_spr_x >= MAX_SPR_X) {
         my_assert((rows_x_frame_speed = 4), "rows_x_frame_speed bad in bounce_rows()");
-        move_rows_down(Y_INC);
+        ok= move_rows_down(Y_INC);
         rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
         rows_x_frame_speed *= -1;
     }
-    if ((rows_x_frame_speed < 0) && rows_min_spr_x <= MIN_SPR_X) {
+    else if ((rows_x_frame_speed < 0) && rows_min_spr_x <= MIN_SPR_X) {
         my_assert((rows_x_frame_speed = -4), "rows_x_frame_speed bad in bounce_rows()");
-        move_rows_down(Y_INC);
+        ok = move_rows_down(Y_INC);
         rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
         rows_x_frame_speed *= -1;
     }
+    return ok;
 }
 
+//MAIN THREAD
+//Returns true if OK, false if OOB
+bool move_invaders() {
+    bool ok = true;
+    if ((++(rows_frame_num)) >= ROWS_MAX_FRAMES) {
+
+        my_assert(rows_x_frame_speed == -4 || rows_x_frame_speed == 4,
+            "rows_x_frame_speed bad value in main\n");
+
+        rows_x_shift += rows_x_frame_speed;
+        rows_frame_num = 0;
+        //if past Y bounds, quit
+        ok = bounce_rows();
+    }
+    return ok;
+}
+
+
+/*
+ * Returns true if OK, false if the move causes the Invs to push down past their allowed Y bounds
+*/
 //MAIN thread
-void move_rows_down(byte px_down) {
+bool move_rows_down(byte px_down) {
     
+    __asm {
+        nop
+    }
+
+#ifdef DO_UNROLL
     #pragma unroll(full)
+#endif
     for (int r=0;r<NUM_ROWS;r++) {       
 
-        //TODO make a proper GAME OVER
-        if (row_y[r] > MAX_Y_ROW) {
-            vic.color_back = VCOL_RED;
-            playing = false;
-            printf("exit in move_rows_down()\n");
-            return;
-        }
+        row_y[r] += px_down;
         inv_start_line[r] += px_down;
 
+        //TODO make a proper GAME OVER
+        if (row_y[r] + INVADER_SPRITE_HEIGHT >= (SHIP_Y+4)) { //MAX_Y_ROW) {
+            return false;
+        }
+        // out_of_bounds != (row_y[r] > MAX_Y_ROW);
+
+        // if (row_y[r] > MAX_Y_ROW) {
+            
+        //     vic.color_back = VCOL_RED;
+        //     playing = false;
+        //     printf("exit in move-rows-down()\n");
+        //     return;
+        // }
+
     }
+    return true;
 }
 
 //MAIN thread
@@ -803,4 +824,82 @@ byte wait_line_and_watch_for_collisions(int line)
         }
 	} while ((vic.ctrl1 & VIC_CTRL1_RST8) != upper);
     return vic.raster;
+}
+
+//MAIN thread
+void init_invaders() {
+    //int index=0;
+
+    current_row_num=0;
+    
+    //my_assert(NUM_ROWS == 6, "**GURU MEDITATION ERROR**");
+    for (int c=0;c<INVADERS_PER_ROW;c++) {
+        col_invs_left_alive[c]  = NUM_ROWS;
+    }
+
+    for (int i=0;i<NUM_ROWS;i++) {
+        inv_start_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
+    }
+    //TODO cheating
+    inv_start_line[NUM_ROWS] = 230;
+
+    //TODO: oscar64 bug? If I do #pragma(unroll) on this loop, row_y[0] gets corrupted
+#ifdef DO_UNROLL
+    #pragma unroll(full)
+#endif
+    for (byte r=0;r<NUM_ROWS; r++) {
+        my_assert(r < NUM_ROWS, "r is broken");
+        row_y[r]                = MIN_Y + SCANLINES_PER_ROW * r;
+        row_num_images[r]       = 2;
+        row_image_handles[r][0] = INVADER_IMAGE_BASE + SPRITE_IMAGE_BASE +(r*2);
+        row_image_handles[r][1] = INVADER_IMAGE_BASE + SPRITE_IMAGE_BASE +(r*2) + 1;
+        row_image_num[r]        = 0;
+        row_max_frames[r]       = ROW_MAX_FRAMES;
+        row_frame_num[r]        = 0;
+        row_alive[r]            = true;
+        row_inv_index[r]        = r * INVADERS_PER_ROW;
+        row_color[r]            = 0;    //Invaders don't use sprite main color
+        row_mcolor0[r]          = (r + 2) % 16;
+        row_mcolor1[r]          = (row_mcolor0[r] == VCOL_RED ? VCOL_GREEN : VCOL_RED);
+
+        row_sprite_enable_mask[r] = 255;
+
+#ifdef DO_UNROLL
+        #pragma unroll(full)
+#endif
+        for (int c=0;c<INVADERS_PER_ROW; c++) {
+            byte index=r*INVADERS_PER_ROW+c;
+            inv_alive[index]            = true;
+            //inv_speed_x[index]          = 1;
+            //inv_speed_y[index]          = 0;
+            inv_sprite_num[index]       = 2 + c;
+            col_x[c]              = 0 + c*35;
+            //inv_spr_pos_x[index]        = 0;
+            //inv_row[index]              = r;
+            //inv_col[index]              = c;
+        }
+    }
+    __asm {
+        nop
+    }
+}
+
+void init_sprites() {
+    
+    vic.spr_mcolor0 = 1;
+    vic.spr_mcolor0 = 2;
+
+#ifdef DO_UNROLL
+    #pragma unroll(full)
+#endif
+    for (int ic=0;ic<NUM_ROWS;ic++) {
+        byte spr_num=ic+2;
+
+        Screen[0x3f8 + spr_num] = row_image_handles[0][row_image_num[0]];
+
+        spr_move(spr_num, ic*35+24 + 50,0);          //just ignore the Y coord for now
+        spr_color(spr_num,ic+1);
+        spr_show(spr_num,true);
+
+    }
 }

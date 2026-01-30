@@ -1,1 +1,1 @@
-{"Breakpoints":[]}
+{"Breakpoints":[{"StopWhenHit":true,"IsEnabled":true,"Mode":0,"Condition":"","Bind":{"$type":"line","FilePath":{"Path":"src\\invaders.c","IsRelative":true,"FileName":"invaders.c"},"LineNumber":550,"LineText":"    if (!row_alive[row2]) return;"}},{"StopWhenHit":true,"IsEnabled":true,"Mode":0,"Condition":null,"Bind":{"$type":"line","FilePath":{"Path":"src\\invaders.c","IsRelative":true,"FileName":"invaders.c"},"LineNumber":229,"LineText":"            flip_row_image(row);"}}]}

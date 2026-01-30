@@ -24,8 +24,16 @@
 #define     NUM_ROWS 6
 #define     INVADERS_PER_ROW 6
 
+#ifdef USE_BORDER
+    byte old_border_color;
+#endif
+#define     START_BORDER(color) //nothing #endif
+// #ifdef USE_BORDER { old_border_color=vic.color_border;vic.color_border = color; } #else //nothing #endif
+#define     END_BORDER //nothing #endif 
+// #ifdef USE_BORDER { vic.color_border=old_border_color; } #else //nothing #endif
+
 const byte  SCANLINES_TO_DRAW_SPRITE=12;
-const byte  SCANLINES_PER_ROW=22;
+const byte  SCANLINES_PER_ROW=15 + SCANLINES_TO_DRAW_SPRITE;
 
 byte        current_row_num=0;
 
@@ -43,16 +51,17 @@ const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 const signed int MIN_SPR_X = 35;
 const signed int MAX_SPR_X = 320;
 
+
 bool        inv_alive[TOTAL_INVS_SIZE]; // = {
-signed int  inv_x[TOTAL_INVS_SIZE]; // = {
-signed int  inv_y[TOTAL_INVS_SIZE]; // = {
-signed int  inv_speed_x[TOTAL_INVS_SIZE];
-signed int  inv_speed_y[TOTAL_INVS_SIZE];
+//signed int  inv_x[TOTAL_INVS_SIZE]; // = {
+//signed int  inv_y[TOTAL_INVS_SIZE]; // = {
+//signed int  inv_speed_x[TOTAL_INVS_SIZE];
+//signed int  inv_speed_y[TOTAL_INVS_SIZE];
 byte        inv_sprite_num[TOTAL_INVS_SIZE];
-int         inv_spr_pos_x[TOTAL_INVS_SIZE];
-byte        inv_spr_pos_y[TOTAL_INVS_SIZE];
-byte        inv_row[TOTAL_INVS_SIZE];
-byte        inv_col[TOTAL_INVS_SIZE];
+//int         inv_spr_pos_x[TOTAL_INVS_SIZE];
+//byte        inv_spr_pos_y[TOTAL_INVS_SIZE];
+//byte        inv_row[TOTAL_INVS_SIZE];
+//byte        inv_col[TOTAL_INVS_SIZE];
 
 int         row_y[NUM_ROWS];
 
@@ -92,7 +101,7 @@ byte        row_frame_num[NUM_ROWS];
 byte        row_inv_index[NUM_ROWS];
 byte        row_sprite_enable_mask[NUM_ROWS];
 
-byte        rows_inv_spr_pos_x[INVADERS_PER_ROW];
+int         rows_inv_spr_pos_x[INVADERS_PER_ROW];
 
 byte        col_invs_left_alive[INVADERS_PER_ROW];
 int         col_x[INVADERS_PER_ROW];
@@ -102,10 +111,23 @@ int         col_x[INVADERS_PER_ROW];
 const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
 
 bool        playing;
-const int   MAX_Y_ROW = 220;
+const int   MAX_Y_ROW = 222;
 
 const byte  Y_INC = 5;
 const int   X_INC = 5;
+
+const byte SPRITE_IMAGE_BASE = 128;
+const byte SHIP_IMAGE_NUM = 24;
+const byte SMOOSHED_SHIP_IMAGE_NUM = 27;
+const byte BULLET_IMAGE_NUM = 25;
+//0 is the big Invaders, 12 is the small ones
+const byte INVADER_IMAGE_BASE = 12;
+
+const byte INVADER_SPRITE_HEIGHT = 10;
+
+const int SHIP_Y = 230;
+
+//__export byte vic_copy[0x2f];
 
 enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET};
 
@@ -129,6 +151,7 @@ PlayerObject    ship,bullet;
 //byte collision_reg[NUM_ROWS];
 int collided_inv_index=0xff;
 
+
 // int         ship_x = 160;
 // int         ship_speed_x = 0;
 // byte        ship_y = 250;
@@ -146,7 +169,7 @@ int collided_inv_index=0xff;
 //byte            ship_mcolor0  = VCOL_GREEN;
 //byte            ship_mcolor1  = VCOL_RED;
 
-unsigned int inv_start_line[NUM_ROWS + 1]; // = {
+unsigned int inv_start_line[NUM_ROWS + 2]; // = {
 //     //0,
 //     //MIN_Y-SCANLINES_PER_ROW-1,
 //     MIN_Y-SCANLINES_TO_DRAW_SPRITE, 
@@ -183,6 +206,7 @@ const byte pow2[8] = {
     0b10000000,
 };
 
+
 void flip_image(byte index);
 void print_invaders();
 __forceinline void move_invader(byte index);
@@ -193,8 +217,6 @@ void init_invaders();
 void init_sprites();
 void flip_row_image(byte row);
 void shoot_invader(byte row, byte col);
-void bounce_rows();
-void move_rows_down(byte px_down);
 void read_joy();
 void move_object(PlayerObject* obj);
 void draw_object(PlayerObject* obj);
@@ -202,6 +224,12 @@ void fire_bullet(PlayerObject *obj);
 void kill_bullet(PlayerObject *b);
 byte wait_line_and_watch_for_collisions(int line);
 void set_sprites_for_all();
+//void take_vic_snapshot();
+
+//All these return true if OK and false if out of bounds
+bool move_invaders();
+bool bounce_rows();
+bool move_rows_down(byte px_down);
 
 #pragma compile("invaders.c")
 #endif
