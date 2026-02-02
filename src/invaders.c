@@ -14,39 +14,40 @@
 //#define Screen ((char *)0x400)
 //#define Color ((char *)0xd800)
 
-char* Screen = ((char *)0x4000);
+char* hires_screen = ((char *)0x4000);
+char* hires_color = ((char *)0x4800);
+
+char* text_screen = ((char *)0x400);
+char* text_color = ((char *)0x1000);
+
 //byte* Color = ((byte *)0xd800);
-byte* Color = ((byte *)0x4800);
+//byte* hires_color = ((byte *)0x4800);
 
 #define LOGO_FILE "space_invaders_logo.kla" 
-//space_invaders_logo.kla"
 
-// make space until 0x2000 for code and data
-#pragma region( lower, 0xa00, 0x4fff, , , {code, data} )
+#pragma region( lower, 0xa00, 0x1fff, , , {code, data, bss} )
 
-//#pragma region( lower, 0xa00, 0x2000, , , {code, data} )
-
-//#pragma region(middle, 0x3000, 0x3fff,,,{code, data})
-//#pragma region(high, 0x4000, 0x6713, {logo_pic})
-
-// then space for our sprite data
 #pragma section( spriteset, 0)
-//#pragma region( spriteset, 0x2000, 0x3000, , , {spriteset} )
+#pragma region( spriteset, 0x2000, 0x2fff, , , {spriteset} )
 
-#pragma region( spriteset, 0x5000, 0x5fff, , , {spriteset} )
+#pragma section( middle, 0)
+#pragma region(middle, 0x3000, 0x3fff,,, {code, data, bss})
+
+#pragma section(hires_screen, 0)
+#pragma region(hires_screen, 0x4000,0x43ff,,, {hires_screen})
+
+// #pragma section(hires_color, 0)
+// #pragma region(hires_color, 0x4400, 0x4fff,,, {hires_color})
+
+#pragma section( upper, 0)
+#pragma region(upper, 0x4400, 0x5fff,,, {code, data, bss})
 
 #pragma section(logo_bmp, 0)
+//hires:$2000 + bank 1($4000) = $6000
 #pragma region(hires, 0x6000, 0x7f40,,,{logo_bmp})
-//0x4000 + 10003
-//#pragma section(logo_screen, 0)
-//#pragma region(screen, 0x400, 0x7e8,,,{logo_screen})
 
-//#pragma section(logo_color, 0)
-//#pragma region(hires, 0xd800, 0xdbe8,,,{logo_color})
 
-// everything beyond will be code, data, bss and heap to the end
-#pragma region( main, 0x8000, 0xa000, , , {code, data, bss, heap, stack} )
-//#pragma region( main, 0x4714, 0xa000, , , {code, data, bss, heap, stack} )
+#pragma region( main, 0x7f41, 0xa000, , , {code, data, bss, heap, stack} )
 
 // spriteset at fixed location
 
@@ -68,19 +69,18 @@ __export static const char logo_bmp[] = {
 };
 
 
-#pragma data(data)
-
-
-//#pragma data(logo_screen)
+#pragma data(hires_screen)
+//load the text & color screens into
 __export static const char logo_screen[1000] = {
     #embed 1000 8002 LOGO_FILE
 };
 
-//#pragma data(logo_bmp)
-__export static const char logo_color[1000] = {
-    #embed 1000 9002 LOGO_FILE //0x03e8 (0x1f40+0x3e8)
-};
+// #pragma data(hires_color)
+// __export static const char logo_color[1000] = {
+//     #embed 1000 9002 LOGO_FILE //0x03e8 (0x1f40+0x3e8)
+// };
 
+#pragma data(data)
 
 __export int prev_raster=0;
 
@@ -127,13 +127,13 @@ int main() {
 
     display_logo();
     getch();
-    vic_setmode(VICM_TEXT, Screen,Color);
-    // vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
+    //vic_setmode(VICM_TEXT, text_screen,text_color);
+    vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
     // *(char *)0xd018 = 0x15;
 
 
-   	memset(Screen, 32, 1000);
-    memset(Color,0,1000);
+   	memset(text_screen, 32, 1000);
+    memset(text_color,2,1000);
 
 
     init_invaders();
@@ -337,7 +337,7 @@ int main() {
     }
     if (smooshed) {
         //spr_image(0, SMOOSHED_SHIP_IMAGE_NUM);
-        Screen[0x3f8 + 0] = SPRITE_IMAGE_BASE + SMOOSHED_SHIP_IMAGE_NUM;
+        text_screen[0x3f8 + 0] = SPRITE_IMAGE_BASE + SMOOSHED_SHIP_IMAGE_NUM;
 
         //spr_expand(0,true,false);
     }
@@ -477,7 +477,7 @@ void draw_sprite_row(byte spr_row) {
         }
 
         byte spr_num = c + 2;
-        Screen[0x3f8 + spr_num] = new_handle;
+        text_screen[0x3f8 + spr_num] = new_handle;
         vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
     }
 
@@ -937,7 +937,7 @@ void init_invaders() {
 }
 
 void init_sprites() {
-    spr_init(Screen);
+    spr_init(text_screen);
 
     vic.spr_mcolor0 = 1;
     vic.spr_mcolor0 = 2;
@@ -954,7 +954,7 @@ void init_sprites() {
         // byte handle = row_image_handles[0][row_image_num[0]];
         // spr_image(spr_num, handle );
 
-        Screen[0x3f8 + spr_num] = row_image_handles[0][row_image_num[0]];
+        text_screen[0x3f8 + spr_num] = row_image_handles[0][row_image_num[0]];
 
         spr_move(spr_num, ic*35+24 + 50,0);          //just ignore the Y coord for now
         spr_color(spr_num,ic+1);
@@ -963,17 +963,14 @@ void init_sprites() {
     }
 }
 
+//This was made much simpler by moving the 
 void display_logo(){
-    // //TODO: can't we just load this into $2000?
-    // memcpy((char *)0x2000, logo_bmp, 0x2713);
-    //Fill in the color mem
-    //memcpy((char *)0xd800,logo_color,1000);
-    memcpy(Color,logo_color,1000);
-    //Fill in the screen mem
-    //memcpy((char *)0x400,logo_screen,1000);
-    memcpy(Screen,logo_screen,1000);
+
+    //memcpy(hires_screen, logo_screen, 0x400);
+    //memcpy(hires_color, logo_color, 0x400);
+
     vic.color_back=0;
 
-    vic_setmode(VICM_HIRES_MC, Screen,(char *)0x6000);
+    vic_setmode(VICM_HIRES_MC, logo_screen,logo_bmp);
 }
 

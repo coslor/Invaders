@@ -8,8 +8,7 @@
         "src/my_assert.h",
         "src/my_assert.c",
         "src/invaders-2600.spd",
-        "src/space_invaders_logo.kla",
-        "src/electric_orb.kla"
+        "src/space_invaders_logo_160x200.png"
          
     ],
     "build": "debug",

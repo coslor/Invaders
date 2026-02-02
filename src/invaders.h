@@ -116,7 +116,7 @@ const int   MAX_Y_ROW = 222;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
-const byte SPRITE_IMAGE_BASE = 64;
+const byte SPRITE_IMAGE_BASE = 128;
 //const byte SPRITE_IMAGE_BASE = 128;
 
 //26 is small ship, 24 is big one
