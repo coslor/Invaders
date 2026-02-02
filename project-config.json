@@ -7,12 +7,18 @@
         "src/invaders.c",
         "src/my_assert.h",
         "src/my_assert.c",
-        "src/invaders-2600.spd"
+        "src/invaders-2600.spd",
+        "src/space_invaders_logo.kla",
+        "src/electric_orb.kla"
          
     ],
     "build": "debug",
-    "definitions": [],
+    "definitions": [
+        "USE_BORDER=1",
+        "MY_ASSERT"
+    ],
     "includes": [
+        "src/invaders.h",
         "../oscar64/oscar64/include/c64/sprites.h",
         "../oscar64/oscar64/include/c64/vic.h"
     ],
@@ -27,8 +33,6 @@
         "-n",
         "-DEBUG",
         "-O3",
-        "-DxUSE_BORDER",
-        "-DMY_ASSERT",
         "-Dstrict"
     ],
     "compiler": ""

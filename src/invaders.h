@@ -116,8 +116,11 @@ const int   MAX_Y_ROW = 222;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
-const byte SPRITE_IMAGE_BASE = 128;
-const byte SHIP_IMAGE_NUM = 24;
+const byte SPRITE_IMAGE_BASE = 64;
+//const byte SPRITE_IMAGE_BASE = 128;
+
+//26 is small ship, 24 is big one
+const byte SHIP_IMAGE_NUM = 26;
 const byte SMOOSHED_SHIP_IMAGE_NUM = 27;
 const byte BULLET_IMAGE_NUM = 25;
 //0 is the big Invaders, 12 is the small ones
@@ -230,6 +233,8 @@ void set_sprites_for_all();
 bool move_invaders();
 bool bounce_rows();
 bool move_rows_down(byte px_down);
+
+void display_logo();
 
 #pragma compile("invaders.c")
 #endif
