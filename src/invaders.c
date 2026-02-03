@@ -247,7 +247,9 @@ int main() {
         if (key>='1' && key <= '6') {
             byte col=(key-'1');
             shoot_invader(target_row, col);
-            printf("pew pew\n");
+            //TODO FIXME BUG doing a printf() after changing back to text mode 
+            // causes a rather catastrophic crash -- the emulator locks up!
+            // // printf("pew pew\n");
 
         }
         else if (key>=0x85 && key <= 0x8b) {
