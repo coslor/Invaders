@@ -109,6 +109,8 @@ const unsigned short invaders_2600_size;
 //MAIN THREAD
 int main() {
 
+    // init_my_assert();
+
     bool smooshed = false;
 
     //TODO clean up this ugly main() code & move a bunch of it off to separate routines
@@ -119,21 +121,26 @@ int main() {
     //turn all sprites on
     vic.spr_sprcol = 0xff;
 
-    iocharmap(IOCHM_PETSCII_2);
+    iocharmap(IOCHM_PETSCII_1);
 
 	vic.color_border = VCOL_LT_GREY;
 	vic.color_back = VCOL_BLACK;
 
 
     display_logo();
-    getch();
+    //give us a little time between when 
+    vic_waitBottom();
+    getch_with_keybounce();
+
+
     //vic_setmode(VICM_TEXT, text_screen,text_color);
+    
     vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
     // *(char *)0xd018 = 0x15;
 
 
    	memset(text_screen, 32, 1000);
-    memset(text_color,2,1000);
+    //memset(text_color,2,1000);
 
 
     init_invaders();
@@ -201,23 +208,25 @@ int main() {
 
     // }
 
-    ship.alive = true;
-    ship.x = 160;
-    ship.y = SHIP_Y;
-    ship.sprite_num = 0;
-    ship.sprite_color = VCOL_LT_GREY;
-    ship.sprite_mcolor0 = VCOL_GREEN;
-    ship.sprite_mcolor1 = VCOL_RED;
-    ship.image_handle = SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM;
-    ship.type = TYPE_SHIP;
+    // ship.alive = true;
+    // ship.x = 160;
+    // ship.y = SHIP_Y;
+    // ship.sprite_num = 0;
+    // ship.sprite_color = VCOL_LT_GREY;
+    // ship.sprite_mcolor0 = VCOL_GREEN;
+    // ship.sprite_mcolor1 = VCOL_RED;
+    // ship.image_handle = SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM;
+    // ship.type = TYPE_SHIP;
+    // ship.kill_on_border = false;
 
-    bullet.alive = false;
-    bullet.image_handle = SPRITE_IMAGE_BASE + BULLET_IMAGE_NUM;
-    bullet.sprite_num = 1; 
-    bullet.sprite_color = VCOL_GREEN;
-    bullet.sprite_mcolor0 = 0xff;
-    bullet.sprite_mcolor1 = 0xff;      //ff = don't change mcolor
-    bullet.type = TYPE_BULLET;
+    // bullet.alive = false;
+    // bullet.image_handle = SPRITE_IMAGE_BASE + BULLET_IMAGE_NUM;
+    // bullet.sprite_num = 1; 
+    // bullet.sprite_color = VCOL_GREEN;
+    // bullet.sprite_mcolor0 = 0xff;
+    // bullet.sprite_mcolor1 = 0xff;      //ff = don't change mcolor
+    // bullet.type = TYPE_BULLET;
+    // bullet.kill_on_border = true;
 
     IRQ_VECTOR=raster_irq_handler;
 
@@ -258,12 +267,12 @@ int main() {
         }
 
 #ifndef NO_PLAYER
-        read_joy();
-        move_object(&ship);
-        move_object(&bullet);
+        poll_inputs(0);
+        move_object(SHIP_OBJ_NUM);
+        move_object(SHIP_OBJ_NUM);
 
-        draw_object(&ship);
-        draw_object(&bullet);
+        draw_object(SHIP_OBJ_NUM);
+        draw_object(BULLET_OBJ_NUM);
 #endif
 
         END_BORDER
@@ -528,11 +537,14 @@ void raster_irq_handler() {
 
             // my_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
             //vic.spr_color[ship.sprite_num] = ship.sprite_color;
-            if (ship.sprite_mcolor0 < 0xff) {
-                vic.spr_mcolor0 = ship.sprite_mcolor0;
+
+            //TODO always <0xff?
+            
+            if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
+                vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
             }
-            if (ship.sprite_mcolor1 < 0xff) {
-                vic.spr_mcolor1 = ship.sprite_mcolor1;
+            if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
+                vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
             }
             END_BORDER
         }
@@ -753,92 +765,170 @@ bool move_rows_down(byte px_down) {
     return true;
 }
 
+void poll_inputs(char joy_num) {
+
+}
 //MAIN thread
-void read_joy() {
-    joy_poll(0);
-    ship.speed_x = joyx[0];
-    if (ship.speed_x < 0) {
-        // useless=ship.speed_x;   //for debugging
+#pragma optimize(0)
+void handle_inputs(char joy_num) {
+
+    signed int key_x_speed=0, key_y_speed=0;
+    bool key_fire_pressed = false;
+
+    joy_poll(joy_num);
+    keyb_poll();
+
+    // while (keyb_key != 0) {
+    //     joy_num++;
+    //     // __asm {
+    //     //     nop
+    //     // }
+    // };
+
+    if (keyb_key == KSCAN_A + KSCAN_QUAL_DOWN || (keyb_key == KSCAN_CSR_RIGHT && key_shift()) ){
+        key_x_speed = -1;
     }
-    if (joyb[0]) {
-        fire_bullet(&bullet);
+    else if (keyb_key == KSCAN_D + KSCAN_QUAL_DOWN || keyb_key == KSCAN_CSR_RIGHT) {
+        key_x_speed = 1;
+    }
+    else if (keyb_key == KSCAN_SPACE + KSCAN_QUAL_DOWN ) {
+        key_fire_pressed = true;
+    }
+    // switch(keyb_key) {
+    //     // case KSCAN_W:
+    //     // case KSCAN_CSR_UP: {
+    //     //     key_y_speed = -1;
+    //     //     break;
+    //     // }
+    //     case KSCAN_A:
+    //     case KSCAN_CSR_LEFT: {
+    //         key_x_speed = -1;
+    //         break;
+    //     }
+    //     // case KSCAN_S:
+    //     // case KSCAN_CSR_DOWN: {
+    //     //     key_y_speed = +1;
+    //     //     break;
+    //     // }
+    //     case KSCAN_D:
+    //     case KSCAN_CSR_RIGHT: {
+    //         key_x_speed = 1;
+    //         break;
+    //     }
+    //     case KSCAN_SPACE: {
+    //         key_fire_pressed = true;
+    //         break;
+    //     }
+    //     default: {
+    //     }
+    // }
+    obj_speed_x[SHIP_OBJ_NUM] = (signed int)(joyx[joy_num] + key_x_speed);
+    
+    if (joyb[joy_num] || key_fire_pressed) {
+        fire_bullet(BULLET_OBJ_NUM);
+    }
+    __asm {
+        nop
     }
 }
 
 //MAIN thread
-void fire_bullet(PlayerObject* b) {
-    if (b->type == TYPE_BULLET) {
-        b->x = ship.x;
-        b->y = ship.y-3;
-        b->speed_x = 0;
-        b->speed_y = -1;
-        b->alive = true;
+void fire_bullet(byte obj_num) {
+    my_assert(obj_type[obj_num] == TYPE_BULLET, "wrong playerobject type");
+    if (obj_type[obj_num] == TYPE_BULLET) {
+        obj_x[BULLET_OBJ_NUM] = obj_x[SHIP_OBJ_NUM];
+        obj_y[BULLET_OBJ_NUM] = obj_y[SHIP_OBJ_NUM];
+        obj_speed_x[BULLET_OBJ_NUM] = 0;
+        obj_speed_y[BULLET_OBJ_NUM] = -1;
+        obj_alive[BULLET_OBJ_NUM] = true;
+        // b->x = ship.x;
+        // b->y = ship.y-3;
+        // b->speed_x = 0;
+        // b->speed_y = -1;
+        // b->alive = true;
         
         vic.color_back = 15;
     }
-    else {
-        printf("Wrong PlayerObject type:%d\n", b->type);
-    }
 }
 
+byte obj_num2;
 //MAIN thread
-void move_object(PlayerObject *obj) {
+#pragma  optimize(0)
+void move_object(byte obj_num) {
+    obj_num2 = obj_num;
+    signed int this_x = obj_x[obj_num];
+
+    bool x_is_ok= (obj_x[obj_num] > 50 && obj_x[obj_num] < 320);
+    bool speed_x_is_ok = (obj_speed_x[obj_num] > -2 && obj_speed_x[obj_num] < 2);
+
+    my_assert(x_is_ok && speed_x_is_ok, "move-object ship out of bounds");
     // if (obj == &bullet && obj->alive) {
     //     useless = (int)obj;          //debugging
     // }   
-    if (obj->speed_x > 0) {
-        if (obj->x < 320) {
-            obj->x += obj->speed_x;
+    if (obj_speed_x[obj_num] != 0) {
+        if (obj_speed_x[obj_num] > 24 && obj_speed_x[obj_num]< 320) {
+            obj_x[obj_num] += obj_speed_x[obj_num];
         }
-    }
-    else if (obj->speed_x < 0) {
-        if (obj->x > 25) {
-            obj->x += obj->speed_x;
-        }
-    }
-
-    if (obj->speed_y != 0) {
-        if (obj->y < 255) {
-            obj->y += obj->speed_y;
-
-            if (obj->y > 255) {
-                kill_bullet(&bullet);
-            }
-        }
-        else if (obj->speed_y < 50) {
-            if (obj->y > 50) {
-                obj->y += obj->speed_y;
-            }
-            if (obj == &bullet) {
-                kill_bullet(&bullet);
-                obj->alive = false;
+        else {
+            if (obj_kill_on_border[obj_num]) {
+                kill_object(obj_num);
             }
         }
     }
+    // if (obj->speed_y != 0) {
+    //     if (obj->y > 50 && obj->y < 320) {
+    //         obj->y += obj->speed_y;
+    //     }
+    //     else {
+    //         if (obj->kill_on_border) {
+    //             kill_object(obj);
+    //         }
+    //     }
+    // }
 }
 
-//MAIN thread
-void draw_object(PlayerObject *obj2) {
-    if (obj2->alive) {
-        byte sprite_num = obj2->sprite_num;
-        spr_move(sprite_num, obj2->x, obj2->y);
-
-        spr_color(sprite_num, obj2->sprite_color);
-        if (obj2->sprite_mcolor0 < 0xff) {
-            vic.spr_mcolor0 = obj2->sprite_mcolor0;
+void kill_object(byte obj_num) {
+    switch (obj_type[obj_num]) {
+        case TYPE_BULLET: {
+            kill_bullet(BULLET_OBJ_NUM);
+            obj_alive[obj_num] = false;
+            break;
         }
-        if (obj2->sprite_mcolor1 < 0xff) {
-            vic.spr_mcolor1 = obj2->sprite_mcolor1;
+
+        case TYPE_SHIP: {
+            game_over();
+            break;
+        }
+
+        default: {
+            printf("kill-object() got obj type %d\n", obj_type[obj_num]);
+        }
+    }
+
+}
+//MAIN thread
+void draw_object(byte obj_num) {
+    if (obj_alive[obj_num]) {
+        byte sprite_num = obj_sprite_num[obj_num];
+        spr_move(sprite_num, obj_x[obj_num], obj_y[obj_num]);
+
+        spr_color(sprite_num, obj_sprite_color[obj_num]);
+        //TODO always <255?
+        if (obj_sprite_mcolor0[obj_num] < 0xff) {
+            vic.spr_mcolor0 = obj_sprite_mcolor0[obj_num];
+        }
+        if (obj_sprite_mcolor1[obj_num] < 0xff) {
+            vic.spr_mcolor1 = obj_sprite_mcolor1[obj_num];
         }
         
-        spr_image(obj2->sprite_num, obj2->image_handle);
+        spr_image(obj_sprite_num[obj_num], obj_image_handle[obj_num]);
     }
-    spr_show(obj2->sprite_num, obj2->alive);
+    spr_show(obj_sprite_num[obj_num], obj_alive[obj_num]);
 }
 
 //MAIN thread
-void kill_bullet(PlayerObject *b) {
-    b->alive = false;
+void kill_bullet(byte obj_num) {
+    obj_alive[obj_num] = false;
     vic.color_back = VCOL_BLACK;
 }
 
@@ -965,7 +1055,6 @@ void init_sprites() {
     }
 }
 
-//This was made much simpler by moving the 
 void display_logo(){
 
     //memcpy(hires_screen, logo_screen, 0x400);
@@ -974,5 +1063,20 @@ void display_logo(){
     vic.color_back=0;
 
     vic_setmode(VICM_HIRES_MC, logo_screen,logo_bmp);
+}
+
+void game_over() {
+    playing = false;
+}
+
+char getch_with_keybounce() {
+    char c=getch();
+    char old_c = c;
+
+    while (c==old_c) {
+        c = getchx();
+    }
+
+    return c;
 }
 

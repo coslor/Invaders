@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <c64/joystick.h>
+#include <c64/keyboard.h>
 #include <c64/vic.h>
 #include <c64/sprites.h>
 #include <c64/memmap.h>
@@ -126,30 +127,49 @@ const byte BULLET_IMAGE_NUM = 25;
 //0 is the big Invaders, 12 is the small ones
 const byte INVADER_IMAGE_BASE = 12;
 
-const byte INVADER_SPRITE_HEIGHT = 10;
+const byte SHIP_OBJ_NUM = 0;
+const byte BULLET_OBJ_NUM = 1;
 
 const int SHIP_Y = 230;
+
+const byte INVADER_SPRITE_HEIGHT = 10;
 
 //__export byte vic_copy[0x2f];
 
 enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET};
 
-typedef struct {
-    int                 x               = 0;
-    signed int          speed_x         = 0;
-    byte                y               = 0;
-    signed int          speed_y         = 0;
-    bool                alive           = false;
-    byte                sprite_num      = 0xff;
-    byte                sprite_color    = VCOL_WHITE;
-    byte                sprite_mcolor0  = VCOL_GREEN;
-    byte                sprite_mcolor1  = VCOL_RED;
-    byte                image_handle    = 0xff;
-    PlayerObjectType    type;
-} PlayerObject;
+const int NUM_OBJECTS = 2;
+
+signed int  obj_x[NUM_OBJECTS]              = {160,         0};
+signed int  obj_speed_x[NUM_OBJECTS]        = {0,           0};
+signed int  obj_y[NUM_OBJECTS]              = {230,         230};
+signed int  obj_speed_y[NUM_OBJECTS]        = {0,           0};
+bool        obj_alive[NUM_OBJECTS]          = {true,        false};
+byte        obj_sprite_num[NUM_OBJECTS]     = {0,           1};
+byte        obj_sprite_color[NUM_OBJECTS]   = {VCOL_WHITE,  VCOL_WHITE};
+byte        obj_sprite_mcolor0[NUM_OBJECTS] = {VCOL_GREEN,  VCOL_GREEN};
+byte        obj_sprite_mcolor1[NUM_OBJECTS] = {VCOL_RED,    VCOL_RED};
+byte        obj_image_handle[NUM_OBJECTS]   = {0xff,        0xff};
+bool        obj_kill_on_border[NUM_OBJECTS] = {false,       true};
+PlayerObjectType obj_type[NUM_OBJECTS]      = {TYPE_SHIP,   TYPE_BULLET};
+
+// typedef struct {
+//     signed int          x               = 0;
+//     signed int          speed_x         = 0;
+//     byte                y               = 0;
+//     signed int          speed_y         = 0;
+//     bool                alive           = false;
+//     byte                sprite_num      = 0xff;
+//     byte                sprite_color    = VCOL_WHITE;
+//     byte                sprite_mcolor0  = VCOL_GREEN;
+//     byte                sprite_mcolor1  = VCOL_RED;
+//     byte                image_handle    = 0xff;
+//     bool                kill_on_border  = false;
+//     PlayerObjectType    type;
+// } PlayerObject;
 
 
-PlayerObject    ship,bullet;
+// PlayerObject    ship,bullet;
 
 //byte collision_reg[NUM_ROWS];
 int collided_inv_index=0xff;
@@ -220,11 +240,11 @@ void init_invaders();
 void init_sprites();
 void flip_row_image(byte row);
 void shoot_invader(byte row, byte col);
-void read_joy();
-void move_object(PlayerObject* obj);
-void draw_object(PlayerObject* obj);
-void fire_bullet(PlayerObject *obj);
-void kill_bullet(PlayerObject *b);
+void poll_inputs(char joy_num);
+void move_object(byte obj_num);
+void draw_object(byte obj_num);
+void fire_bullet(byte obj_num);
+void kill_bullet(byte obj_num);
 byte wait_line_and_watch_for_collisions(int line);
 void set_sprites_for_all();
 //void take_vic_snapshot();
@@ -235,6 +255,11 @@ bool bounce_rows();
 bool move_rows_down(byte px_down);
 
 void display_logo();
+
+void kill_object(byte obj_num);
+void game_over();
+
+char getch_with_keybounce();
 
 #pragma compile("invaders.c")
 #endif

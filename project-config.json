@@ -31,7 +31,7 @@
         "-DNEW_FROM_HERE",
         "-n",
         "-DEBUG",
-        "-O3",
+        "-O0",
         "-Dstrict"
     ],
     "compiler": ""
