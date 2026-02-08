@@ -1,0 +1,3 @@
+C:\Users\chris\Downloads\SDL2VICE-3.10-win64-r45962\x64sc.exe
+C:\Users\chris\Downloads\GTK3VICE-3.10-win64-r45962\bin\x64sc.exe
+C:\Users\chris\Downloads\SDLVICE-3.10-win64-r45962\x64sc.exe

@@ -1,12 +1,14 @@
 #ifndef INVADERS_H
 #define INVADERS_H
 
+#include "invaders_memory.h"
+
 #include "c64/types.h"
 //#include <conio.h>
 #include <stdlib.h>
 #include <string.h>
 //#include <assert.h>
-#include <stdio.h>
+//#include <stdio.h>
 #include <stdbool.h>
 #include <c64/joystick.h>
 #include <c64/keyboard.h>
@@ -33,8 +35,8 @@
 #define     END_BORDER //nothing #endif 
 // #ifdef USE_BORDER { vic.color_border=old_border_color; } #else //nothing #endif
 
-const byte  SCANLINES_TO_DRAW_SPRITE=12;
-const byte  SCANLINES_PER_ROW=15 + SCANLINES_TO_DRAW_SPRITE;
+const byte  SCANLINES_TO_DRAW_SPRITE=15;
+const byte  SCANLINES_PER_ROW=17 + SCANLINES_TO_DRAW_SPRITE;
 
 byte        current_row_num=0;
 
@@ -125,7 +127,7 @@ const byte SHIP_IMAGE_NUM = 26;
 const byte SMOOSHED_SHIP_IMAGE_NUM = 27;
 const byte BULLET_IMAGE_NUM = 25;
 //0 is the big Invaders, 12 is the small ones
-const byte INVADER_IMAGE_BASE = 12;
+const byte INVADER_IMAGE_BASE = 0;
 
 const byte SHIP_OBJ_NUM = 0;
 const byte BULLET_OBJ_NUM = 1;
@@ -149,9 +151,12 @@ byte        obj_sprite_num[NUM_OBJECTS]     = {0,           1};
 byte        obj_sprite_color[NUM_OBJECTS]   = {VCOL_WHITE,  VCOL_WHITE};
 byte        obj_sprite_mcolor0[NUM_OBJECTS] = {VCOL_GREEN,  VCOL_GREEN};
 byte        obj_sprite_mcolor1[NUM_OBJECTS] = {VCOL_RED,    VCOL_RED};
-byte        obj_image_handle[NUM_OBJECTS]   = {0xff,        0xff};
 bool        obj_kill_on_border[NUM_OBJECTS] = {false,       true};
+
 PlayerObjectType obj_type[NUM_OBJECTS]      = {TYPE_SHIP,   TYPE_BULLET};
+
+byte        obj_image_handle[NUM_OBJECTS]   = {SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM, 
+                                               SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM};
 
 // typedef struct {
 //     signed int          x               = 0;
@@ -260,6 +265,7 @@ void kill_object(byte obj_num);
 void game_over();
 
 char getch_with_keybounce();
+bool handle_inputs(byte joy_num);
 
 #pragma compile("invaders.c")
 #endif
