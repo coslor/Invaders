@@ -40,21 +40,22 @@ __export static const char spriteset[] =  {
 
 };
 
-#pragma data(logo_sec)
+#pragma data(logo_bmp_sec)
 __export static const char logo_bmp[] = {
     #embed 8000 2 LOGO_FILE  
 };
 
+#pragma data(logo_screen_sec)
+__export static char logo_screen[1000] = {
+    #embed 1000 9002 LOGO_FILE
+};
 
-//#pragma data(logo_sec)
+#pragma data(logo_color_sec)
 //load the text & color screens into
 __export static char logo_color[1000] = {
     #embed 1000 8002 LOGO_FILE
 };
 
-__export static char logo_screen[1000] = {
-    #embed 1000 9002 LOGO_FILE
-};
 
 // #pragma data(hires_color)
 // __export static const char logo_color[1000] = {
@@ -100,15 +101,17 @@ int main() {
 
 	// Disable CIA interrupts, we do not want interference
 	// with our joystick interrupt
-	cia_init();
+	//cia_init();
 
 
         // Activate trampoline
-	//mmap_trampoline();
+	mmap_trampoline();
 
-	//mmap_set(MMAP_RAM);
+	mmap_set(MMAP_NO_ROM);
 
     display_logo();
+
+
     //vic_waitBottom();
 //    getch_with_keybounce();
 
@@ -131,6 +134,10 @@ int main() {
 
     memset(logo_bmp, 0, 8000);
     memset(logo_screen, 0, 1000);
+    memset(logo_color, 0, 1000);
+
+        //point the VIC to the right screen (to record sprite #s for example)
+    vic_setmode(VICM_HIRES_MC, logo_screen,logo_bmp); // $d018=$49 $d011=$3b $dd00=$c6
 
     //(logo_screen);
     //don't do this--it overwrites a chunk of your program
@@ -801,7 +808,7 @@ void move_object(byte obj_num) {
     obj_num2 = obj_num;
     signed int this_x = obj_x[obj_num];
 
-    if (obj_speed_x[obj_num] != 0) {
+    if (obj_speed_x[obj_num] != 0) { 
         if (obj_speed_x[obj_num] > 0) {
             if (obj_x[obj_num] < MAX_SPR_X) {
                 obj_x[obj_num] += obj_speed_x[obj_num];

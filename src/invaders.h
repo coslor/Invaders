@@ -35,8 +35,8 @@
 #define     END_BORDER //nothing #endif 
 // #ifdef USE_BORDER { vic.color_border=old_border_color; } #else //nothing #endif
 
-const byte  SCANLINES_TO_DRAW_SPRITE=15;
-const byte  SCANLINES_PER_ROW=17 + SCANLINES_TO_DRAW_SPRITE;
+const byte  SCANLINES_TO_DRAW_SPRITE=16;
+const byte  SCANLINES_PER_ROW=10 + SCANLINES_TO_DRAW_SPRITE;
 
 byte        current_row_num=0;
 
@@ -119,7 +119,7 @@ const int   MAX_Y_ROW = 222;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
-const byte SPRITE_IMAGE_BASE = 128;
+const byte SPRITE_IMAGE_BASE = 0;
 //const byte SPRITE_IMAGE_BASE = 128;
 
 //26 is small ship, 24 is big one
@@ -127,7 +127,7 @@ const byte SHIP_IMAGE_NUM = 26;
 const byte SMOOSHED_SHIP_IMAGE_NUM = 27;
 const byte BULLET_IMAGE_NUM = 25;
 //0 is the big Invaders, 12 is the small ones
-const byte INVADER_IMAGE_BASE = 0;
+const byte INVADER_IMAGE_BASE = 12;
 
 const byte SHIP_OBJ_NUM = 0;
 const byte BULLET_OBJ_NUM = 1;
