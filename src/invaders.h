@@ -26,7 +26,7 @@
 
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
-#define     NUM_ROWS 5
+#define     NUM_ROWS 6
 #define     INVADERS_PER_ROW 6
 
 #define DO_UNROLL true
@@ -38,7 +38,7 @@
 #define     END_BORDER #ifdef USE_BORDER { vic.color_border=old_border_color; } #endif
 
 const byte  SCANLINES_TO_DRAW_SPRITE=12;
-const byte  SCANLINES_PER_ROW=12 + SCANLINES_TO_DRAW_SPRITE;
+const byte  SCANLINES_PER_ROW=9 + SCANLINES_TO_DRAW_SPRITE;
 
 byte        current_row_num=0;
 

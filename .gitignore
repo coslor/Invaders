@@ -9,3 +9,7 @@ src/space_invaders_logo_300x200_real.png
 src/space_invaders_logo_160x200.png
 Invaders-2600 - Sprites.asm
 src/monitor.log
+.vscode/extensions.json
+src/driver_outline.json
+src/driver_outline.md
+src/driver_outline.txt
