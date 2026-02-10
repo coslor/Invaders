@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <conio.h>
 #include <c64/vic.h>
+#include <stdio.h>
 
 
 void my_assert(bool condition, void* message);

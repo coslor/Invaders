@@ -1,6 +1,6 @@
 
 
-//#pragma optimize(speed)
+#pragma optimize(speed)
 
 //#define VSPRITES_MAX 16
 
@@ -9,7 +9,6 @@
 // Invaders...raping!
 //
 
-#define DO_UNROLL true
 
 //#define Screen ((char *)0x400)
 //#define Color ((char *)0xd800)
@@ -35,10 +34,11 @@ char* text_color = ((char *)0x1000);
 //      var itself isn't referenced anywhere, needs to be called out 
 //      with __export or #pragma reference(name), or it will be optimized away!
 ////
-__export static const char spriteset[] =  {
+static const char spriteset[] =  {
     #embed spd_sprites "invaders-2600.spd"
 
 };
+#pragma reference(spriteset)
 
 #pragma data(logo_bmp_sec)
 __export static const char logo_bmp[] = {
@@ -93,7 +93,7 @@ const int JOY_NUM=0;
 //#define TEST_KEYBOARD
 
 //MAIN THREAD
-#pragma optimize(0)
+// #pragma optimize(0)
 int main() {
 
     bool smooshed = false;
@@ -105,9 +105,6 @@ int main() {
 
 
         // Activate trampoline
-	mmap_trampoline();
-
-	mmap_set(MMAP_NO_ROM);
 
     display_logo();
 
@@ -115,11 +112,32 @@ int main() {
     //vic_waitBottom();
 //    getch_with_keybounce();
 
-    do {
-        //vic_waitFrame();
+    sidfx_init();
+	sid.fmodevol = 15;
+
+    //this is just here to play with the SIDFx stuff
+    while(true) {
+        vic_waitFrame();
+        sidfx_loop();
         keyb_poll();
         //bool space_pressed = key_pressed(KSCAN_SPACE);
-    } while (keyb_key == 0);
+        if (key_pressed(KSCAN_1)) {
+            sidfx_play(0, SIDFXFire, 1);
+        }
+        if (key_pressed(KSCAN_2)) {
+			sidfx_play(1, SIDFXExplosion, 1);
+        }
+        // if (key_pressed(KSCAN_3)) {
+        //     sidfx_play(2, SIDFXBigExplosion, 3);
+
+        // }
+        if (key_pressed(KSCAN_SPACE)) {
+        //    getchx();
+            break;
+        }
+    }
+
+
 
     //vic_setmode(VICM_TEXT, text_screen,text_color);
     
@@ -144,6 +162,7 @@ int main() {
     //memset(text_color,2,1000);
 
 
+
     init_invaders();
     init_sprites();
 
@@ -158,9 +177,9 @@ int main() {
     //          However, when you do that, you can't use the keyboard (duh!)
 
     //Kill **all** other interrupts?
-    // __asm {
-    //     lda #$7f
-    //     sta $dc0d		 //turn off all types of cia irq/nmi.
+    __asm {
+        lda #$7f
+        sta $dc0d		 //turn off all types of cia irq/nmi.
     //     sta $dd0d
     //     lda $dc0d
     //     lda $dd0d
@@ -174,7 +193,7 @@ int main() {
     //     sta $dd0f
     //     lda $d01e
     //     lda $d01f
-    // }
+    }
 
 	// // Kill CIA interrupts
 	// cia_init();
@@ -205,7 +224,10 @@ int main() {
 
     set_next_irq(inv_start_line[0], false);
 
-     __asm { cli }
+        //mmap_trampoline();
+	//mmap_set(MMAP_NO_BASIC);
+
+    __asm { cli }
 
     int row_num = 0;
 
@@ -241,8 +263,8 @@ int main() {
 
 #ifndef NO_PLAYER
         handle_inputs(JOY_NUM);
-        move_object(SHIP_OBJ_NUM);
         //move_object(SHIP_OBJ_NUM);
+        //move_object(BULLET_OBJ_NUM);
 
         draw_object(SHIP_OBJ_NUM);
         draw_object(BULLET_OBJ_NUM);
@@ -250,7 +272,7 @@ int main() {
 
         END_BORDER
 
-        START_BORDER(VCOL_WHITE)
+        //START_BORDER(VCOL_WHITE)
 
         //TODO it seems criminal to waste this time
         vic_waitBottom();
@@ -425,6 +447,9 @@ void set_sprites_for_all() {
 //IRQ THREAD
 void draw_sprite_row(byte spr_row) {
 
+    // __asm {
+    //     sei
+    // }
     // my_assert(spr_row<NUM_ROWS,"too many spr rows");
 
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
@@ -433,6 +458,9 @@ void draw_sprite_row(byte spr_row) {
     vic.spr_enable = row_sprite_enable_mask[spr_row];
 
     if (!row_alive[spr_row]) {
+        // __asm {
+        //     cli
+        // }
         return;
     }
 
@@ -443,22 +471,25 @@ void draw_sprite_row(byte spr_row) {
     //byte this_row_color = row_color[spr_row];
     int this_row_y = row_y[spr_row];
 
+    #pragma unroll(full)
+    for (byte c=0;c<INVADERS_PER_ROW; c++) {
+        vic.spr_pos[c+2].y= this_row_y;  //;do this last?
+    }
+
     vic.spr_mcolor0 = row_mcolor0[spr_row];
     vic.spr_mcolor1 = row_mcolor1[spr_row];
 
-#ifdef DO_UNROLL
     #pragma unroll(full)
-#endif
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
-        byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
-        if (! inv_alive[inv_index]) {
-            continue;
-        }
+        // byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
+        // if (! inv_alive[inv_index]) {
+        //     continue;
+        // }
 
         byte spr_num = c + 2;
         //logo_screen[0x3f8 + spr_num] = new_handle;
         spr_image(spr_num, new_handle);
-        vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
+        // vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
     }
 
     //take_vic_snapshot();
@@ -467,6 +498,10 @@ void draw_sprite_row(byte spr_row) {
         nop
     }
     //vic.color_back = VCOL_BLACK;
+    // __asm {
+    //     cli
+    // }
+
 }
 
 //TODO either use this or remove it
@@ -524,7 +559,7 @@ void raster_irq_handler() {
             END_BORDER
         }
 
-        if (++current_row_num > NUM_ROWS) {
+        if ((++current_row_num) > NUM_ROWS) {
             current_row_num = 0;
         }
 
@@ -539,11 +574,11 @@ void raster_irq_handler() {
     __asm{ 
         // lsr $d019   //vic.intr_ctrl -- ACK interrupt
 
-        //NOTE: if you JMP to anything but $EA31, they keyboard will be disabled, which gets rid
+        //NOTE: if you JMP to $EA81, (instead of $ea31) the keyboard will be disabled, which gets rid
         //      of annoying screen flicker when a key is pressed. Of course, you also cannot then
         //      use getch() to read the keyboard.
 
-        jmp $ea31   //(old_irq) - 
+        jmp $ea81   //(old_irq) - 
                     // call $ea31 for original, but scans keyboard twice, not necessary
                     //      $ea81 skips keyboard scan, better
                     //      $febc skips kernal stuff altogether
@@ -557,7 +592,7 @@ void raster_irq_handler() {
  *      false otherwise.
  */
  //IRQ THREAD
-bool set_next_irq(int rasterline, bool calling_from_irq) {
+bool set_next_irq(unsigned int rasterline, bool calling_from_irq) {
     //from https://codebase64.com/doku.php?id=base:introduction_to_raster_irqs
 
     bool ok=false;
@@ -665,13 +700,13 @@ bool bounce_rows() {
     find_min_max_spr_x();
 
     //TODO combine these 2 if's?
-    if ((rows_x_frame_speed > 0) && rows_max_spr_x >= MAX_SPR_X) {
+    if ((rows_x_frame_speed > 0) && (rows_max_spr_x >= MAX_SPR_X)) {
         my_assert((rows_x_frame_speed = 4), "rows_x_frame_speed bad in bounce_rows()");
         ok= move_rows_down(Y_INC);
         rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
         rows_x_frame_speed *= -1;
     }
-    else if ((rows_x_frame_speed < 0) && rows_min_spr_x <= MIN_SPR_X) {
+    else if ((rows_x_frame_speed < 0) && (rows_min_spr_x <= MIN_SPR_X)) {
         my_assert((rows_x_frame_speed = -4), "rows_x_frame_speed bad in bounce_rows()");
         ok = move_rows_down(Y_INC);
         rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
@@ -717,7 +752,7 @@ bool move_rows_down(byte px_down) {
         inv_start_line[r] += px_down;
 
         //TODO make a proper GAME OVER
-        if (row_y[r] + INVADER_SPRITE_HEIGHT >= (SHIP_Y+4)) { //MAX_Y_ROW) {
+        if ((row_y[r] + INVADER_SPRITE_HEIGHT) >= (SHIP_Y+4)) { //MAX_Y_ROW) {
             return false;
         }
         // out_of_bounds != (row_y[r] > MAX_Y_ROW);
@@ -738,7 +773,7 @@ void poll_inputs(char joy_num) {
 
 }
 //MAIN thread
-#pragma optimize(0)
+// #pragma optimize(0)
 bool handle_inputs(char joy_num) {
 
     signed int key_x_speed=0, key_y_speed=0;
@@ -764,6 +799,11 @@ bool handle_inputs(char joy_num) {
     //
     // OR joystick#2
     //
+
+    // if ((keyb_key & KSCAN_QUAL_DOWN) == 0) {
+    //     return false;
+    // }
+
     bool key_a_pressed = key_pressed(KSCAN_A);
     bool key_d_pressed = key_pressed(KSCAN_D);
 
@@ -771,13 +811,20 @@ bool handle_inputs(char joy_num) {
     // bool key_spc_pressed = key_pressed(KSCAN_SPACE);
     bool key_rtn_pressed = key_pressed(KSCAN_RETURN);
 
+    signed int new_x = obj_x[SHIP_OBJ_NUM];
+
     if (key_a_pressed) {
-        obj_speed_x[SHIP_OBJ_NUM] = -2;
+        new_x -=2;
+        // obj_speed_x[SHIP_OBJ_NUM] = -2;
     } else if (key_d_pressed) {
-        obj_speed_x[SHIP_OBJ_NUM] = 2;
+            // obj_speed_x[SHIP_OBJ_NUM] = 2;
+            new_x += 2;
     } else if (key_rtn_pressed) {
-        fire_bullet(BULLET_OBJ_NUM);
-        return true;
+                fire_bullet(BULLET_OBJ_NUM);
+                return true;
+            }
+    if ((new_x >= MIN_SPR_X) && (new_x <= MAX_SPR_X)) {
+        obj_x[SHIP_OBJ_NUM] = new_x;
     }
     return false;
 }
@@ -801,25 +848,69 @@ void fire_bullet(byte obj_num) {
     }
 }
 
-byte obj_num2;
+//byte obj_num2;
 //MAIN thread
-#pragma  optimize(0)
+// #pragma  optimize(0)
 void move_object(byte obj_num) {
-    obj_num2 = obj_num;
+    if (obj_num == 0) {
+        __asm {
+            nop
+            nop
+            brk
+        }
+    }
+    byte this_obj_num = obj_num;
+
+    if (obj_num>NUM_OBJECTS) {
+        vic.color_back=2;
+
+        __asm {
+            nop
+            nop
+            nop
+            brk
+        }
+    }
+    // obj_num2 = obj_num;
     signed int this_x = obj_x[obj_num];
+
+    bool too_low = (this_x < MIN_SPR_X);
+    bool too_high = (this_x > MAX_SPR_X);
+
+    if ( too_low || too_high ) {
+        __asm { 
+            nop 
+            nop
+            brk
+        }
+    }
+
+    signed int new_x = obj_x[obj_num];
 
     if (obj_speed_x[obj_num] != 0) { 
         if (obj_speed_x[obj_num] > 0) {
-            if (obj_x[obj_num] < MAX_SPR_X) {
-                obj_x[obj_num] += obj_speed_x[obj_num];
+            if (new_x < MAX_SPR_X) {
+                new_x += obj_speed_x[obj_num];
             }
         } else{
-            if (obj_x[obj_num] > MIN_SPR_X) {
-                obj_x[obj_num] += obj_speed_x[obj_num];
+            if (new_x > MIN_SPR_X) {
+                new_x += obj_speed_x[obj_num];
             }
         }
         obj_speed_x[obj_num] = 0;
     }
+    //signed int new_x = obj_x[this_obj_num];
+
+    if ((new_x>=MIN_SPR_X)  && (new_x<=MAX_SPR_X)) {
+        obj_x[obj_num]=new_x;
+    }
+    else {
+        __asm { 
+            nop 
+            nop
+        }
+    }
+
 }
 
 // void kill_object(byte obj_num) {

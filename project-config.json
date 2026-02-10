@@ -13,26 +13,24 @@
     ],
     "build": "debug",
     "definitions": [
-        "USE_BORDER=1",
-        "MY_ASSERT"
+        "USE_BORDER",
+        "DO_UNROLL"
     ],
     "includes": [
         "src/invaders.h",
-        "../oscar64/oscar64/include/c64/sprites.h",
-        "../oscar64/oscar64/include/c64/vic.h"
+        "../oscar64/oscar64/include/"
     ],
     "args": [
-        "-DWAS_JUST_G",
         "-gp",
         "-v2",
         "-DdVSPRITES_MAX=16",
         "-DdNUM_IRQS=28",
-        "-DWAS_JUST_O2_O2",
         "-DNEW_FROM_HERE",
         "-n",
         "-DEBUG",
-        "-O0",
-        "-Dstrict"
+        "-O3",
+        "-Dstrict",
+        "-DDMY_ASSERT"
     ],
     "compiler": ""
 }

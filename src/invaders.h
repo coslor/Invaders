@@ -3,8 +3,8 @@
 
 #include "invaders_memory.h"
 
-#include "c64/types.h"
-//#include <conio.h>
+#include <c64/types.h>
+#include <conio.h>
 #include <stdlib.h>
 #include <string.h>
 //#include <assert.h>
@@ -20,23 +20,25 @@
 #include <math.h>
 //#include "invaders.h"
 #include "my_assert.h" 
+#include <audio/sidfx.h>
+
 
 
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
-#define     NUM_ROWS 6
+#define     NUM_ROWS 5
 #define     INVADERS_PER_ROW 6
+
+#define DO_UNROLL true
 
 #ifdef USE_BORDER
     byte old_border_color;
 #endif
-#define     START_BORDER(color) //nothing #endif
-// #ifdef USE_BORDER { old_border_color=vic.color_border;vic.color_border = color; } #else //nothing #endif
-#define     END_BORDER //nothing #endif 
-// #ifdef USE_BORDER { vic.color_border=old_border_color; } #else //nothing #endif
+#define     START_BORDER(color) #ifdef USE_BORDER { old_border_color=vic.color_border;vic.color_border = color; } #endif
+#define     END_BORDER #ifdef USE_BORDER { vic.color_border=old_border_color; } #endif
 
-const byte  SCANLINES_TO_DRAW_SPRITE=16;
-const byte  SCANLINES_PER_ROW=10 + SCANLINES_TO_DRAW_SPRITE;
+const byte  SCANLINES_TO_DRAW_SPRITE=12;
+const byte  SCANLINES_PER_ROW=12 + SCANLINES_TO_DRAW_SPRITE;
 
 byte        current_row_num=0;
 
@@ -51,8 +53,8 @@ const int   MIN_Y=MAX(SCANLINES_PER_ROW,50);
 
 const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
-const signed int MIN_SPR_X = 35;
-const signed int MAX_SPR_X = 320;
+const int MIN_SPR_X = 35;
+const int MAX_SPR_X = 320;
 
 
 bool        inv_alive[TOTAL_INVS_SIZE]; // = {
@@ -142,7 +144,7 @@ enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET};
 
 const int NUM_OBJECTS = 2;
 
-signed int  obj_x[NUM_OBJECTS]              = {160,         0};
+signed int  obj_x[NUM_OBJECTS]              = {160,         160};
 signed int  obj_speed_x[NUM_OBJECTS]        = {0,           0};
 signed int  obj_y[NUM_OBJECTS]              = {230,         230};
 signed int  obj_speed_y[NUM_OBJECTS]        = {0,           0};
@@ -234,12 +236,32 @@ const byte pow2[8] = {
     0b10000000,
 };
 
+//from DrMortalWombat's hscrollshmup game sample
+// Sound effect for a player shot
+SIDFX	SIDFXFire[1] = {{
+	8000, 1000, 
+	SID_CTRL_GATE | SID_CTRL_SAW,
+	SID_ATK_16 | SID_DKY_114,
+	0x40  | SID_DKY_750,
+	-80, 0,
+	4, 30
+}};
+
+// Sound effect for enemy explosion
+SIDFX	SIDFXExplosion[1] = {{
+	1000, 1000, 
+	SID_CTRL_GATE | SID_CTRL_NOISE,
+	SID_ATK_2 | SID_DKY_6,
+	0xf0  | SID_DKY_1500,
+	-20, 0,
+	8, 40
+}};
 
 void flip_image(byte index);
 void print_invaders();
 __forceinline void move_invader(byte index);
 void raster_irq_handler();
-bool set_next_irq(int rasterline, bool calling_from_irq);
+bool set_next_irq(unsigned int rasterline, bool calling_from_irq);
 void draw_sprite_row(byte current_row_num);
 void init_invaders();
 void init_sprites();

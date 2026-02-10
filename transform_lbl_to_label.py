@@ -6,7 +6,7 @@ with open('build/invaders.lbl','r') as f:
     
 new_string = re.sub(r'al (.*) \.(.*)', r'{ \n Address: "\1" \n Name: "\2" \n}', read_data )
 #print({new_string})
-with open('build/invaders.label', 'w') as f:
+with open('build/invaders.labels', 'w') as f:
     f.write(
     """{
   Version: "1"
@@ -16,5 +16,5 @@ with open('build/invaders.label', 'w') as f:
       CodeLabels: [
         """)
     f.write(new_string)
-    f.write(']}}')
+    f.write(']}]}')
     f.close()

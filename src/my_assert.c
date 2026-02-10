@@ -35,11 +35,54 @@ int string_len=10;
 //    __asm { cli };
 // }
 
+char test_msg[]="Test message";
+
 void my_assert(bool condition, void* message) {
-//#ifdef MY_ASSERT
+#ifdef MY_ASSERT
     if (! condition) {
         //TODO reset c64 so that message is visible
 
+        __asm {
+            sei
+            ldx #$ff
+            txs
+            cld
+            jsr $fd02   //scan for autostart ROM at $8000
+            //BNE START1
+            //JMP ($8000) //run cart code
+            //START1:
+            stx $d016
+            JSR $FDA3	//initialise SID, CIA and IRQ
+            JSR $FD50	//RAM test and find RAM end
+            JSR $FD15	//restore default I/O vectors
+            JSR $FF5B	//initialise VIC and screen editor
+            cli
+        }
+        iocharmap(IOCHM_PETSCII_2);
+
+        printf(message);
+        printf("Press any key\n");
+
+        do {
+            keyb_poll();
+        } while (keyb_key == 0);
+
+        // // vic_waitFrames(255);
+        __asm {
+        //     lda #<print_msg
+        //     pha
+        //     lda #>print_msg
+        //     pha
+            JMP ($A000)
+        //     print_msg:
+        //     lda #<test_msg
+        //     ldy #>test_msg
+        //     jsr $ab1e
+        //     rts
+        }
+        // //while(1);
+        //exit(-1);
+        
         mmap_set(MMAP_ROM);
         vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
         //memset((char *)0x400,32,1000);
@@ -69,7 +112,12 @@ void my_assert(bool condition, void* message) {
         //     }
         };
     }
-//#endif
+#endif
+}
+
+void print_msg() {
+    // printf("Hello world");
+    exit(-1);
 }
 
 void soft_reset() {
