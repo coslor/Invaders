@@ -94,53 +94,64 @@ const int JOY_NUM=0;
 char key;
 
 //MAIN THREAD
-// #pragma optimize(0)
+#pragma optimize(0)
 int main() {
 
     iocharmap(IOCHM_PETSCII_1);
 
     bool smooshed = false;
 
-
 	// Disable CIA interrupts, we do not want interference
 	// with our joystick interrupt
 	//cia_init();
 
 
-        // Activate trampoline
+    // Activate trampoline
 
     display_logo();
-
-
-    //vic_waitBottom();
-//    getch_with_keybounce();
-
     sidfx_init();
 	sid.fmodevol = 15;
 
-    while (true) {
-        key= kr_read_key();
-        if (key != 0) {
-            __asm {
-                nop
-            }
-            break;
-        }
-    };
+
+    
+    // while (true) {
+    //     __asm {
+    //         nop
+    //     }
+        
+    //     if (kr_is_key_pressed(KR_ROW_SPACE,KR_COL_SPACE)) {
+    //         printf("SPACE ");
+    //     }
+    //     if (kr_is_key_pressed(KR_ROW_A, KR_COL_A)) {
+    //         printf("A ");
+    //     }
+    //     if (kr_is_key_pressed(KR_ROW_D, KR_COL_D)) {
+    //         printf("D ");
+    //     }
+    //     //vic.color_back++;
+    //     vic_waitFrame();
+    // }
+
+    // // while (true) {
+    // //     key= kr_read_key();
+    // //     if (key != 0) {
+    // //         __asm {
+    // //             nop
+    // //         }
+    // //         break;
+    // //     }
+    // // };
 
     //this is just here to play with the SIDFx stuff
     while(true) {
         vic_waitFrame();
         sidfx_loop();
-        char key = kr_read_key();
-        //keyb_poll();
-        //bool space_pressed = key_pressed(KSCAN_SPACE);
-        //if (key_pressed(KSCAN_1)) {
-        if (key == '1') {
+
+        if (kr_is_key_pressed(KR_ROW_1, KR_COL_1)) {
             sidfx_play(0, SIDFXFire, 1);
         }
-        //if (key_pressed(KSCAN_2)) {
-        if (key == '2') {
+        if (kr_is_key_pressed(KR_ROW_2, KR_COL_2)) {
+        //if (key == '2') {
 			sidfx_play(1, SIDFXExplosion, 1);
         }
         // if (key_pressed(KSCAN_3)) {
@@ -148,24 +159,25 @@ int main() {
 
         // }
         //if (key_pressed(KSCAN_SPACE)) {
-        if (key == ' ') {
-        //    getchx();
+        //if (key == ' ') {
+        if (kr_is_key_pressed(KR_ROW_SPACE, KR_COL_SPACE)) {
+            //    getchx();
             break;
         }
     }
 
 
 
-    //vic_setmode(VICM_TEXT, text_screen,text_color);
+    // // vic_setmode(VICM_TEXT, text_screen,text_color);
     
-    //vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x2000);
-    // *(char *)0xd018 = 0x15;
+    // // vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x2000);
+    // // *(char *)0xd018 = 0x15;
 
-	//vic_setmode(VICM_HIRES_MC, hires_screen, hires_color);
+	// // vic_setmode(VICM_HIRES_MC, hires_screen, hires_color);
 
-   	//memset(text_screen, 32, 1000);
-    // memset(hires_screen, 0, 8000);
-    // memset(hires_color, 0, 1000);
+   	// // memset(text_screen, 32, 1000);
+    // // memset(hires_screen, 0, 8000);
+    // // memset(hires_color, 0, 1000);
 
     vic.color_back = VCOL_LT_GREY;
 
@@ -175,12 +187,6 @@ int main() {
 
         //point the VIC to the right screen (to record sprite #s for example)
     vic_setmode(VICM_HIRES_MC, logo_screen,logo_bmp); // $d018=$49 $d011=$3b $dd00=$c6
-
-    //(logo_screen);
-    //don't do this--it overwrites a chunk of your program
-    //memset(text_color,2,1000);
-
-
 
     init_invaders();
     init_sprites();
@@ -807,41 +813,41 @@ bool handle_inputs(char joy_num) {
     signed int key_x_speed=0, key_y_speed=0;
     bool key_fire_pressed = false;
 
-    // joy_poll(joy_num);
-    //keyb_poll();
-    char key = kr_read_key();
+    // // joy_poll(joy_num);
+    // //keyb_poll();
+    // char key = kr_read_key();
 
-    //vic.color_back=(keyb_key);
+    // //vic.color_back=(keyb_key);
 
-    // while (c:\Users\chris\Downloads\spaxce invaders c64 multi.klakeyb_key != 0) {
-    //     joy_num++;
-    //     // __asm {
-    //     //     nop
-    //     // }
-    // };
+    // // while (c:\Users\chris\Downloads\spaxce invaders c64 multi.klakeyb_key != 0) {
+    // //     joy_num++;
+    // //     // __asm {
+    // //     //     nop
+    // //     // }
+    // // };
 
-    //keyboard combos:
-    //  W
-    // ASD  fire=RETURN
-    //or
-    //  UP == SHIFT-DN
-    //LT  RT            fire = SPACE
-    // (LT is shift-RT arrow)
-    //
-    // OR joystick#2
-    //
+    // //keyboard combos:
+    // //  W
+    // // ASD  fire=RETURN
+    // //or
+    // //  UP == SHIFT-DN
+    // //LT  RT            fire = SPACE
+    // // (LT is shift-RT arrow)
+    // //
+    // // OR joystick#2
+    // //
 
-    if (key == 0) {
-         return false;
-    }
+    // if (key == 0) {
+    //      return false;
+    // }
 
     
-    bool key_a_pressed = (key == 'a') ; //(keyb_key  == (KSCAN_A | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_A);
-    bool key_d_pressed = (key == 'd'); //keyb_key  == (KSCAN_D | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_D);
+    bool key_a_pressed = kr_is_key_pressed(KR_ROW_A, KR_COL_A); //(key == 'a') ; //(keyb_key  == (KSCAN_A | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_A);
+    bool key_d_pressed = kr_is_key_pressed(KR_ROW_D, KR_COL_D); //(key == 'd'); //keyb_key  == (KSCAN_D | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_D);
 
     // bool key_pressed_csr_left = key_pressed(KSCAN_CSR_RIGHT && key_shift());
     // bool key_spc_pressed = key_pressed(KSCAN_SPACE);
-    bool key_rtn_pressed = (key == 13); // (keyb_key == (KSCAN_RETURN | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_RETURN);
+    bool key_rtn_pressed = kr_is_key_pressed(KR_ROW_RETURN, KR_COL_RETURN); //(key == 13); // (keyb_key == (KSCAN_RETURN | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_RETURN);
 
     signed int new_x = obj_x[SHIP_OBJ_NUM];
 

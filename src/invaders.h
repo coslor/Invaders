@@ -20,6 +20,8 @@
 //#include <math.h>
 //#include "invaders.h"
 #include "my_assert.h" 
+#include "keyboard_reader.h"
+
 #include <audio/sidfx.h>
 
 

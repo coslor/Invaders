@@ -1,4 +1,5 @@
-#include <c64/cia.h>
+#include "keyboard_reader.h"
+#include <c64/vic.h>
 
 /*
     from https://codebase.c64.org/doku.php?id=base:reading_the_keyboard
@@ -22,6 +23,26 @@ char kr_keyb_matrix[8][8] = {
 
 //void init_columntab();
 
+// /*
+//     Returns 0 for 1, 1 for 2, 3 for 8, 4 for 16, etc. up to $80, or 0xff if value is invalid
+// */
+// byte find_log2(byte value) {
+//     //NOTE:there is a much faster way to do this
+//     //byte value = 0xff;
+//     byte col_bit = 0xff;
+
+//     for (int i=0;i<8;i++) {
+//         if (col_bit == pow2[i]) {
+//             break;
+//         }
+//     }
+//     return col_bit; 
+// }
+
+byte kr_log2(byte i) {
+    return log(i)/log(2);
+}
+
 byte kr_read_key() {
     byte a,x,y, row, key;
     int col = -1;
@@ -38,12 +59,8 @@ byte kr_read_key() {
     col_bit = ~col_bit;
     //we have a column
 
-    for (int i=0;i<8;i++) {
-        if (col_bit == pow2[i]) {
-            col = i;
-            break;
-        }
-    }
+    col = kr_log2(col_bit);
+
     if (col == -1) {
         //printf("\nERROR!\n");
         return 0;
@@ -68,6 +85,57 @@ byte kr_read_key() {
 
 }
 
+#pragma optimize(0)
+bool kr_is_key_pressed(byte row, byte col) {
+    bool value = false;
+    byte col_mask = ~pow2[col];
+    byte row_mask = ~pow2[row];
+
+    __asm { sei}
+
+    cia1.ddrb = 0;
+    cia1.ddra = 0xff;
+
+    cia1.pra = row_mask;
+
+    byte cols_found_mask = cia1.prb;
+
+    if (cols_found_mask != 0xff) {
+        byte cols_found=kr_log2(~cols_found_mask);
+        //if (cols_found & col) {     
+        if(~cols_found_mask & pow2[col]) {  //has to be & and not ==, otherwise
+                                            //  it doesn't catch multiple keys at once
+            value = true;
+        }
+    }
+
+    __asm { cli}
+
+    return value;
+}
+
+bool kr_is_char_pressed(char c) {
+    byte row=0xff,col=0xff;
+
+    bool keep_running = true;
+
+    for (int r=0;r<8 && keep_running;r++) {
+        for (int c=0;c<8 && keep_running;c++) {
+            if (kr_keyb_matrix[r][c] == c) {
+                row = r;
+                col = c;
+                keep_running = false;
+            }
+        }
+    }
+
+    if (row == 0xff) {
+        return false;
+    }
+    else {
+        return kr_is_key_pressed(row,col);
+    }
+}
 
 
 // void init_columntab() {
