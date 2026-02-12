@@ -1,5 +1,3 @@
-
-
 #pragma optimize(speed)
 
 //#define VSPRITES_MAX 16
@@ -22,7 +20,8 @@ char* text_color = ((char *)0x1000);
 //byte* Color = ((byte *)0xd800);
 //byte* hires_color = ((byte *)0x4800);
 
-#define LOGO_FILE "space_invaders_logo.kla" 
+//#define LOGO_FILE "space invaders c64 multi.kla" 
+#define LOGO_FILE "space_invaders_logo.kla"
 
 
 // spriteset at fixed location
@@ -92,9 +91,13 @@ const int JOY_NUM=0;
 
 //#define TEST_KEYBOARD
 
+char key;
+
 //MAIN THREAD
 // #pragma optimize(0)
 int main() {
+
+    iocharmap(IOCHM_PETSCII_1);
 
     bool smooshed = false;
 
@@ -115,23 +118,37 @@ int main() {
     sidfx_init();
 	sid.fmodevol = 15;
 
+    while (true) {
+        key= kr_read_key();
+        if (key != 0) {
+            __asm {
+                nop
+            }
+            break;
+        }
+    };
+
     //this is just here to play with the SIDFx stuff
     while(true) {
         vic_waitFrame();
         sidfx_loop();
-        keyb_poll();
+        char key = kr_read_key();
+        //keyb_poll();
         //bool space_pressed = key_pressed(KSCAN_SPACE);
-        if (key_pressed(KSCAN_1)) {
+        //if (key_pressed(KSCAN_1)) {
+        if (key == '1') {
             sidfx_play(0, SIDFXFire, 1);
         }
-        if (key_pressed(KSCAN_2)) {
+        //if (key_pressed(KSCAN_2)) {
+        if (key == '2') {
 			sidfx_play(1, SIDFXExplosion, 1);
         }
         // if (key_pressed(KSCAN_3)) {
         //     sidfx_play(2, SIDFXBigExplosion, 3);
 
         // }
-        if (key_pressed(KSCAN_SPACE)) {
+        //if (key_pressed(KSCAN_SPACE)) {
+        if (key == ' ') {
         //    getchx();
             break;
         }
@@ -149,6 +166,8 @@ int main() {
    	//memset(text_screen, 32, 1000);
     // memset(hires_screen, 0, 8000);
     // memset(hires_color, 0, 1000);
+
+    vic.color_back = VCOL_LT_GREY;
 
     memset(logo_bmp, 0, 8000);
     memset(logo_screen, 0, 1000);
@@ -270,19 +289,23 @@ int main() {
         draw_object(BULLET_OBJ_NUM);
 #endif
 
-        END_BORDER
+        END_BORDER();
 
         //START_BORDER(VCOL_WHITE)
 
         //TODO it seems criminal to waste this time
         vic_waitBottom();
+
         //vic_waitLine(255);
         //TODO fix this & get collisions working
         //wait_line_and_watch_for_collisions(255);
-        END_BORDER
+        END_BORDER();
+
+        //play slice of special effects each frame
+        sidfx_loop();
 
         //Actually show the sprites, and move them
-        START_BORDER(VCOL_BLUE)
+        START_BORDER(VCOL_BLUE);
         
         smooshed = ! move_invaders();
         set_sprites_for_all();
@@ -291,10 +314,10 @@ int main() {
             break;
         }
         
-        END_BORDER
+        END_BORDER();
 
         //Flip the images
-        START_BORDER(VCOL_BLACK)
+        //START_BORDER(VCOL_LT_GREY)
 #ifdef DO_UNROLL
         #pragma unroll(full)
 #endif
@@ -303,7 +326,7 @@ int main() {
         }
 //        flip_lines_used=vic.raster - flip_lines;
 
-        END_BORDER
+        //END_BORDER
         //int sprcol;
 
         ////
@@ -473,7 +496,7 @@ void draw_sprite_row(byte spr_row) {
 
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
-        vic.spr_pos[c+2].y= this_row_y;  //;do this last?
+        vic.spr_pos[c+2].y= this_row_y;  //do this last? Nope.
     }
 
     vic.spr_mcolor0 = row_mcolor0[spr_row];
@@ -531,13 +554,18 @@ void raster_irq_handler() {
         int min_y=MIN_Y;
 
     //TODO needed? Useful?    
-    //if (vic.intr_ctrl > 127) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
+    if (vic.intr_ctrl < 128) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
+        vic.color_back=VCOL_YELLOW;
+        __asm {
+            rti;
+        }
+    }
 
         prev_raster = vic.raster;
 
 
         if (prev_raster >= 230) {
-            START_BORDER(VCOL_ORANGE)
+            START_BORDER(VCOL_ORANGE);
 
             // my_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
             //vic.spr_color[ship.sprite_num] = ship.sprite_color;
@@ -550,13 +578,13 @@ void raster_irq_handler() {
             if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
                 vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
             }
-            END_BORDER
+            END_BORDER();
         }
         else {
 
-            START_BORDER(VCOL_GREEN)
+            START_BORDER(VCOL_GREEN);
             draw_sprite_row(current_row_num);
-            END_BORDER
+            END_BORDER();
         }
 
         if ((++current_row_num) > NUM_ROWS) {
@@ -769,9 +797,9 @@ bool move_rows_down(byte px_down) {
     return true;
 }
 
-void poll_inputs(char joy_num) {
+// void poll_inputs(char joy_num) {
 
-}
+// }
 //MAIN thread
 // #pragma optimize(0)
 bool handle_inputs(char joy_num) {
@@ -780,9 +808,12 @@ bool handle_inputs(char joy_num) {
     bool key_fire_pressed = false;
 
     // joy_poll(joy_num);
-    keyb_poll();
+    //keyb_poll();
+    char key = kr_read_key();
 
-    // while (keyb_key != 0) {
+    //vic.color_back=(keyb_key);
+
+    // while (c:\Users\chris\Downloads\spaxce invaders c64 multi.klakeyb_key != 0) {
     //     joy_num++;
     //     // __asm {
     //     //     nop
@@ -800,30 +831,33 @@ bool handle_inputs(char joy_num) {
     // OR joystick#2
     //
 
-    // if ((keyb_key & KSCAN_QUAL_DOWN) == 0) {
-    //     return false;
-    // }
+    if (key == 0) {
+         return false;
+    }
 
-    bool key_a_pressed = key_pressed(KSCAN_A);
-    bool key_d_pressed = key_pressed(KSCAN_D);
+    
+    bool key_a_pressed = (key == 'a') ; //(keyb_key  == (KSCAN_A | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_A);
+    bool key_d_pressed = (key == 'd'); //keyb_key  == (KSCAN_D | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_D);
 
     // bool key_pressed_csr_left = key_pressed(KSCAN_CSR_RIGHT && key_shift());
     // bool key_spc_pressed = key_pressed(KSCAN_SPACE);
-    bool key_rtn_pressed = key_pressed(KSCAN_RETURN);
+    bool key_rtn_pressed = (key == 13); // (keyb_key == (KSCAN_RETURN | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_RETURN);
 
     signed int new_x = obj_x[SHIP_OBJ_NUM];
 
     if (key_a_pressed) {
-        new_x -=2;
+        new_x -=5;
+        //vic.color_back++;
         // obj_speed_x[SHIP_OBJ_NUM] = -2;
     } else if (key_d_pressed) {
-            // obj_speed_x[SHIP_OBJ_NUM] = 2;
-            new_x += 2;
+        // obj_speed_x[SHIP_OBJ_NUM] = 2;
+        new_x += 5;
+        //vic.color_back++;
     } else if (key_rtn_pressed) {
-                fire_bullet(BULLET_OBJ_NUM);
-                return true;
-            }
-    if ((new_x >= MIN_SPR_X) && (new_x <= MAX_SPR_X)) {
+        fire_bullet(BULLET_OBJ_NUM);
+        return true;
+    }
+    if ((new_x != obj_x[SHIP_OBJ_NUM]) && (new_x >= MIN_SPR_X) && (new_x <= MAX_SPR_X)) {
         obj_x[SHIP_OBJ_NUM] = new_x;
     }
     return false;
@@ -833,6 +867,8 @@ bool handle_inputs(char joy_num) {
 void fire_bullet(byte obj_num) {
     //my_assert(obj_type[obj_num] == TYPE_BULLET, "wrong playerobject type");
     if (obj_type[obj_num] == TYPE_BULLET) {
+        sidfx_play(0, SIDFXFire, 1);
+
         obj_x[BULLET_OBJ_NUM] = obj_x[SHIP_OBJ_NUM];
         obj_y[BULLET_OBJ_NUM] = obj_y[SHIP_OBJ_NUM];
         obj_speed_x[BULLET_OBJ_NUM] = 0;
@@ -844,7 +880,7 @@ void fire_bullet(byte obj_num) {
         // b->speed_y = -1;
         // b->alive = true;
         
-        vic.color_back = 15;
+        vic.color_back = VCOL_LT_RED;
     }
 }
 
@@ -852,6 +888,7 @@ void fire_bullet(byte obj_num) {
 //MAIN thread
 // #pragma  optimize(0)
 void move_object(byte obj_num) {
+    my_assert(1 == 0, "Should be the other way round");
     if (obj_num == 0) {
         __asm {
             nop
@@ -901,7 +938,7 @@ void move_object(byte obj_num) {
     }
     //signed int new_x = obj_x[this_obj_num];
 
-    if ((new_x>=MIN_SPR_X)  && (new_x<=MAX_SPR_X)) {
+    if ((new_x != obj_x[obj_num]) && (new_x>=MIN_SPR_X)  && (new_x<=MAX_SPR_X)) {
         obj_x[obj_num]=new_x;
     }
     else {
@@ -1015,7 +1052,6 @@ void init_invaders() {
     //TODO cheating
     inv_start_line[NUM_ROWS] = 230;
 
-    //TODO: oscar64 bug? If I do #pragma(unroll) on this loop, row_y[0] gets corrupted
 #ifdef DO_UNROLL
     #pragma unroll(full)
 #endif
@@ -1035,12 +1071,14 @@ void init_invaders() {
         row_mcolor1[r]          = (row_mcolor0[r] == VCOL_RED ? VCOL_GREEN : VCOL_RED);
 
         row_sprite_enable_mask[r] = 255;
+        
 
-#ifdef DO_UNROLL
-        #pragma unroll(full)
-#endif
+// #ifdef DO_UNROLL
+//         #pragma unroll(full)
+// #endif
+        
         for (int c=0;c<INVADERS_PER_ROW; c++) {
-            byte index=r*INVADERS_PER_ROW+c;
+            byte index=row_inv_index[r]+c;
             inv_alive[index]            = true;
             //inv_speed_x[index]          = 1;
             //inv_speed_y[index]          = 0;
@@ -1051,6 +1089,28 @@ void init_invaders() {
             //inv_col[index]              = c;
         }
     }
+
+    obj_x               = (signed int[]){319,           160};
+    obj_speed_x         = (signed int[]){0,             0};
+    obj_y               = (signed int[]){230,           230};
+    obj_speed_y         = (signed int[]){0,             0};
+    obj_alive           = (bool[])      {true,          false};
+    obj_sprite_num      = (byte[])      {0,             1};
+    obj_sprite_color    = (byte[])      {VCOL_WHITE,    VCOL_WHITE};
+    obj_sprite_mcolor0  = (byte[])      {VCOL_GREEN,    VCOL_GREEN};
+    obj_sprite_mcolor1  = (byte[])      {VCOL_RED,      VCOL_RED};
+    obj_kill_on_border  = (bool[])      {false,         true};
+
+    obj_type            = (PlayerObjectType[]){TYPE_SHIP,TYPE_BULLET};
+
+    obj_image_handle    = (byte[]) {SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM,
+                                    SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM};
+
+    rows_frame_num = 0;
+    
+    rows_max_spr_x = MIN_SPR_X;
+    rows_min_spr_x = MAX_SPR_X;
+    
     __asm {
         nop
     }
@@ -1124,3 +1184,15 @@ char getch_with_keybounce() {
     return c;
 }
 
+__forceinline const void START_BORDER(byte new_color) {
+    if (DO_BORDER) {
+        old_border_color = vic.color_border;
+        vic.color_border = new_color;
+    }
+}
+
+__forceinline const void END_BORDER() {
+    if (DO_BORDER) {
+        vic.color_border = old_border_color;
+    }
+}

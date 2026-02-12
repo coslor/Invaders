@@ -7,14 +7,17 @@
         "src/invaders.c",
         "src/my_assert.h",
         "src/my_assert.c",
+        "src/keyboard_reader.c",
         "src/invaders-2600.spd",
         "src/space_invaders_logo.kla"
          
     ],
     "build": "debug",
     "definitions": [
-        "USE_BORDER",
-        "DO_UNROLL"
+        "xUSE_BORDER",
+        "DO_UNROLL",
+        "NO_LONG",
+        "NO_FLOAT"
     ],
     "includes": [
         "src/invaders.h",
@@ -30,7 +33,7 @@
         "-DEBUG",
         "-O3",
         "-Dstrict",
-        "-DDMY_ASSERT"
+        "-DMY_ASSERT"
     ],
     "compiler": ""
 }
