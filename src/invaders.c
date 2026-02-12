@@ -21,7 +21,7 @@ char* text_color = ((char *)0x1000);
 //byte* hires_color = ((byte *)0x4800);
 
 //#define LOGO_FILE "space invaders c64 multi.kla" 
-#define LOGO_FILE "space_invaders_logo.kla"
+#define LOGO_FILE "resources/space_invaders_logo.kla"
 
 
 // spriteset at fixed location
@@ -34,7 +34,7 @@ char* text_color = ((char *)0x1000);
 //      with __export or #pragma reference(name), or it will be optimized away!
 ////
 static const char spriteset[] =  {
-    #embed spd_sprites "invaders-2600.spd"
+    #embed spd_sprites "resources/invaders-2600.spd"
 
 };
 #pragma reference(spriteset)

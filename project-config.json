@@ -8,8 +8,8 @@
         "src/my_assert.h",
         "src/my_assert.c",
         "src/keyboard_reader.c",
-        "src/invaders-2600.spd",
-        "src/space_invaders_logo.kla"
+        "src/resources/invaders-2600.spd",
+        "src/resources/space_invaders_logo.kla"
          
     ],
     "build": "debug",
