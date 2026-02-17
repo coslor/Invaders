@@ -85,13 +85,13 @@ byte kr_read_key() {
 
 }
 
-#pragma optimize(0)
+//#pragma optimize(0)
 bool kr_is_key_pressed(byte row, byte col) {
     bool value = false;
     byte col_mask = ~pow2[col];
     byte row_mask = ~pow2[row];
 
-    __asm { sei}
+    //__asm { sei}
 
     cia1.ddrb = 0;
     cia1.ddra = 0xff;
@@ -101,7 +101,7 @@ bool kr_is_key_pressed(byte row, byte col) {
     byte cols_found_mask = cia1.prb;
 
     if (cols_found_mask != 0xff) {
-        byte cols_found=kr_log2(~cols_found_mask);
+        //byte cols_found=kr_log2(~cols_found_mask);
         //if (cols_found & col) {     
         if(~cols_found_mask & pow2[col]) {  //has to be & and not ==, otherwise
                                             //  it doesn't catch multiple keys at once
@@ -109,7 +109,7 @@ bool kr_is_key_pressed(byte row, byte col) {
         }
     }
 
-    __asm { cli}
+    //__asm { cli}
 
     return value;
 }

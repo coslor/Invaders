@@ -14,7 +14,7 @@
     ],
     "build": "debug",
     "definitions": [
-        "xUSE_BORDER",
+        "USE_BORDER",
         "DO_UNROLL",
         "NO_LONG",
         "NO_FLOAT"

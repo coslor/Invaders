@@ -1,6 +1,7 @@
 #include "my_assert.h"
 #include <c64/memmap.h>
 #include <c64/vic.h>
+#include <stdarg.h>
 
 char vic_data[64];
 char cia1_data[16];
@@ -35,10 +36,14 @@ int string_len=10;
 //    __asm { cli };
 // }
 
-char test_msg[]="Test message";
+char msg_buffer[80];
 
-void my_assert(bool condition, void* message) {
+#pragma optimize(0)
+void my_assert(bool condition, void* message, ...) {
 #ifdef MY_ASSERT
+
+    char buffer[80];
+
     if (! condition) {
         //TODO reset c64 so that message is visible
 
@@ -60,8 +65,13 @@ void my_assert(bool condition, void* message) {
         }
         iocharmap(IOCHM_PETSCII_2);
 
-        printf(message);
-        printf("Press any key\n");
+        //handle varargs 
+        va_list argptr;
+        va_start(argptr, message);
+        vsprintf(buffer, message, argptr);
+        va_end(argptr);            
+        printf(buffer);
+        printf("\nPress any key\n");
 
         do {
             keyb_poll();

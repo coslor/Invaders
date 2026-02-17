@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 
-void my_assert(bool condition, void* message);
+void my_assert(bool condition, void* message, ...);
 void soft_reset();
 void init_my_assert();
 void save_registers();

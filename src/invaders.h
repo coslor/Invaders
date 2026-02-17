@@ -28,7 +28,7 @@
 
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
-#define     NUM_ROWS 6
+#define     NUM_ROWS 5
 #define     INVADERS_PER_ROW 6
 
 #define 	DO_UNROLL true
@@ -55,11 +55,13 @@
 // SCANLINES
 //////////////////////
 const byte  SCANLINES_TO_DRAW_SPRITE=13;
-const byte  SCANLINES_PER_ROW=13 + SCANLINES_TO_DRAW_SPRITE;
+const byte  SCANLINES_PER_ROW=22 + SCANLINES_TO_DRAW_SPRITE;
+/////////////////////
+
 
 const       byte MAX_IMAGE_HANDLES=2;
 
-const int   MIN_Y=MAX(SCANLINES_PER_ROW,50);
+const int   MIN_Y = 50;   //MAX(SCANLINES_PER_ROW,50);
 
 const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
@@ -286,7 +288,7 @@ void flip_row_image(byte row);
 void shoot_invader(byte row, byte col);
 void poll_inputs(char joy_num);
 void move_object(byte obj_num);
-void draw_object(byte obj_num);
+void draw_object(int obj_num);
 void fire_bullet(byte obj_num);
 void kill_bullet(byte obj_num);
 byte wait_line_and_watch_for_collisions(int line);

@@ -94,7 +94,7 @@ const int JOY_NUM=0;
 char key;
 
 //MAIN THREAD
-#pragma optimize(0)
+//#pragma optimize(0)
 int main() {
 
     iocharmap(IOCHM_PETSCII_1);
@@ -103,7 +103,7 @@ int main() {
 
 	// Disable CIA interrupts, we do not want interference
 	// with our joystick interrupt
-	//cia_init();
+	cia_init();
 
 
     // Activate trampoline
@@ -223,11 +223,10 @@ int main() {
 	// // Kill CIA interrupts
 	// cia_init();
 
-    //We really don't have any need to map ROM out at this point,
-    //  and not doing so has certain advantages (like being able
-    //  to use getchs() ).
-    //mmap_trampoline();
-    //mmap_set(MMAP_NO_ROM);
+
+    //After loading & showing logo, so it's Ok to turn BASIC off
+    // mmap_trampoline();
+    // mmap_set(MMAP_NO_ROM);
     
 
     //init_sprites();
@@ -245,9 +244,6 @@ int main() {
     // // b=cia2.sdr;
 
 
-    IRQ_VECTOR=raster_irq_handler;
-
-    set_next_irq(inv_start_line[0], false);
 
         //mmap_trampoline();
 	//mmap_set(MMAP_NO_BASIC);
@@ -266,6 +262,12 @@ int main() {
     collided_inv_index=0xff;
 
     playing = true;
+
+    draw_object((byte)0); //initialize ship image
+
+    IRQ_VECTOR=raster_irq_handler;
+
+    set_next_irq(inv_start_line[0], false);
 
     while(playing) {
 
@@ -372,12 +374,20 @@ int main() {
     }
     if (smooshed) {
         spr_image(0, SPRITE_IMAGE_BASE + SMOOSHED_SHIP_IMAGE_NUM);
-        //logo_screen[0x3f8 + 0] = SPRITE_IMAGE_BASE + SMOOSHED_SHIP_IMAGE_NUM;
 
         //spr_expand(0,true,false);
     }
     vic.color_back=VCOL_RED;
-    return 0;
+
+    while (kr_read_key() == 0);
+    //return 0;
+   
+    soft_reset();
+    printf("GAME OVER\n");
+    
+    // __asm {
+    //     jmp $e37b //$fce2   //reset machine
+    // }
 };
 
 
@@ -462,6 +472,8 @@ void set_sprites_for_all() {
         rows_inv_spr_pos_x[c]    = spr_pos_x;
 
 
+        my_assert(spr_num<8,"Bad spr-num at set-sprites-for-all()");
+
         //Using this instead of vic.sprxy() saves us a few cycles by not setting sprite.y
         vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
         if (spr_pos_x > 0xff)
@@ -475,6 +487,10 @@ void set_sprites_for_all() {
 
 //IRQ THREAD
 void draw_sprite_row(byte spr_row) {
+
+                                       //1234567890123456789012345678901234567890
+    my_assert(vic.spr_multi==0xff,      "multi turned off in draw-sprite-row");
+    my_assert(vic.spr_expand_x == 0,    "expand-x turned on in draw-sprite-row");
 
     // __asm {
     //     sei
@@ -494,6 +510,7 @@ void draw_sprite_row(byte spr_row) {
     }
 
     byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
+    my_assert(new_handle > 0, "new-handle set to 0 in draw-sprite-row");
 
     byte row_index = row_inv_index[spr_row];
 
@@ -502,6 +519,8 @@ void draw_sprite_row(byte spr_row) {
 
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
+        my_assert(c+2<8,"Bad c+2 in draw-sprite-row");
+
         vic.spr_pos[c+2].y= this_row_y;  //do this last? Nope.
     }
 
@@ -516,7 +535,8 @@ void draw_sprite_row(byte spr_row) {
         // }
 
         byte spr_num = c + 2;
-        //logo_screen[0x3f8 + spr_num] = new_handle;
+
+        my_assert(spr_num<8, "bad spr-num at draw-sprite-row");
         spr_image(spr_num, new_handle);
         // vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
     }
@@ -612,7 +632,8 @@ void raster_irq_handler() {
         //      of annoying screen flicker when a key is pressed. Of course, you also cannot then
         //      use getch() to read the keyboard.
 
-        jmp $ea81   //(old_irq) - 
+        //rti
+        jmp $febc //$ea81   //(old_irq) - 
                     // call $ea31 for original, but scans keyboard twice, not necessary
                     //      $ea81 skips keyboard scan, better
                     //      $febc skips kernal stuff altogether
@@ -674,7 +695,7 @@ bool set_next_irq(unsigned int rasterline, bool calling_from_irq) {
 
 //MAIN THREAD
 //TODO is this noinline necessary?
-#pragma optimize(noinline)
+//#pragma optimize(noinline)
 void flip_row_image(byte row) {
 
     //TODO Another Oscar64 bug? If I leave the assert out, row 0 never gets flipped.
@@ -684,9 +705,11 @@ void flip_row_image(byte row) {
 
     if (!row_alive[row]) return;
 
-    if ((++(row_frame_num[row])) >= row_max_frames[row]) {
+    if ((++(row_frame_num[row])) > row_max_frames[row]) {
 
-        row_image_num[row]=((row_image_num[row]+1) % row_num_images[row]);
+        byte new_image_num=((row_image_num[row]+1) % row_num_images[row]);
+        my_assert(new_image_num>0, "new-image-num set to 0 in flip-row-image");
+        row_image_num[row]=new_image_num;
         row_frame_num[row]=0;        
     }
 }
@@ -810,9 +833,12 @@ bool move_rows_down(byte px_down) {
 // #pragma optimize(0)
 bool handle_inputs(char joy_num) {
 
+    START_BORDER(1);
+
     signed int key_x_speed=0, key_y_speed=0;
     bool key_fire_pressed = false;
-
+    
+    
     // // joy_poll(joy_num);
     // //keyb_poll();
     // char key = kr_read_key();
@@ -853,19 +879,22 @@ bool handle_inputs(char joy_num) {
 
     if (key_a_pressed) {
         new_x -=5;
-        //vic.color_back++;
-        // obj_speed_x[SHIP_OBJ_NUM] = -2;
+        if (new_x >= MIN_SPR_X) {
+            obj_x[SHIP_OBJ_NUM] = new_x;
+            return false;
+        }
     } else if (key_d_pressed) {
-        // obj_speed_x[SHIP_OBJ_NUM] = 2;
         new_x += 5;
-        //vic.color_back++;
+        if (new_x <= MAX_SPR_X) {
+            obj_x[SHIP_OBJ_NUM] = new_x;
+            return false;
+        }
     } else if (key_rtn_pressed) {
         fire_bullet(BULLET_OBJ_NUM);
+        END_BORDER();
         return true;
     }
-    if ((new_x != obj_x[SHIP_OBJ_NUM]) && (new_x >= MIN_SPR_X) && (new_x <= MAX_SPR_X)) {
-        obj_x[SHIP_OBJ_NUM] = new_x;
-    }
+    END_BORDER();
     return false;
 }
 
@@ -976,11 +1005,19 @@ void move_object(byte obj_num) {
 //         }
 //     }
 
+byte draw_obj_obj_num = 0xff;
 // }
 //MAIN thread
-void draw_object(byte obj_num) {
+void draw_object(int obj_num) {
+    draw_obj_obj_num=obj_num;
+                        //1234567890123456789012345678901234567890
+    my_assert(obj_num<2, "obj-num==%d in draw-object", obj_num);
+    
+
     if (obj_alive[obj_num]) {
         byte sprite_num = obj_sprite_num[obj_num];
+
+        my_assert(sprite_num < 8, "bad sprite-num in draw-object");
         spr_move(sprite_num, obj_x[obj_num], obj_y[obj_num]);
 
         spr_color(sprite_num, obj_sprite_color[obj_num]);
@@ -992,8 +1029,20 @@ void draw_object(byte obj_num) {
             vic.spr_mcolor1 = obj_sprite_mcolor1[obj_num];
         }
         
+                                           //  1234567890123456789012345678901234567890
+        my_assert(obj_sprite_num[obj_num] < 3, "bad obj-sprite-num[%d]:%d at draw-object",
+            obj_num, obj_sprite_num[obj_num]);
+                                                //1234567890123456789012345678901234567890
+        my_assert((obj_image_handle[obj_num]) > 0, "bad obj-image-handle[%d]:%d in draw-object", 
+            (byte)obj_num, (byte)obj_image_handle[obj_num]);
+            
         spr_image(obj_sprite_num[obj_num], obj_image_handle[obj_num]);
+                                                      //1234567890123456789012345678901234567890
+        my_assert(*((char *)logo_screen+0x03f8+0) > 0, "ship sprite got set to 0 in draw-object");
+
     }
+                                            //1234567890123456789012345678901234567890
+    my_assert(obj_sprite_num[obj_num] < 3,  "bad obj-sprite-num at draw-object()");
     spr_show(obj_sprite_num[obj_num], obj_alive[obj_num]);
 }
 
@@ -1059,7 +1108,7 @@ void init_invaders() {
     inv_start_line[NUM_ROWS] = 230;
 
 #ifdef DO_UNROLL
-    #pragma unroll(full)
+    //#pragma unroll(full)
 #endif
     for (byte r=0;r<NUM_ROWS; r++) {
         // my_assert(r < NUM_ROWS, "r is broken");
@@ -1086,13 +1135,8 @@ void init_invaders() {
         for (int c=0;c<INVADERS_PER_ROW; c++) {
             byte index=row_inv_index[r]+c;
             inv_alive[index]            = true;
-            //inv_speed_x[index]          = 1;
-            //inv_speed_y[index]          = 0;
             inv_sprite_num[index]       = 2 + c;
             col_x[c]              = 0 + c*35;
-            //inv_spr_pos_x[index]        = 0;
-            //inv_row[index]              = r;
-            //inv_col[index]              = c;
         }
     }
 
@@ -1125,8 +1169,8 @@ void init_invaders() {
 void init_sprites() {
     spr_init((char *)logo_screen);
 
-    vic.spr_mcolor0 = 1;
-    vic.spr_mcolor0 = 2;
+    vic.spr_mcolor0 = 1;    //TODO change this raw #
+    vic.spr_mcolor0 = 2;    //TODO change this raw #
 
 #ifdef DO_UNROLL
     //#pragma unroll(full)
@@ -1134,16 +1178,11 @@ void init_sprites() {
     for (int ic=0;ic<NUM_ROWS;ic++) {
         byte spr_num=ic+2;
 
-        // //int img_loc = (int)(&Screen[0x3f8 + spr_num]);
-        // int row_image_handle_loc = (int)&row_image_handles[0][row_image_num[0]];
-        // //*((char *)img_loc) = *((char *)row_image_handle_loc); //Screen[0x3f8 + spr_num]=  row_image_handles[0][row_image_num[0]];
-        // byte handle = row_image_handles[0][row_image_num[0]];
-        // spr_image(spr_num, handle );
-
+        my_assert(spr_num<8, "bad spr_num at init-sprites()");
         spr_image(spr_num, row_image_handles[0][row_image_num[0]]);
-        //logo_screen[0x3f8 + spr_num] = row_image_handles[0][row_image_num[0]];
 
         spr_move(spr_num, ic*35+24 + 50,0);          //just ignore the Y coord for now
+
         spr_color(spr_num,ic+1);
         spr_show(spr_num,true);
 
@@ -1179,16 +1218,16 @@ void game_over() {
     playing = false;
 }
 
-char getch_with_keybounce() {
-    char c=getch();
-    char old_c = c;
+// char getch_with_keybounce() {
+//     char c=getch();
+//     char old_c = c;
 
-    while (c==old_c) {
-        c = getchx();
-    }
+//     while (c==old_c) {
+//         c = getchx();
+//     }
 
-    return c;
-}
+//     return c;
+// }
 
 __forceinline const void START_BORDER(byte new_color) {
     if (DO_BORDER) {

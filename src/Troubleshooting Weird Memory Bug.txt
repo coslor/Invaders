@@ -1,0 +1,33 @@
+Troubleshooting Weird Memory Bug
+
+Symptoms:
+    - Sprite image pointers get reset to 0
+    - All sprites get their multicolor bit turned off
+
+Hypotheses:
+    1) Something is overwriting IO addresses, e.g.:
+        vic.spr_pos[15].x=0;
+        - CON: I haven't been able to find anything lilke this
+        - PRO: makes sense
+
+    2) The bank is being changed, so the values in the IO registers are pointing at the wrong stuff
+        -CON: I know that at heast the sprite image pointers are being set to 0 at some point
+        -PRO: I haven't been able to catch any code making changes to $d01e, et al
+
+    3) For some reason, we have a chance to very occasionally change the bank or similar stuff
+        - CON: I can't seem to get breakpoints for writes into these addresses to fire
+        - vic.ctrl1 = d011
+        - vic.ctrl2 = d016
+        - cia2.pra  = dd00
+        - vic.memptr= d018
+
+        WATCH: 1  C:$d016  (Stop on store)
+        WATCH: 2  C:$5be8  (Stop on store)
+        WATCH: 3  C:$d01c  (Stop on store)
+        WATCH: 4  C:$d011  (Stop on store)
+        WATCH: 5  C:$dd00  (Stop on store)
+        #5 (Stop on store dd00)    2/$002,  56/$38
+        .C:fdcd  8D 00 DD    STA $DD00      - A:07 X:FF Y:01 SP:fd ..-..
+        > cond 5 if PC > $c000
+        WATCH: 5  C:$dd00  (Stop on store)
+            Condition: PC > $c000
