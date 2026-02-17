@@ -5,8 +5,8 @@
     "sources": [
         "src/invaders.h",
         "src/invaders.c",
-        "src/my_assert.h",
-        "src/my_assert.c",
+        "src/inv_assert.h",
+        "src/inv_assert.c",
         "src/keyboard_reader.c",
         "src/resources/invaders-2600.spd",
         "src/resources/space_invaders_logo.kla"
@@ -31,7 +31,7 @@
         "-DNEW_FROM_HERE",
         "-n",
         "-DEBUG",
-        "-O3",
+        "-O0",
         "-Dstrict",
         "-DMY_ASSERT"
     ],

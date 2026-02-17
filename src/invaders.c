@@ -382,8 +382,7 @@ int main() {
     while (kr_read_key() == 0);
     //return 0;
    
-    soft_reset();
-    printf("GAME OVER\n");
+    inv_assert(false, "GAME_OVER");
     
     // __asm {
     //     jmp $e37b //$fce2   //reset machine
@@ -406,7 +405,7 @@ int main() {
 //             break;
 //         }
 //     }
-//     my_assert(r != -1, "r not found in find_inv()");
+//     inv_assert(r != -1, "r not found in find_inv()");
 
 //     int c = -1;
 
@@ -419,7 +418,7 @@ int main() {
 //                 break;
 //         }
 //     }
-//     my_assert(c != -1, "c not found in find_inv");
+//     inv_assert(c != -1, "c not found in find_inv");
 
 //     return r*INVADERS_PER_ROW + c;
 // }
@@ -430,14 +429,14 @@ void shoot_invader(byte si_row, byte si_col) {
     byte row_index = row_inv_index[si_row];
     byte inv_index = row_index + si_col;
 
-    //my_assert(inv_alive[index],"zombie Invaders");
+    //inv_assert(inv_alive[index],"zombie Invaders");
     if (! inv_alive[inv_index] ){
         //We've already killed this invader, so ignore it
         return;
     }
 
     inv_alive[inv_index]=false;
-    // my_assert(col_invs_left_alive[si_col] > 0, "mismatch in col-invs--left-alive");
+    // inv_assert(col_invs_left_alive[si_col] > 0, "mismatch in col-invs--left-alive");
     col_invs_left_alive[si_col]--;
     
     //row_dirty[si_row] = true;
@@ -472,7 +471,7 @@ void set_sprites_for_all() {
         rows_inv_spr_pos_x[c]    = spr_pos_x;
 
 
-        my_assert(spr_num<8,"Bad spr-num at set-sprites-for-all()");
+        inv_assert(spr_num<8,"Bad spr-num at set-sprites-for-all()");
 
         //Using this instead of vic.sprxy() saves us a few cycles by not setting sprite.y
         vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
@@ -489,13 +488,13 @@ void set_sprites_for_all() {
 void draw_sprite_row(byte spr_row) {
 
                                        //1234567890123456789012345678901234567890
-    my_assert(vic.spr_multi==0xff,      "multi turned off in draw-sprite-row");
-    my_assert(vic.spr_expand_x == 0,    "expand-x turned on in draw-sprite-row");
+    inv_assert(vic.spr_multi==0xff,      "multi turned off in draw-sprite-row");
+    inv_assert(vic.spr_expand_x == 0,    "expand-x turned on in draw-sprite-row");
 
     // __asm {
     //     sei
     // }
-    // my_assert(spr_row<NUM_ROWS,"too many spr rows");
+    // inv_assert(spr_row<NUM_ROWS,"too many spr rows");
 
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
     //          in shoot_invader()
@@ -510,7 +509,7 @@ void draw_sprite_row(byte spr_row) {
     }
 
     byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
-    my_assert(new_handle > 0, "new-handle set to 0 in draw-sprite-row");
+    inv_assert(new_handle > 0, "new-handle set to 0 in draw-sprite-row");
 
     byte row_index = row_inv_index[spr_row];
 
@@ -519,7 +518,7 @@ void draw_sprite_row(byte spr_row) {
 
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
-        my_assert(c+2<8,"Bad c+2 in draw-sprite-row");
+        inv_assert(c+2<8,"Bad c+2 in draw-sprite-row");
 
         vic.spr_pos[c+2].y= this_row_y;  //do this last? Nope.
     }
@@ -536,7 +535,7 @@ void draw_sprite_row(byte spr_row) {
 
         byte spr_num = c + 2;
 
-        my_assert(spr_num<8, "bad spr-num at draw-sprite-row");
+        inv_assert(spr_num<8, "bad spr-num at draw-sprite-row");
         spr_image(spr_num, new_handle);
         // vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
     }
@@ -593,7 +592,7 @@ void raster_irq_handler() {
         if (prev_raster >= 230) {
             START_BORDER(VCOL_ORANGE);
 
-            // my_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
+            // inv_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
             //vic.spr_color[ship.sprite_num] = ship.sprite_color;
 
             //TODO always <0xff?
@@ -701,14 +700,14 @@ void flip_row_image(byte row) {
     //TODO Another Oscar64 bug? If I leave the assert out, row 0 never gets flipped.
     //  I think it's getting inlined incorrectly
     //  ...or not, since adding noinline isn't helping
-    // my_assert(row<NUM_ROWS, "too many rows to flip");
+    // inv_assert(row<NUM_ROWS, "too many rows to flip");
 
     if (!row_alive[row]) return;
 
     if ((++(row_frame_num[row])) > row_max_frames[row]) {
 
         byte new_image_num=((row_image_num[row]+1) % row_num_images[row]);
-        my_assert(new_image_num>0, "new-image-num set to 0 in flip-row-image");
+        inv_assert(new_image_num>0, "new-image-num set to 0 in flip-row-image");
         row_image_num[row]=new_image_num;
         row_frame_num[row]=0;        
     }
@@ -758,13 +757,13 @@ bool bounce_rows() {
 
     //TODO combine these 2 if's?
     if ((rows_x_frame_speed > 0) && (rows_max_spr_x >= MAX_SPR_X)) {
-        my_assert((rows_x_frame_speed = 4), "rows_x_frame_speed bad in bounce_rows()");
+        inv_assert((rows_x_frame_speed = 4), "rows_x_frame_speed bad in bounce_rows()");
         ok= move_rows_down(Y_INC);
         rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
         rows_x_frame_speed *= -1;
     }
     else if ((rows_x_frame_speed < 0) && (rows_min_spr_x <= MIN_SPR_X)) {
-        my_assert((rows_x_frame_speed = -4), "rows_x_frame_speed bad in bounce_rows()");
+        inv_assert((rows_x_frame_speed = -4), "rows_x_frame_speed bad in bounce_rows()");
         ok = move_rows_down(Y_INC);
         rows_x_shift -= rows_x_frame_speed-1; //X_INC*2;
         rows_x_frame_speed *= -1;
@@ -778,7 +777,7 @@ bool move_invaders() {
     bool ok = true;
     if ((++(rows_frame_num)) >= ROWS_MAX_FRAMES) {
 
-        my_assert(rows_x_frame_speed == -4 || rows_x_frame_speed == 4,
+        inv_assert(rows_x_frame_speed == -4 || rows_x_frame_speed == 4,
             "rows_x_frame_speed bad value in main\n");
 
         rows_x_shift += rows_x_frame_speed;
@@ -900,7 +899,7 @@ bool handle_inputs(char joy_num) {
 
 //MAIN thread
 void fire_bullet(byte obj_num) {
-    //my_assert(obj_type[obj_num] == TYPE_BULLET, "wrong playerobject type");
+    //inv_assert(obj_type[obj_num] == TYPE_BULLET, "wrong playerobject type");
     if (obj_type[obj_num] == TYPE_BULLET) {
         sidfx_play(0, SIDFXFire, 1);
 
@@ -923,7 +922,7 @@ void fire_bullet(byte obj_num) {
 //MAIN thread
 // #pragma  optimize(0)
 void move_object(byte obj_num) {
-    my_assert(1 == 0, "Should be the other way round");
+    inv_assert(1 == 0, "Should be the other way round");
     if (obj_num == 0) {
         __asm {
             nop
@@ -1011,13 +1010,13 @@ byte draw_obj_obj_num = 0xff;
 void draw_object(int obj_num) {
     draw_obj_obj_num=obj_num;
                         //1234567890123456789012345678901234567890
-    my_assert(obj_num<2, "obj-num==%d in draw-object", obj_num);
+    inv_assert(obj_num<2, "obj-num==%d in draw-object", obj_num);
     
 
     if (obj_alive[obj_num]) {
         byte sprite_num = obj_sprite_num[obj_num];
 
-        my_assert(sprite_num < 8, "bad sprite-num in draw-object");
+        inv_assert(sprite_num < 8, "bad sprite-num in draw-object");
         spr_move(sprite_num, obj_x[obj_num], obj_y[obj_num]);
 
         spr_color(sprite_num, obj_sprite_color[obj_num]);
@@ -1030,19 +1029,19 @@ void draw_object(int obj_num) {
         }
         
                                            //  1234567890123456789012345678901234567890
-        my_assert(obj_sprite_num[obj_num] < 3, "bad obj-sprite-num[%d]:%d at draw-object",
+        inv_assert(obj_sprite_num[obj_num] < 3, "bad obj-sprite-num[%d]:%d at draw-object",
             obj_num, obj_sprite_num[obj_num]);
                                                 //1234567890123456789012345678901234567890
-        my_assert((obj_image_handle[obj_num]) > 0, "bad obj-image-handle[%d]:%d in draw-object", 
+        inv_assert((obj_image_handle[obj_num]) > 0, "bad obj-image-handle[%d]:%d in draw-object", 
             (byte)obj_num, (byte)obj_image_handle[obj_num]);
             
         spr_image(obj_sprite_num[obj_num], obj_image_handle[obj_num]);
                                                       //1234567890123456789012345678901234567890
-        my_assert(*((char *)logo_screen+0x03f8+0) > 0, "ship sprite got set to 0 in draw-object");
+        inv_assert(*((char *)logo_screen+0x03f8+0) > 0, "ship sprite got set to 0 in draw-object");
 
     }
                                             //1234567890123456789012345678901234567890
-    my_assert(obj_sprite_num[obj_num] < 3,  "bad obj-sprite-num at draw-object()");
+    inv_assert(obj_sprite_num[obj_num] < 3,  "bad obj-sprite-num at draw-object()");
     spr_show(obj_sprite_num[obj_num], obj_alive[obj_num]);
 }
 
@@ -1096,7 +1095,7 @@ void init_invaders() {
 
     current_row_num=0;
     
-    //my_assert(NUM_ROWS == 6, "**GURU MEDITATION ERROR**");
+    //inv_assert(NUM_ROWS == 6, "**GURU MEDITATION ERROR**");
     for (int c=0;c<INVADERS_PER_ROW;c++) {
         col_invs_left_alive[c]  = NUM_ROWS;
     }
@@ -1111,7 +1110,7 @@ void init_invaders() {
     //#pragma unroll(full)
 #endif
     for (byte r=0;r<NUM_ROWS; r++) {
-        // my_assert(r < NUM_ROWS, "r is broken");
+        // inv_assert(r < NUM_ROWS, "r is broken");
         row_y[r]                = MIN_Y + SCANLINES_PER_ROW * r;
         row_num_images[r]       = 2;
         row_image_handles[r][0] = INVADER_IMAGE_BASE + SPRITE_IMAGE_BASE +(r*2);
@@ -1178,7 +1177,7 @@ void init_sprites() {
     for (int ic=0;ic<NUM_ROWS;ic++) {
         byte spr_num=ic+2;
 
-        my_assert(spr_num<8, "bad spr_num at init-sprites()");
+        inv_assert(spr_num<8, "bad spr_num at init-sprites()");
         spr_image(spr_num, row_image_handles[0][row_image_num[0]]);
 
         spr_move(spr_num, ic*35+24 + 50,0);          //just ignore the Y coord for now
