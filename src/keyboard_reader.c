@@ -85,7 +85,7 @@ byte kr_read_key() {
 
 }
 
-//#pragma optimize(0)
+#pragma optimize(0)
 bool kr_is_key_pressed(byte row, byte col) {
     bool value = false;
     byte col_mask = ~pow2[col];

@@ -54,9 +54,9 @@
 //////////////////////
 // SCANLINES
 //////////////////////
-static const byte  SCANLINES_TO_DRAW_SPRITE=21;
+static const byte  SCANLINES_TO_DRAW_SPRITE=15;
 
-static const byte  SCANLINES_PER_ROW=20 + SCANLINES_TO_DRAW_SPRITE;
+static const byte  SCANLINES_PER_ROW=10 + SCANLINES_TO_DRAW_SPRITE;
 /////////////////////
 
 
@@ -274,6 +274,7 @@ const SIDFX	SIDFXExplosion[1] = {{
 	-20, 0,
 	8, 40
 }};
+
 
 //byte old_border_color=0;
 

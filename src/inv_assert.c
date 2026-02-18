@@ -18,7 +18,7 @@ char msg_buffer[80];
 */
 #pragma optimize(0)
 void inv_assert(bool condition, void* message, ...) {
-#ifdef MY_ASSERT
+// #ifdef MY_ASSERT
 
     char buffer[80];
     va_list argptr;
@@ -71,6 +71,6 @@ void inv_assert(bool condition, void* message, ...) {
         }
     }
         
-#endif
+// #endif
 }
 
