@@ -71,19 +71,12 @@ const int JOY_NUM=0;
 char key;
 
 
-// void set_invs_row_y() {
-//     for (int r=0;r<NUM_ROWS;r++) {
-//         row_y[r]                = MIN_Y + SCANLINES_PER_ROW * r; //SCANLINES_PER_ROW * r;
-//         inv_start_line[r] = MIN_Y+SCANLINES_PER_ROW*r-SCANLINES_TO_DRAW_SPRITE;
-//     }
-
-// }
-
 //MAIN THREAD
 //#pragma optimize(0)
 int main() {
 
     iocharmap(IOCHM_PETSCII_1);
+
 
     bool smooshed = false;
 
@@ -91,14 +84,10 @@ int main() {
 	// with our joystick interrupt
 	cia_init();
 
-
-    // Activate trampoline
-
     display_logo();
+
     sidfx_init();
 	sid.fmodevol = 15;
-
-
     
     // // while (true) {
     // //     __asm {
@@ -152,15 +141,26 @@ int main() {
         }
     }
 
-    vic.color_back = VCOL_LT_GREY;
-    vic.color_border = 0;
+    //We're going to use the SID later for music & sfx, which will
+    //  mess up any attempts to use it for PRNG so let's just
+    //  use it once to seed srand(). Having waited for a keypress
+    //  adds just the soupcon of true randomness we really need.
 
-    memset(logo_bmp, 0, 8000);
-    memset(logo_screen, 0, 1000);
-    memset(logo_color, 0, 1000);
+    init_sid_rand();
+    srand(sid_rand());
+
+    vic.color_back = VCOL_LT_GREY;
+    vic.color_border = VCOL_DARK_GREY;
+
+    clear_hires_screen();
+
+    clear_text_screen();
+    init_screen(50);
 
     //point the VIC to the right screen (to record sprite #s for example)
-    vic_setmode(VICM_HIRES_MC, logo_screen,logo_bmp); // $d018=$49 $d011=$3b $dd00=$c6
+    //vic_setmode(VICM_HIRES_MC, logo_screen,logo_bmp); // $d018=$49 $d011=$3b $dd00=$c6
+    vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
+    spr_init((char *)0x400);
 
     init_invaders();
     init_sprites();
@@ -173,7 +173,7 @@ int main() {
 
     //BUG:pressed keys cause all kinds of screen flicker & distortion.
     //  Answer: bypass the kernal keyboard read code when JMPing at the end of the IRQ handler.
-    //          However, when you do that, you can't use the keyboard (duh!)
+    //          However, when you do that, you can't use the kernal keyboard routines(duh!)
 
     //Kill **all** other interrupts?
     __asm {
@@ -355,6 +355,8 @@ int main() {
     }
     //vic.color_back=VCOL_RED;
 
+    printf("GAME OVER\n");
+
     while (kr_read_key() == 0) { vic_waitFrame(); };
     //return 0;
    
@@ -463,9 +465,9 @@ void set_sprites_for_all() {
 //IRQ THREAD
 void draw_sprite_row(byte spr_row) {
 
-    #ifdef MY_ASSERT                                        //1234567890123456789012345678901234567890
-        inv_assert(vic.spr_multi==0xff,     "multi off for row %d in draw-sprite-row", spr_row);
-        inv_assert(vic.spr_expand_x == 0,   "expand-x on for row%d in draw-sprite-row", spr_row);
+    #ifdef MY_ASSERT                        //0123456789012345678901234567890123456789
+        inv_assert(vic.spr_multi==0xff,     "multi=0 for row %d in draw-sprite-row", spr_row);
+        inv_assert(vic.spr_expand_x == 0,   "xpandx=1 for row %d in draw-sprite-row", spr_row);
         inv_assert(spr_row < NUM_ROWS,      "spr-row=%d in draw-sprite-row", spr_row);
     #endif
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
@@ -480,10 +482,6 @@ void draw_sprite_row(byte spr_row) {
         return;
     }
 
-
-    //byte row_index = row_inv_index[spr_row];
-
-    //byte this_row_color = row_color[spr_row];
     int this_row_y = row_y[spr_row];
 
     #pragma unroll(full)
@@ -520,45 +518,13 @@ void draw_sprite_row(byte spr_row) {
         spr_image(spr_num, new_handle);
         // vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
     }
-
-    //take_vic_snapshot();
-    //for debugging
-    __asm {
-        nop
-    }
-    //vic.color_back = VCOL_BLACK;
-    // __asm {
-    //     cli
-    // }
-
 }
 
-//TODO either use this or remove it
-
-//  __forceinline void move_invader(byte index) {
-//     //Invader* inv=&invaders[inv_num];
-//     inv_x[index] += inv_speed_x[index];
-//     inv_y += inv_speed_y[index];
-
-//     if (inv_x[index] <20) {
-//         inv_speed_x[index] = abs(inv_speed_x[index]);
-//     }
-//     else {
-//         if (inv_x[index] >= 320){
-//             inv_speed_x[index] = -abs(inv_speed_x[index]);
-//         }
-//     }
-
-//     // spr_move(inv->sprite_num,inv->x,inv->y);
-//     // vspr_move(inv->sprite_num,inv->x,inv->y);
-// }
 
 //IRQ THREAD
 void raster_irq_handler() {
 
     if (playing) {
-        int min_y=MIN_Y;
-
         // //TODO needed? Useful?    
         // if (vic.intr_ctrl < 128) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
         //     vic.color_back=VCOL_YELLOW;
@@ -587,6 +553,8 @@ void raster_irq_handler() {
             //END_BORDER();
         }
         else {
+
+            vic.color_back = VCOL_BLACK;
 
             START_BORDER(VCOL_GREEN);
             #ifdef MY_ASSERT
@@ -870,15 +838,15 @@ bool handle_inputs(char joy_num) {
     bool key_rtn_pressed = false;
 
     key_a_pressed      = kr_is_key_pressed(KR_ROW_A,       KR_COL_A); //(key == 'a') ; //(keyb_key  == (KSCAN_A | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_A);
-    if (key_a_pressed) {
-        vic.color_back=VCOL_LT_BLUE;
-        __asm {
-            nop
-            nop
-            nop
+    // if (key_a_pressed) {
+    //     vic.color_back=VCOL_LT_BLUE;
+    //     __asm {
+    //         nop
+    //         nop
+    //         nop
             
-        }
-    }
+    //     }
+    // }
    key_d_pressed      = kr_is_key_pressed(KR_ROW_D,       KR_COL_D); //(key == 'd'); //keyb_key  == (KSCAN_D | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_D);
    // key_rtn_pressed = kr_is_key_pressed(KR_ROW_RETURN, KR_COL_RETURN); //(key == 13); // (keyb_key == (KSCAN_RETURN | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_RETURN);
 
@@ -1058,7 +1026,7 @@ void draw_object(int obj_num) {
 
         #ifdef MY_ASSERT
                                                         //1234567890123456789012345678901234567890
-            inv_assert(*((char *)logo_screen+0x03f8+0) > 0, "sprite=0 in draw-object(%d)", draw_obj_obj_num);
+            inv_assert(*((char *)0x0400+0x03f8+0) > 0, "sprite=0 in draw-object(%d)", draw_obj_obj_num);
         #endif
 
     }
@@ -1123,13 +1091,12 @@ void init_invaders() {
 
     current_row_num=0;
     
-    //inv_assert(NUM_ROWS == 6, "**GURU MEDITATION ERROR**");
     for (int c=0;c<INVADERS_PER_ROW;c++) {
         col_invs_left_alive[c]  = NUM_ROWS;
     }
 
     for (int i=0;i<NUM_ROWS;i++) {
-        inv_start_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
+        inv_start_line[i] = INV_MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
         // inv_start_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
     }
     //TODO cheating
@@ -1140,7 +1107,7 @@ void init_invaders() {
 #endif
     for (byte r=0;r<NUM_ROWS; r++) {
         // inv_assert(r < NUM_ROWS, "r is broken");
-        row_y[r]                = MIN_Y + SCANLINES_PER_ROW * r; //SCANLINES_PER_ROW * r;
+        row_y[r]                = INV_MIN_Y + SCANLINES_PER_ROW * r; //SCANLINES_PER_ROW * r;
         row_num_images[r]       = 2;
         row_image_handles[r][0] = INVADER_IMAGE_BASE + SPRITE_IMAGE_BASE +(r*2);
         row_image_handles[r][1] = INVADER_IMAGE_BASE + SPRITE_IMAGE_BASE +(r*2) + 1;
@@ -1195,7 +1162,7 @@ void init_invaders() {
 }
 
 void init_sprites() {
-    spr_init((char *)logo_screen);
+    //spr_init((char *)logo_screen);
 
     vic.spr_mcolor0 = 1;    //TODO change this raw #
     vic.spr_mcolor0 = 2;    //TODO change this raw #
@@ -1221,28 +1188,9 @@ void init_sprites() {
 }
 
 void display_logo(){
-
-    //memcpy(hires_screen, logo_screen, 0x400);
-    //memcpy(hires_color, logo_color, 0x400);
-
     vic.color_back=VCOL_BLACK;
 
     vic_setmode(VICM_HIRES_MC, logo_color,logo_bmp); // $d018=$49 $d011=$3b $dd00=$c6
-    //vic_setbank(1);
-
-    /**
-    //from https://www.codebase64.net/doku.php?id=base:vicii_memory_organizing
-    *(char*)0xdd00 = 2; //0x32; //*((char*)0xdd00) | 0b00000010 & 0b11111110;
-    //from https://groups.google.com/g/comp.sys.cbm/c/p7owkelfs4s/m/QzAZTv9twZcJ
-    //logo_screen = $5000 - $4000 = $1000 / $1000 = 1
-    //bitmap = $6000 - $4000 = $2000 / $2000 = 1
-    *(char*)0xd018 = 0x78; //0b01001000; //0x4f;
-    //*(char *)0xd011 = (*(char *)0xd011) & 0b10111111 | 00100000;
-    *(char*)0xd011 = 0x3b;
-    *(char*)0xd016 = 0xd8; //0x18;
-    //*(char *)0xd016 = (*(char *)0xd016) | 0b00010000;
-    **/
-    //memcpy((char *)0xd800, logo_color, 0x400);
 }
 
 void game_over() {
@@ -1272,3 +1220,68 @@ __forceinline const void END_BORDER() {
         vic.color_border = old_border_color;
     }
 }
+
+/* Must be called before sid_rand() or sid_int_rand() */
+byte init_sid_rand() {
+    sid.voices[2].freq=0xffff;
+    sid.voices[2].ctrl=0b10000000;   //noise waveform, gate off
+}
+
+/* 
+*   Generate an 8-bit random value from SID. 
+*   WARNING: Attempting to call this too quickly will just result in 
+*   duplicate values. Also, using SID for music will
+*   probably screw these values up.
+*/
+byte sid_rand() {
+    return sid.random;
+}
+
+/** Generate a 16-bit random value from SID. */
+unsigned int sid_int_rand() {
+    return (unsigned int)(sid.random * 256 + sid.random);
+}
+
+/*
+ *  Draw the text screen, including the top status line and 
+ *  some (num_stars) random stars.
+ * 
+ * TODO: use a different charset
+ */
+void init_screen(byte num_stars) {
+    clear_text_screen();
+
+    for(byte i=0;i<num_stars;i++) {
+        unsigned int pos;
+        byte* text=(byte*)0x400;
+        byte* color=(byte*)(0xd800);
+
+        while ( text[pos=40+(rand() % 960)] != 32);
+        text[pos]=46; //screencode for "."
+        color[pos]=rand() % 16;
+    }
+
+    gotoxy(0,0);
+    printf("LIVES:XXXXX");
+
+    gotoxy(15,0);
+    printf("INVADERS");
+
+    gotoxy(27,0);
+    printf("SCORE:000000");
+
+}
+
+void clear_hires_screen() {
+        //clear out the hires stuff
+    memset(logo_bmp, 0, 8000);
+    memset(logo_screen, 0, 1000);
+    memset(logo_color, 0, 1000);
+}
+
+void clear_text_screen() {
+    //clear out the text stuff
+    memset((void *)0x400, 0x20, 1000);
+    memset((void *)0xd800, 0, 1000);    
+}
+

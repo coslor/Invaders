@@ -63,6 +63,7 @@ static const byte  SCANLINES_PER_ROW=10 + SCANLINES_TO_DRAW_SPRITE;
 const       byte MAX_IMAGE_HANDLES=2;
 
 const int   MIN_Y = 50;   //MAX(SCANLINES_PER_ROW,50);
+const int 	INV_MIN_Y = MIN_Y + 25;
 
 const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
@@ -74,7 +75,7 @@ const int   MAX_Y_ROW = 222;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
-const byte 	SPRITE_IMAGE_BASE = 0;
+const byte 	SPRITE_IMAGE_BASE = 0x80;
 
 //26 is small ship, 24 is big one
 const byte SHIP_IMAGE_NUM = 26;
@@ -98,7 +99,7 @@ const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
 const int NUM_OBJECTS = 2;
 
 
-byte        current_row_num=0;
+int        current_row_num=0;
 
 bool        inv_alive[TOTAL_INVS_SIZE]; // = {
 //signed int  inv_x[TOTAL_INVS_SIZE]; // = {
@@ -162,87 +163,33 @@ bool        playing;
 //We can actually leave off the typedef for Oscar, but it pisses off the C checker
 typedef enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET} PlayerObjectType;
 
-signed int  obj_x[NUM_OBJECTS]; //              = {160,         160};
-signed int  obj_speed_x[NUM_OBJECTS];//        = {0,           0};
-signed int  obj_y[NUM_OBJECTS];//              = {230,         230};
-signed int  obj_speed_y[NUM_OBJECTS];//        = {0,           0};
-bool        obj_alive[NUM_OBJECTS];//          = {true,        false};
-byte        obj_sprite_num[NUM_OBJECTS];//     = {0,           1};
-byte        obj_sprite_color[NUM_OBJECTS];//   = {VCOL_WHITE,  VCOL_WHITE};
-byte        obj_sprite_mcolor0[NUM_OBJECTS];// = {VCOL_GREEN,  VCOL_GREEN};
-byte        obj_sprite_mcolor1[NUM_OBJECTS];// = {VCOL_RED,    VCOL_RED};
-bool        obj_kill_on_border[NUM_OBJECTS];// = {false,       true};
+signed int  obj_x[NUM_OBJECTS]; 
+signed int  obj_speed_x[NUM_OBJECTS];
+signed int  obj_y[NUM_OBJECTS];
+signed int  obj_speed_y[NUM_OBJECTS];
+bool        obj_alive[NUM_OBJECTS];
+byte        obj_sprite_num[NUM_OBJECTS];
+byte        obj_sprite_color[NUM_OBJECTS];
+byte        obj_sprite_mcolor0[NUM_OBJECTS];
+byte        obj_sprite_mcolor1[NUM_OBJECTS];
+bool        obj_kill_on_border[NUM_OBJECTS];
 
-PlayerObjectType obj_type[NUM_OBJECTS];//      = {TYPE_SHIP,   TYPE_BULLET};
+PlayerObjectType obj_type[NUM_OBJECTS];
 
-byte        obj_image_handle[NUM_OBJECTS];//   = {SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM, 
-                                               //SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM};
+byte        obj_image_handle[NUM_OBJECTS];
 
-// typedef struct {
-//     signed int          x               = 0;
-//     signed int          speed_x         = 0;
-//     byte                y               = 0;
-//     signed int          speed_y         = 0;
-//     bool                alive           = false;
-//     byte                sprite_num      = 0xff;
-//     byte                sprite_color    = VCOL_WHITE;
-//     byte                sprite_mcolor0  = VCOL_GREEN;
-//     byte                sprite_mcolor1  = VCOL_RED;
-//     byte                image_handle    = 0xff;
-//     bool                kill_on_border  = false;
-//     PlayerObjectType    type;
-// } PlayerObject;
-
-
-// PlayerObject    ship,bullet;
-
-//byte collision_reg[NUM_ROWS];
 int collided_inv_index=0xff;
 
+//
+//inv_start_line contains 2 extra elements:
+//- #0 is at the top of the screen, and it sets the screen to text mode
+//- From 1-NUM_ROWS are for the Invader rows
+//- #NUM_ROWS+1 is at the bottom of the screen, and it's for the ship
+//
+unsigned int inv_start_line[NUM_ROWS + 3];
 
-// int         ship_x = 160;
-// int         ship_speed_x = 0;
-// byte        ship_y = 250;
-// int         ship_speed_y = 0;
-// bool        ship_alive        
 
-// int         bullet_x = 160;
-// int         bullet_speed_x = 0;
-// byte        bullet_y=140;
-// int         bullet_speed_y = -1;
-// bool        bullet_alive = false;
-
-// 
-//byte            ship_color    = VCOL_WHITE;
-//byte            ship_mcolor0  = VCOL_GREEN;
-//byte            ship_mcolor1  = VCOL_RED;
-
-unsigned int inv_start_line[NUM_ROWS + 2]; // = {
-//     //0,
-//     //MIN_Y-SCANLINES_PER_ROW-1,
-//     MIN_Y-SCANLINES_TO_DRAW_SPRITE, 
-//     #if (NUM_ROWS>1)
-//     //MIN_Y-6,
-//     MIN_Y+SCANLINES_PER_ROW*1-SCANLINES_TO_DRAW_SPRITE, 
-//     #endif
-//     #if (NUM_ROWS > 2)
-//     //MIN_Y+SCANLINES_PER_ROW-6,
-//     MIN_Y+SCANLINES_PER_ROW*2-SCANLINES_TO_DRAW_SPRITE, 
-//     #endif
-//     #if (NUM_ROWS > 3)
-//     //MIN_Y+SCANLINES_PER_ROW*2-6,
-//     MIN_Y+SCANLINES_PER_ROW*3-SCANLINES_TO_DRAW_SPRITE, 
-//     #endif
-//     #if (NUM_ROWS > 4)
-//     MIN_Y+SCANLINES_PER_ROW*4-SCANLINES_TO_DRAW_SPRITE,
-//     #endif
-//     #if (NUM_ROWS > 5)
-//     //MIN_Y+SCANLINES_PER_ROW*5,
-//     MIN_Y+SCANLINES_PER_ROW*5-SCANLINES_TO_DRAW_SPRITE,
-//     #endif
-//     230
-// };
-
+// Powers of 2, for quick lookups
 const byte pow2[8] = {
     0b00000001,
     0b00000010,
@@ -276,7 +223,6 @@ const SIDFX	SIDFXExplosion[1] = {{
 }};
 
 
-//byte old_border_color=0;
 
 void flip_image(byte index);
 void print_invaders();
@@ -314,6 +260,16 @@ byte kr_read_key();
 
 __forceinline const void START_BORDER(byte new_color);
 __forceinline const void END_BORDER();
+
+
+byte sid_rand();
+byte init_sid_rand();
+unsigned int sid_int_rand();
+
+void init_screen(byte num_stars);
+void clear_hires_screen();
+void clear_text_screen();
+
 
 #pragma compile("invaders.c")
 #endif

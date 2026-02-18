@@ -1,7 +1,10 @@
-#pragma region( lower, 0xa00, 0x2fff, , , {code, data, bss} )
+#pragma region( lower, 0xa00, 0x1fff, , , {code, data, bss} )
+
+#pragma section( spriteset_sec, 0)
+#pragma region( spriteset_reg, 0x2000, 0x2fff, , , {spriteset_sec} )
 
 #pragma section( middle, 0)
-#pragma region(middle, 0x3000, 0x3fff,,, {code, data, bss})
+#pragma region(middle, 0x3000, 0x4fff,,, {code, data, bss})
 
 // #pragma section(hires_screen, 0)
 // #pragma region(hires_screen, 0x4000,0x43ff,,, {hires_screen})
@@ -9,8 +12,6 @@
 // #pragma section(hires_color, 0)
 // #pragma region(hires_color, 0x4400, 0x4fff,,, {hires_color})
 
-#pragma section( spriteset_sec, 0)
-#pragma region( spriteset_reg, 0x4000, 0x4fff, , , {spriteset_sec} )
 
 #pragma section( upper, 0)
 #pragma region(upper, 0x5000, 0x57ff,,, {code, data, bss})
