@@ -39,9 +39,9 @@
 	static const bool DO_BORDER=false;
 #endif
 
-// #ifdef USE_BORDER
-//     byte old_border_color;
-// #endif
+#ifdef USE_BORDER
+    byte old_border_color=0;
+#endif
 
 // #define     START_BORDER(color) #ifdef USE_BORDER  old_border_color=vic.color_border;vic.color_border = color;  #endif
 // #define     END_BORDER #ifdef USE_BORDER  vic.color_border=old_border_color;  #endif
@@ -54,8 +54,9 @@
 //////////////////////
 // SCANLINES
 //////////////////////
-const byte  SCANLINES_TO_DRAW_SPRITE=13;
-const byte  SCANLINES_PER_ROW=22 + SCANLINES_TO_DRAW_SPRITE;
+static const byte  SCANLINES_TO_DRAW_SPRITE=21;
+
+static const byte  SCANLINES_PER_ROW=20 + SCANLINES_TO_DRAW_SPRITE;
 /////////////////////
 
 
@@ -274,7 +275,7 @@ const SIDFX	SIDFXExplosion[1] = {{
 	8, 40
 }};
 
-byte old_border_color=0;
+//byte old_border_color=0;
 
 void flip_image(byte index);
 void print_invaders();

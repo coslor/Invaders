@@ -31,9 +31,9 @@
         "-DNEW_FROM_HERE",
         "-n",
         "-DEBUG",
-        "-O0",
+        "-O3",
         "-Dstrict",
-        "-DMY_ASSERT"
+        "-DDMY_ASSERT"
     ],
     "compiler": ""
 }
