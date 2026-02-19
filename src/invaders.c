@@ -89,34 +89,6 @@ int main() {
     sidfx_init();
 	sid.fmodevol = 15;
     
-    // // while (true) {
-    // //     __asm {
-    // //         nop
-    // //     }
-        
-    // //     if (kr_is_key_pressed(KR_ROW_SPACE,KR_COL_SPACE)) {
-    // //         printf("SPACE ");
-    // //     }
-    // //     if (kr_is_key_pressed(KR_ROW_A, KR_COL_A)) {
-    // //         printf("A ");
-    // //     }
-    // //     if (kr_is_key_pressed(KR_ROW_D, KR_COL_D)) {
-    // //         printf("D ");
-    // //     }
-    // //     //vic.color_back++;
-    // //     vic_waitFrame();
-    // // }
-
-    // // // while (true) {
-    // // //     key= kr_read_key();
-    // // //     if (key != 0) {
-    // // //         __asm {
-    // // //             nop
-    // // //         }
-    // // //         break;
-    // // //     }
-    // // // };
-
     //this is just here to play with the SIDFx stuff
     while(true) {
         vic_waitFrame();
@@ -126,7 +98,6 @@ int main() {
             sidfx_play(0, SIDFXFire, 1);
         }
         if (kr_is_key_pressed(KR_ROW_2, KR_COL_2)) {
-        //if (key == '2') {
 			sidfx_play(1, SIDFXExplosion, 1);
         }
         // if (key_pressed(KSCAN_3)) {
@@ -169,11 +140,12 @@ int main() {
 	 __asm { sei };
 
 
-    //TODO BUG: if the lower-right-est Invader is killed, the Player ship is no longer displayed
+    //TODO BUG: if the lower-right-est Invader is killed, the Player ship is no longer displayed STILL HERE??
 
     //BUG:pressed keys cause all kinds of screen flicker & distortion.
     //  Answer: bypass the kernal keyboard read code when JMPing at the end of the IRQ handler.
     //          However, when you do that, you can't use the kernal keyboard routines(duh!)
+    //FIXED
 
     //Kill **all** other interrupts?
     __asm {
@@ -194,16 +166,10 @@ int main() {
     //     lda $d01f
     }
 
-	// // Kill CIA interrupts
-	// cia_init();
-
-
     //After loading & showing logo, so it's Ok to turn BASIC off
     // mmap_trampoline();
     // mmap_set(MMAP_NO_ROM);
     
-
-    //init_sprites();
 
     //All sprites are multicolor
     vic.spr_multi   = 0b11111111;
@@ -273,14 +239,9 @@ int main() {
         draw_object(BULLET_OBJ_NUM);
 #endif
 
-        //END_BORDER();
-
-        //START_BORDER(VCOL_WHITE)
-
         //TODO it seems criminal to waste this time
         vic_waitBottom();
 
-        //vic_waitLine(255);
         //TODO fix this & get collisions working
         //wait_line_and_watch_for_collisions(255);
         //END_BORDER();
@@ -293,6 +254,7 @@ int main() {
         
         smooshed = ! move_invaders();
         set_sprites_for_all();
+
         if (smooshed) {
             playing = false;
             break;
@@ -300,52 +262,11 @@ int main() {
         
         END_BORDER();
 
-        //Flip the images
-        //START_BORDER(VCOL_LT_GREY)
 #ifdef DO_UNROLL
         #pragma unroll(full)
 #endif
         for (byte row=0;row<NUM_ROWS;row++) {
             flip_row_image(row);
-        }
-//        flip_lines_used=vic.raster - flip_lines;
-
-        //END_BORDER
-        //int sprcol;
-
-        ////
-        //  Collision code, work in progress
-        ////
-        //TODO un-comment
-        // if (coll_spr_num != 0xff) {
-        //     // //vic.spr_sprcol = 0b11111111;    //Is this necessary?
-        //     int row_num=0xff;
-        //     for (int r=0;r<NUM_ROWS;r++) {
-        //         if (coll_spr_y == row_y[r]) {
-        //             row_num = r; 
-        //         }
-        //     }
-        //     if (row_num == 0xff) {
-        //         vic.color_back = VCOL_ORANGE;
-        //         break;
-        //     }
-        //     if (coll_spr_num & pow2[coll_spr_num]) {
-        //         int y=0xff;
-        //         for (int c=0;c<NUM_ROWS;c++) {
-        //             if ()
-        //         }
-        //         vic.color_back = VCOL_BLUE;
-        //         collided_inv_index = inv_index;
-        //         inv_color[collided_inv_index] = VCOL_RED;
-        //     }
-        // }
-        // coll_spr_num == 0xff;
-        // collided_inv_index = 0xff;
-
-
-        //for debugging
-        __asm{
-            nop
         }
     }
     if (smooshed) {
@@ -356,50 +277,14 @@ int main() {
         gotoxy(13,12);
         printf("PRESS ANY KEY");
 
-        //spr_expand(0,true,false);
     }
-    //vic.color_back=VCOL_RED;
 
     while (kr_read_key() == 0) { vic_waitFrame(); };
-    //return 0;
    
     inv_assert(false, NULL);
 
 }
 
-
-/*
-*   Returns the index of the Invader associated with the sprite
-*   most containing the screen coordinate x,y
-*/
-//TODO use this?
-// int find_inv(int screen_x, byte screen_y) {
-//     //TODO Optimize this by pre-creating a reverse list
-//     int r = -1;
-//     #pragma unroll(full)
-//     for (r=0;r<NUM_ROWS;r++) {
-//         if ((screen_y >=row_y[r]) 
-//             && (screen_y <= (r < NUM_ROWS-1 ? 0xff : row_y[r+1])) ) {
-//             break;
-//         }
-//     }
-//     inv_assert(r != -1, "r not found in find_inv()");
-
-//     int c = -1;
-
-//     #pragma unroll(full)
-//     for (c=0;c < INVADERS_PER_ROW; c++) {
-//         byte inv_index = r * INVADERS_PER_ROW + c;
-//         byte next_inv_index = inv_index + 1;
-//         if (screen_x >= inv_spr_pos_x[inv_index] 
-//             && screen_x < (c < INVADERS_PER_ROW - 1 ? inv_spr_pos_x[c+1] : 320)) {
-//                 break;
-//         }
-//     }
-//     inv_assert(c != -1, "c not found in find_inv");
-
-//     return r*INVADERS_PER_ROW + c;
-// }
 
 //MAIN THREAD
 void shoot_invader(byte si_row, byte si_col) {
