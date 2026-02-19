@@ -7,16 +7,18 @@ char msg_buffer[80];
 
 //void screen_print(char *message, byte len);
 
+
+#pragma optimize(0)
 /*
 *   Evaluates a boolean value & if false, it resets the C64 so that, 
 *       no matter what state it's currently in (hires, funky charset, etc.),
 *       the message is printed legibly. It then waits for the user to press
 *       a key, and does a soft reset of the machine.
 *
-*   condition   - if false, then print message & reset
-*   message     - a standard printf() message, so all variable substitutions, etc. 
+*   condition   - if false, then print message, wait for key, & reset
+*   message     - a standard printf() message, so all variable substitutions, etc.
+*                   If NULL, don't print a message, just reset. 
 */
-#pragma optimize(0)
 void inv_assert(bool condition, void* message, ...) {
 // #ifdef MY_ASSERT
 
@@ -53,17 +55,19 @@ void inv_assert(bool condition, void* message, ...) {
         }
         iocharmap(IOCHM_PETSCII_2);
 
-        //print our message, variable substitutions included 
-        va_start(argptr, message);
-        vsprintf(buffer, message, argptr);
-        va_end(argptr);            
-        printf(buffer);
-        printf("\nPress any key\n");
+        if (message != NULL) {
+            //print our message, variable substitutions included 
+            va_start(argptr, message);
+            vsprintf(buffer, message, argptr);
+            va_end(argptr);            
+            printf(buffer);
+            printf("\nPress any key\n");
 
-        do {
-            keyb_poll();
-            vic_waitFrame();
-        } while (keyb_key == 0);
+            do {
+                keyb_poll();
+                vic_waitFrame();
+            } while (keyb_key == 0);
+        }
 
         iocharmap(IOCHM_PETSCII_1);
         __asm {

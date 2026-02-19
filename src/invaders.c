@@ -351,19 +351,20 @@ int main() {
     if (smooshed) {
         spr_image(0, SPRITE_IMAGE_BASE + SMOOSHED_SHIP_IMAGE_NUM);
 
+        gotoxy(15,11);
+        printf("GAME OVER");
+        gotoxy(13,12);
+        printf("PRESS ANY KEY");
+
         //spr_expand(0,true,false);
     }
     //vic.color_back=VCOL_RED;
 
-    printf("GAME OVER\n");
-
     while (kr_read_key() == 0) { vic_waitFrame(); };
     //return 0;
    
-    inv_assert(false, "GAME OVER");
-    // __asm {
-    //     jmp $e37b //$fce2   //reset machine
-    // }
+    inv_assert(false, NULL);
+
 }
 
 
