@@ -185,7 +185,7 @@ int main() {
 
 
 
-        //mmap_trampoline();
+    //mmap_trampoline();
 	//mmap_set(MMAP_NO_BASIC);
 
     __asm { cli }
@@ -230,15 +230,15 @@ int main() {
 
         // }
 
-#ifndef NO_PLAYER
         handle_inputs(JOY_NUM);
         //move_object(SHIP_OBJ_NUM);
-        //move_object(BULLET_OBJ_NUM);
+        if (obj_alive[BULLET_OBJ_NUM]) {
+            move_object(BULLET_OBJ_NUM);
+            draw_object(BULLET_OBJ_NUM);
+        }
 
         draw_object(SHIP_OBJ_NUM);
-        draw_object(BULLET_OBJ_NUM);
-#endif
-
+        
         //TODO it seems criminal to waste this time
         vic_waitBottom();
 
@@ -270,7 +270,7 @@ int main() {
         }
     }
     if (smooshed) {
-        spr_image(0, SPRITE_IMAGE_BASE + SMOOSHED_SHIP_IMAGE_NUM);
+        spr_image(0, SMOOSHED_SHIP_IMAGE_NUM);
 
         gotoxy(15,11);
         printf("GAME OVER");
@@ -359,7 +359,9 @@ void draw_sprite_row(byte spr_row) {
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
     //          in shoot_invader()
     //TODO why doesn't this turn off the player & bullet?
-    vic.spr_enable = row_sprite_enable_mask[spr_row];
+    //BUG: I think it does, b/c the bullet won't go away
+    //FIXED : changed to &= instead of =
+    vic.spr_enable &= row_sprite_enable_mask[spr_row];
 
     if (!row_alive[spr_row]) {
         // __asm {
@@ -682,6 +684,7 @@ bool move_rows_down(byte px_down) {
 
 //MAIN thread
 #pragma optimize(0)
+//TODO add joystick support
 bool handle_inputs(char joy_num) {
 
     START_BORDER(VCOL_WHITE);
@@ -723,33 +726,27 @@ bool handle_inputs(char joy_num) {
     bool key_d_pressed = false;
     bool key_rtn_pressed = false;
 
-    key_a_pressed      = kr_is_key_pressed(KR_ROW_A,       KR_COL_A); //(key == 'a') ; //(keyb_key  == (KSCAN_A | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_A);
-    // if (key_a_pressed) {
-    //     vic.color_back=VCOL_LT_BLUE;
-    //     __asm {
-    //         nop
-    //         nop
-    //         nop
-            
-    //     }
-    // }
-   key_d_pressed      = kr_is_key_pressed(KR_ROW_D,       KR_COL_D); //(key == 'd'); //keyb_key  == (KSCAN_D | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_D);
-   // key_rtn_pressed = kr_is_key_pressed(KR_ROW_RETURN, KR_COL_RETURN); //(key == 13); // (keyb_key == (KSCAN_RETURN | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_RETURN);
+    key_a_pressed      = kr_is_key_pressed(KR_ROW_A,       KR_COL_A); 
+        //(key == 'a') ; //(keyb_key  == (KSCAN_A | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_A);    
+   key_d_pressed      = kr_is_key_pressed(KR_ROW_D,       KR_COL_D); 
+        //(key == 'd'); //keyb_key  == (KSCAN_D | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_D);
+   key_rtn_pressed = kr_is_key_pressed(KR_ROW_RETURN, KR_COL_RETURN); 
+        //(key == 13); // (keyb_key == (KSCAN_RETURN | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_RETURN);
 
     signed int new_x = obj_x[SHIP_OBJ_NUM];
 
+    //NOTE: we don't want to use a switch() here, since more than 1 key can be
+    //      pressed at once (up to 3).
     if (key_a_pressed) {
         new_x -=5;
         if (new_x >= MIN_SPR_X) {
             obj_x[SHIP_OBJ_NUM] = new_x;
-            //return false;
         }
     }
     if (key_d_pressed) {
         new_x += 5;
         if (new_x <= MAX_SPR_X) {
             obj_x[SHIP_OBJ_NUM] = new_x;
-            //return false;
         }
     } 
     if (key_rtn_pressed) {
@@ -763,7 +760,7 @@ bool handle_inputs(char joy_num) {
 
 //MAIN thread
 void fire_bullet(byte obj_num) {
-    //inv_assert(obj_type[obj_num] == TYPE_BULLET, "wrong playerobject type");
+    inv_assert(obj_type[obj_num] == TYPE_BULLET, "wrong playerobject type");
     if (obj_type[obj_num] == TYPE_BULLET) {
         sidfx_play(0, SIDFXFire, 1);
 
@@ -771,58 +768,27 @@ void fire_bullet(byte obj_num) {
         obj_y[BULLET_OBJ_NUM] = obj_y[SHIP_OBJ_NUM];
         obj_speed_x[BULLET_OBJ_NUM] = 0;
         obj_speed_y[BULLET_OBJ_NUM] = -1;
+        obj_sprite_num[BULLET_OBJ_NUM] = 1;
+        obj_image_handle[BULLET_OBJ_NUM] = BULLET_IMAGE_NUM;
+
         obj_alive[BULLET_OBJ_NUM] = true;
-        // b->x = ship.x;
-        // b->y = ship.y-3;
-        // b->speed_x = 0;
-        // b->speed_y = -1;
-        // b->alive = true;
         
-        vic.color_back = VCOL_LT_GREEN;
+        //vic.color_back = VCOL_LT_GREEN;
     }
 }
 
-//byte obj_num2;
 //MAIN thread
-// #pragma  optimize(0)
+#pragma  optimize(0)
 void move_object(byte obj_num) {
-    inv_assert(1 == 0, "Should be the other way round");
-    if (obj_num == 0) {
-        __asm {
-            nop
-            nop
-            brk
-        }
-    }
-    byte this_obj_num = obj_num;
-
-    if (obj_num>NUM_OBJECTS) {
-        vic.color_back=VCOL_ORANGE;
-
-        __asm {
-            nop
-            nop
-            nop
-            brk
-        }
-    }
-    // obj_num2 = obj_num;
     signed int this_x = obj_x[obj_num];
 
-    bool too_low = (this_x < MIN_SPR_X);
-    bool too_high = (this_x > MAX_SPR_X);
+    #ifdef MY_ASSERT
+    inv_assert(this_x >= MIN_SPR_X && this_x <= MAX_SPR_X, "this_x out of bounds:%d", this_x);
+    #endif
 
-    if ( too_low || too_high ) {
-        __asm { 
-            nop 
-            nop
-            brk
-        }
-    }
-
-    signed int new_x = obj_x[obj_num];
 
     if (obj_speed_x[obj_num] != 0) { 
+        signed int new_x = obj_x[obj_num];
         if (obj_speed_x[obj_num] > 0) {
             if (new_x < MAX_SPR_X) {
                 new_x += obj_speed_x[obj_num];
@@ -832,57 +798,80 @@ void move_object(byte obj_num) {
                 new_x += obj_speed_x[obj_num];
             }
         }
-        obj_speed_x[obj_num] = 0;
-    }
-    //signed int new_x = obj_x[this_obj_num];
-
-    if ((new_x != obj_x[obj_num]) && (new_x>=MIN_SPR_X)  && (new_x<=MAX_SPR_X)) {
-        obj_x[obj_num]=new_x;
-    }
-    else {
-        __asm { 
-            nop 
-            nop
+        //If it didn't move, don't do anything
+        if (new_x != obj_x[obj_num]) {
+            if ((new_x>=MIN_SPR_X)  && (new_x<=MAX_SPR_X)) {
+                obj_x[obj_num]=new_x;
+            }
+            else if (obj_kill_on_border[obj_num]) {
+                kill_object(obj_num);
+            }
         }
     }
-
+    //TODO refactor this to eliminate copypasta
+    if (obj_speed_y[obj_num] != 0) { 
+        signed int new_y = obj_y[obj_num];
+        if (obj_speed_y[obj_num] > 0) {
+            if (new_y < MAX_SPR_Y) {
+                new_y += obj_speed_y[obj_num];
+            }
+        } else{ //must be <0
+           if (new_y > MIN_SPR_Y) {
+                new_y += obj_speed_y[obj_num];
+           }
+            //We must have hit a border
+            else if (obj_kill_on_border[obj_num]) {
+                kill_object(obj_num);
+                return;
+            }
+        }
+        if (new_y != obj_y[obj_num]) {
+            if ((new_y>=MIN_SPR_Y)  && (new_y<=MAX_SPR_Y)) {
+                obj_y[obj_num]=new_y;
+            }
+            //We must have hit a border
+            else {
+                if (obj_kill_on_border[obj_num]) {
+                    kill_object(obj_num);
+                }//if obj_kill
+            }// else new_y
+        }//else new_y != obj_y
+    } //if obj_speed
 }
 
-// void kill_object(byte obj_num) {
-//     switch (obj_type[obj_num]) {
-//         case TYPE_BULLET: {
-//             kill_bullet(BULLET_OBJ_NUM);
-//             obj_alive[obj_num] = false;
-//             break;
-//         }
+void kill_object(byte obj_num) {
+    switch (obj_type[obj_num]) {
+        case TYPE_BULLET: {
+            kill_bullet(BULLET_OBJ_NUM);
+            break;
+        }
 
 //         case TYPE_SHIP: {
 //             game_over();
 //             break;
 //         }
 
-//         default: {
-//             vic.color_back = VCOL_RED;
-//             //printf("kill-object() got obj type %d\n", obj_type[obj_num]);
-//             while(true);
-//         }
-//     }
+        default: {
+            vic.color_back = VCOL_RED;
+            printf("kill-object() got obj type %d\n", obj_type[obj_num]);
+            while(true);
+        }
+    }
+}
 
-// }
+
 //MAIN thread
 void draw_object(int obj_num) {
-    //__asm { cli }
-
-    byte draw_obj_obj_num = obj_num;
-
     #ifdef MY_ASSERT
                             //1234567890123456789012345678901234567890
         inv_assert(obj_num<2, "obj-num==%d in draw-object", obj_num);
     #endif
     
+    byte sprite_num = obj_sprite_num[obj_num];
+    spr_show(sprite_num, obj_alive[obj_num]);
 
     if (obj_alive[obj_num]) {
-        byte sprite_num = obj_sprite_num[obj_num];
+        
 
         #ifdef MY_ASSERT
             inv_assert(sprite_num < 8, "sprite-num=%d in draw-object(%d)", sprite_num, obj_num);
@@ -899,30 +888,28 @@ void draw_object(int obj_num) {
         }
         
         #ifdef MY_ASSERT
-                                            //  1234567890123456789012345678901234567890
-            inv_assert(obj_sprite_num[obj_num] < 3, "obj-sprite-num[%d]=%d at draw-object", 
+            inv_assert(obj_sprite_num[obj_num] < 3, 
+               //1234567890123456789012345678901234567890
+                "obj-sprite-num[%d]=%d at draw-object", 
                 obj_num, obj_sprite_num[obj_num]);
         #endif
 
-                                                // 1234567890123456789012345678901234567890
-        //inv_assert((obj_image_handle[obj_num]) > 0, "bad obj-image-handle[%d]:%d in draw-object", 
-        //    (byte)obj_num, (byte)obj_image_handle[obj_num]);
-            
         spr_image(obj_sprite_num[obj_num], obj_image_handle[obj_num]);
 
-        #ifdef MY_ASSERT
-                                                        //1234567890123456789012345678901234567890
-            inv_assert(*((char *)0x0400+0x03f8+0) > 0, "sprite=0 in draw-object(%d)", draw_obj_obj_num);
+        #ifdef MY_ASSERT                                         
+            inv_assert(*((char *)0x0400+0x03f8+0) > 0,
+               //1234567890123456789012345678901234567890 
+                "sprite=0 in draw-object(%d)", obj_num);
         #endif
 
     }
     #ifdef MY_ASSERT
-                                                //1234567890123456789012345678901234567890
-        inv_assert(obj_sprite_num[obj_num] < 3,  "obj-sprite-num[%d]=%d at draw-object()", 
+        inv_assert(obj_sprite_num[obj_num] < 3,  
+           //1234567890123456789012345678901234567890
+            "obj-sprite-num[%d]=%d at draw-object()", 
             obj_num, obj_sprite_num[obj_num]);
     #endif
 
-    spr_show(obj_sprite_num[obj_num], obj_alive[obj_num]);
 
     //__asm{ sei }
 }
@@ -930,7 +917,7 @@ void draw_object(int obj_num) {
 //MAIN thread
 void kill_bullet(byte obj_num) {
     obj_alive[obj_num] = false;
-    vic.color_back = VCOL_BLACK;
+    spr_show(obj_sprite_num[obj_num], false);
 }
 
 /**
@@ -995,8 +982,8 @@ void init_invaders() {
         // inv_assert(r < NUM_ROWS, "r is broken");
         row_y[r]                = INV_MIN_Y + SCANLINES_PER_ROW * r; //SCANLINES_PER_ROW * r;
         row_num_images[r]       = 2;
-        row_image_handles[r][0] = INVADER_IMAGE_BASE + SPRITE_IMAGE_BASE +(r*2);
-        row_image_handles[r][1] = INVADER_IMAGE_BASE + SPRITE_IMAGE_BASE +(r*2) + 1;
+        row_image_handles[r][0] = INVADER_IMAGE_BASE +(r*2);
+        row_image_handles[r][1] = INVADER_IMAGE_BASE +(r*2) + 1;
         row_image_num[r]        = 0;
         row_max_frames[r]       = ROW_MAX_FRAMES;
         row_frame_num[r]        = 0;
@@ -1031,16 +1018,13 @@ void init_invaders() {
     obj_sprite_mcolor0  = (byte[])      {VCOL_GREEN,    VCOL_GREEN};
     obj_sprite_mcolor1  = (byte[])      {VCOL_RED,      VCOL_RED};
     obj_kill_on_border  = (bool[])      {false,         true};
-
     obj_type            = (PlayerObjectType[]){TYPE_SHIP,TYPE_BULLET};
-
-    obj_image_handle    = (byte[]) {SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM,
-                                    SPRITE_IMAGE_BASE + SHIP_IMAGE_NUM};
-
-    rows_frame_num = 0;
+    obj_image_handle    = (byte[])  {SHIP_IMAGE_NUM, BULLET_IMAGE_NUM};
     
-    rows_max_spr_x = MIN_SPR_X;
-    rows_min_spr_x = MAX_SPR_X;
+    rows_frame_num      = 0;
+    
+    rows_max_spr_x      = MIN_SPR_X;
+    rows_min_spr_x      = MAX_SPR_X;
     
     __asm {
         nop

@@ -39,7 +39,12 @@ static const byte KR_COL_SEMI = 2;
 
 
 byte kr_log2(byte i);
+
+byte kr_read_key();
+
 bool kr_is_key_pressed(byte row, byte col);
+
 bool kr_is_char_pressed(char c);
+
 #define KEYBOARD_READER_H;
 #endif

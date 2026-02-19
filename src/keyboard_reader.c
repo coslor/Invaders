@@ -21,28 +21,11 @@ char kr_keyb_matrix[8][8] = {
     {   '1',    0x5f,   0xff,   '2',    ' ',    0xff,   'q',    0x03 }
 };
 
-//void init_columntab();
-
-// /*
-//     Returns 0 for 1, 1 for 2, 3 for 8, 4 for 16, etc. up to $80, or 0xff if value is invalid
-// */
-// byte find_log2(byte value) {
-//     //NOTE:there is a much faster way to do this
-//     //byte value = 0xff;
-//     byte col_bit = 0xff;
-
-//     for (int i=0;i<8;i++) {
-//         if (col_bit == pow2[i]) {
-//             break;
-//         }
-//     }
-//     return col_bit; 
-// }
-
 byte kr_log2(byte i) {
     return log(i)/log(2);
 }
 
+/* Returns character currently being pressed, or 0 if none*/
 byte kr_read_key() {
     byte a,x,y, row, key;
     int col = -1;
@@ -86,6 +69,7 @@ byte kr_read_key() {
 }
 
 #pragma optimize(0)
+/* Is the key at the given keyboard matrix address being pressed right now?*/
 bool kr_is_key_pressed(byte row, byte col) {
     bool value = false;
     byte col_mask = ~pow2[col];
@@ -114,6 +98,7 @@ bool kr_is_key_pressed(byte row, byte col) {
     return value;
 }
 
+/* Is the given key being pressed right now? */
 bool kr_is_char_pressed(char c) {
     byte row=0xff,col=0xff;
 
@@ -137,27 +122,3 @@ bool kr_is_char_pressed(char c) {
     }
 }
 
-
-// void init_columntab() {
-//     for (int i=0;i<256;i++) {
-//         if (i == (0xff - 0x80)) {
-//             columntab[i] = 0x70;
-//         } else if (i == (0xff - 0x40)) {
-//             columntab[i] = 0x60;
-//         } else if (i == (0xff - 0x20)) {
-//             columntab[i] = 0x50;
-//         } else if (i == (0xff - 0x10)) {
-//             columntab[i] = 0x40;
-//         } else if (i == (0xff - 0x08)) {
-//             columntab[i] = 0x30;
-//         } else if (i == (0xff - 0x04)) {
-//             columntab[i] = 0x20;
-//         } else if (i == (0xff - 0x02)) {
-//             columntab[i] = 0x10;
-//         } else if (i == (0xff - 0x01)) {
-//             columntab[i] = 0;
-//         } else {
-//             columntab[i] = 0xff;
-//         }
-//     }
-// }

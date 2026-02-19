@@ -1,15 +1,15 @@
 #ifndef INVADERS_H
 #define INVADERS_H
 
+#if 1
 #include "invaders_memory.h"
+#include "inv_assert.h" 
+#include "keyboard_reader.h"
 
 #include <c64/types.h>
-//#include <conio.h>
-//#include <stdlib.h>
 #include <string.h>
-//#include <assert.h>
-//#include <stdio.h>
 #include <stdbool.h>
+
 #include <c64/joystick.h>
 #include <c64/keyboard.h>
 #include <c64/vic.h>
@@ -17,15 +17,10 @@
 #include <c64/memmap.h>
 #include <c64/rasterirq.h>
 #include <c64/cia.h>
-//#include <math.h>
-//#include "invaders.h"
-#include "inv_assert.h" 
-#include "keyboard_reader.h"
 
 #include <audio/sidfx.h>
 
-
-
+#endif
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
 #define     NUM_ROWS 5
@@ -69,6 +64,9 @@ const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
 const int 	MIN_SPR_X = 35;
 const int 	MAX_SPR_X = 320;
+const int 	MIN_SPR_Y = MIN_Y;
+const int 	MAX_SPR_Y = 255;
+
 const byte  ROWS_MAX_FRAMES = 32;
 const int   MAX_Y_ROW = 222;
 
@@ -78,11 +76,11 @@ const int   X_INC = 5;
 const byte 	SPRITE_IMAGE_BASE = 0x80;
 
 //26 is small ship, 24 is big one
-const byte SHIP_IMAGE_NUM = 26;
-const byte SMOOSHED_SHIP_IMAGE_NUM = 27;
-const byte BULLET_IMAGE_NUM = 25;
+const byte SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + 26;
+const byte SMOOSHED_SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + 27;
+const byte BULLET_IMAGE_NUM = SPRITE_IMAGE_BASE + 25;
 //0 is the big Invaders, 12 is the small ones
-const byte INVADER_IMAGE_BASE = 12;
+const byte INVADER_IMAGE_BASE = SPRITE_IMAGE_BASE + 12;
 
 const byte SHIP_OBJ_NUM = 0;
 const byte BULLET_OBJ_NUM = 1;
