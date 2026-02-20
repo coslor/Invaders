@@ -38,9 +38,9 @@ static const byte KR_ROW_SEMI = 6;
 static const byte KR_COL_SEMI = 2;
 
 
-byte kr_log2(byte i);
+int kr_log2(byte val);
 
-byte kr_read_key();
+char kr_read_key();
 
 bool kr_is_key_pressed(byte row, byte col);
 

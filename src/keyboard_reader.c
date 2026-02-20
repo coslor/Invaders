@@ -11,46 +11,62 @@ static bool columntab_is_initialized = false;
 //SEE https://retrocomputing.stackexchange.com/questions/6421, https://sta.c64.org/cbm64pet.html
 //row,col
 char kr_keyb_matrix[8][8] = {
-    {   0x14,   0x0d,   0x1d,   0x88,   0x85,   0x86,   0X87,   0X99 },
-    {   '3',    'w',    'a',    '4',    'z',    's',    'e',    0xff }, //0xff indicates a non-char key
-    {   '5',    'r',    'd',    '6',    'c',    'f',    't',    'x'  },
-    {   '7',    'y',    'g',    '8',    'b',    'h',    'u',    'v'  },
-    {   '9',    'i',    'j',    '0',    'm',    'k',    'o',    'n'  },
+    {   0x14,   0x0d,   0x1d,   0x88,   0x85,   0x86,   0X87,   0X11 },
+    {   '3',    'W',    'A',    '4',    'Z',    'S',    'E',    0xff }, //0xff indicates a non-char key
+    {   '5',    'R',    'D',    '6',    'C',    'F',    'T',    'X'  },
+    {   '7',    'Y',    'G',    '8',    'B',    'H',    'U',    'V'  },
+    {   '9',    'I',    'J',    '0',    'M',    'K',    'O',    'N'  },
     {   '+',    'p',    'l',    '-',    '.',    ':',    '@',    ','  },
     {   0x5c,   '*',    ';',    0x13,   0xff,   '=',    '^',    '/'  },
     {   '1',    0x5f,   0xff,   '2',    ' ',    0xff,   'q',    0x03 }
 };
 
-byte kr_log2(byte i) {
-    return log(i)/log(2);
+byte get_kr_keyb_matrix(byte row, byte col) {
+    if (row<8 && col < 8) {
+        return kr_keyb_matrix[row][col];
+    }
+    return 0;
+}
+
+int kr_log2(byte val) {
+    for (int i=0;i<8;i++)  {
+        if (val == pow2[i]) {
+            return i;
+        }
+    }
+    return 0;
+    //return log(i)/log(2);
 }
 
 /* Returns character currently being pressed, or 0 if none*/
-byte kr_read_key() {
-    byte a,x,y, row, key;
-    int col = -1;
+#pragma optimize(0)
+char kr_read_key() {
+    
+    byte a,x,y;
+    byte row2, key2;
+    byte col2 = 0xff;
 
     cia1.ddrb = 0;
     cia1.ddra = 0xff;
 
     cia1.pra = 0;
-    byte col_bit = cia1.prb;
-    if (col_bit == 0xff) {
+    byte col_bit = ~cia1.prb;
+    if (col_bit == 0x00) {
         return 0;       //no key
     }
 
-    col_bit = ~col_bit;
+    //col_bit = ~col_bit;
     //we have a column
 
-    col = kr_log2(col_bit);
+    col2 = kr_log2(col_bit);
 
-    if (col == -1) {
+    if (col2 == 0xff) {
         //printf("\nERROR!\n");
         return 0;
     }
     a = 0x7f;
 
-    for (row=7;row>=0;row--) {
+    for (row2=8;row2>0;row2--) {
         cia1.pra = a;
         a = a >> 1 + 0b10000000;
         byte prb = cia1.prb;
@@ -59,12 +75,20 @@ byte kr_read_key() {
         }
     }
     
-    if (row == -1) {
+    if (row2 == 0) {
         return 0;
     }
+    //We want 0-7. not 1-8
+    //row2--;
 
-    key = kr_keyb_matrix[row][col];
-    return key;
+    if (row2>8 || col2>7 ) {
+        return 0;
+    }
+    int key4 = (get_kr_keyb_matrix(row2-1,col2)); // & 0x7f;
+    if (key4 > 0xf0) {
+        return 0;
+    }
+    return key4;
 
 }
 
