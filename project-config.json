@@ -33,7 +33,7 @@
         "-DEBUG",
         "-O3",
         "-Dstrict",
-        "-DDMY_ASSERT"
+        "-DDMY_ASSERT"    
     ],
     "compiler": ""
 }

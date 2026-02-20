@@ -51,7 +51,7 @@ __export int total_invs;
 __export int flip_lines_used = -1;
 
 
-byte target_row = 0;
+byte target_row = NUM_ROWS-1;
 
 //The PETSCII values go {F1,F3,F5,f7,f2,f4,f6}. This array maps them so we can use simple code
 //  to decide which fn key goes with what row.  
@@ -68,16 +68,15 @@ const unsigned short invaders_2600_size;
 
 const int JOY_NUM=0;
 
-char key;
-
-
 //MAIN THREAD
 //#pragma optimize(0)
 int main() {
 
     iocharmap(IOCHM_PETSCII_1);
 
-
+    // int x = 320;
+    // fxp_12_4 fxp_x = to_fxp_12_4(x);
+    // fxp
     bool smooshed = false;
 
 	// Disable CIA interrupts, we do not want interference
@@ -94,10 +93,12 @@ int main() {
         vic_waitFrame();
         sidfx_loop();
 
-        if (kr_is_key_pressed(KR_ROW_1, KR_COL_1)) {
+//        if (kr_is_key_pressed(KR_ROW_1, KR_COL_1)) {
+        if (key_pressed('1')){
             sidfx_play(0, SIDFXFire, 1);
         }
-        if (kr_is_key_pressed(KR_ROW_2, KR_COL_2)) {
+        // if (kr_is_key_pressed(KR_ROW_2, KR_COL_2)) {
+        if (key_pressed('2')) {
 			sidfx_play(1, SIDFXExplosion, 1);
         }
         // if (key_pressed(KSCAN_3)) {
@@ -106,7 +107,8 @@ int main() {
         // }
         //if (key_pressed(KSCAN_SPACE)) {
         //if (key == ' ') {
-        if (kr_is_key_pressed(KR_ROW_SPACE, KR_COL_SPACE)) {
+        //if (kr_is_key_pressed(KR_ROW_SPACE, KR_COL_SPACE)) {
+        if (key_pressed(' ')) {
             //    getchx();
             break;
         }
@@ -213,22 +215,6 @@ int main() {
 
     while(playing) {
 
-        // //Cheat keys
-        // // f1-f7    : choose the current row
-        // // 1-6      : shoot the invader on the current row, in that column
-        // char key = getchx();
-        // if (key>='1' && key <= '6') {
-        //     byte col=(key-'1');
-        //     shoot_invader(target_row, col);
-        //     //TODO FIXME BUG doing a printf() after changing back to text mode 
-        //     // causes a rather catastrophic crash -- the emulator locks up!
-        //     // // printf("pew pew\n");
-
-        // }
-        // else if (key>=0x85 && key <= 0x8b) {
-        //     target_row = fn_key_row[key - 0x85];
-
-        // }
 
         handle_inputs(JOY_NUM);
         //move_object(SHIP_OBJ_NUM);
@@ -687,6 +673,11 @@ bool move_rows_down(byte px_down) {
 //TODO add joystick support
 bool handle_inputs(char joy_num) {
 
+    keyb_poll();
+    joy_poll(joy_num);
+
+            // printf("%c", keyb_codes[keyb_key & 0b01111111]);
+
     START_BORDER(VCOL_WHITE);
 
     // signed int key_x_speed=0, key_y_speed=0;
@@ -721,35 +712,37 @@ bool handle_inputs(char joy_num) {
     //      return false;
     // }
 
+    byte key = keyb_codes[keyb_key & 0b01111111];
     
-    bool key_a_pressed = false;
-    bool key_d_pressed = false;
-    bool key_rtn_pressed = false;
+    // if ((keyb_key == 0) && (joyb[joy_num]==0)){
+    //     return false;
+    // }
 
-    key_a_pressed      = kr_is_key_pressed(KR_ROW_A,       KR_COL_A); 
-        //(key == 'a') ; //(keyb_key  == (KSCAN_A | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_A);    
-   key_d_pressed      = kr_is_key_pressed(KR_ROW_D,       KR_COL_D); 
-        //(key == 'd'); //keyb_key  == (KSCAN_D | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_D);
-   key_rtn_pressed = kr_is_key_pressed(KR_ROW_RETURN, KR_COL_RETURN); 
-        //(key == 13); // (keyb_key == (KSCAN_RETURN | KSCAN_QUAL_DOWN)); //key_pressed(KSCAN_RETURN);
+    bool go_left    = 
+        key_pressed(KSCAN_A) || (joyx[joy_num] == -1);  
+      
+    bool go_right   = 
+        key_pressed(KSCAN_D) || (joyx[joy_num] == 1);
+    bool fire       = 
+        key_pressed(KSCAN_RETURN) || (joyb[joy_num] > 0);
 
     signed int new_x = obj_x[SHIP_OBJ_NUM];
 
     //NOTE: we don't want to use a switch() here, since more than 1 key can be
-    //      pressed at once (up to 3).
-    if (key_a_pressed) {
-        new_x -=5;
+    //      pressed at once (up to 3, depending on the keys involved).
+    if (go_left == true) {
+        new_x -= SHIP_SPEED;
         if (new_x >= MIN_SPR_X) {
             obj_x[SHIP_OBJ_NUM] = new_x;
         }
     }
-    if (key_d_pressed) {
-        new_x += 5;
+    if (go_right) {
+        new_x += SHIP_SPEED;
         if (new_x <= MAX_SPR_X) {
             obj_x[SHIP_OBJ_NUM] = new_x;
         }
     } 
-    if (key_rtn_pressed) {
+    if (fire) {
         fire_bullet(BULLET_OBJ_NUM);
         END_BORDER();
         return true;
@@ -765,9 +758,13 @@ void fire_bullet(byte obj_num) {
         sidfx_play(0, SIDFXFire, 1);
 
         obj_x[BULLET_OBJ_NUM] = obj_x[SHIP_OBJ_NUM];
-        obj_y[BULLET_OBJ_NUM] = obj_y[SHIP_OBJ_NUM];
+
+        obj_y_12_4[BULLET_OBJ_NUM] = obj_y_12_4[SHIP_OBJ_NUM];
         obj_speed_x[BULLET_OBJ_NUM] = 0;
-        obj_speed_y[BULLET_OBJ_NUM] = -1;
+
+        //Convert BULLET_SPEED to fix12.4 & put it in y
+        obj_speed_y_12_4[BULLET_OBJ_NUM] = BULLET_SPEED_12_4;
+
         obj_sprite_num[BULLET_OBJ_NUM] = 1;
         obj_image_handle[BULLET_OBJ_NUM] = BULLET_IMAGE_NUM;
 
@@ -809,15 +806,19 @@ void move_object(byte obj_num) {
         }
     }
     //TODO refactor this to eliminate copypasta
-    if (obj_speed_y[obj_num] != 0) { 
-        signed int new_y = obj_y[obj_num];
-        if (obj_speed_y[obj_num] > 0) {
-            if (new_y < MAX_SPR_Y) {
-                new_y += obj_speed_y[obj_num];
-            }
+
+    
+    //signed char cmp = cmp_fxp12_4(obj_speed_y_12_4, _packed_int_to_fxp12_4(0));
+    int obj_y_speed_packed = fxp12_4_to_packed_int(obj_speed_y_12_4[obj_num]);
+    if (obj_y_speed_packed != 0) { 
+        fxp12_4 new_y_12_4 = obj_y_12_4[obj_num];
+        if (obj_y_speed_packed > 0) {
+            //if (fxp12_4_to_packed_int(new_y_12_4) < fxp12_4_to_packed_int(MAX_SPR_Y_12_4)) {
+                //new_y_12_4 += obj_speed_y_12_4[obj_num];
+            //}
         } else{ //must be <0
-           if (new_y > MIN_SPR_Y) {
-                new_y += obj_speed_y[obj_num];
+           if (fxp12_4_to_packed_int(new_y_12_4) > fxp12_4_to_packed_int(MIN_SPR_Y_12_4)) {
+                new_y_12_4 += obj_speed_y_12_4[obj_num];
            }
             //We must have hit a border
             else if (obj_kill_on_border[obj_num]) {
@@ -825,9 +826,9 @@ void move_object(byte obj_num) {
                 return;
             }
         }
-        if (new_y != obj_y[obj_num]) {
-            if ((new_y>=MIN_SPR_Y)  && (new_y<=MAX_SPR_Y)) {
-                obj_y[obj_num]=new_y;
+        if (new_y_12_4 != obj_y_12_4[obj_num]) {
+            if ((new_y_12_4>=MIN_SPR_Y_12_4)  && (new_y_12_4<=MAX_SPR_Y_12_4)) {
+                obj_y_12_4[obj_num]=new_y_12_4;
             }
             //We must have hit a border
             else {
@@ -836,7 +837,7 @@ void move_object(byte obj_num) {
                 }//if obj_kill
             }// else new_y
         }//else new_y != obj_y
-    } //if obj_speed
+    } //if obj_y_speed
 }
 
 void kill_object(byte obj_num) {
@@ -872,11 +873,11 @@ void draw_object(int obj_num) {
 
     if (obj_alive[obj_num]) {
         
-
         #ifdef MY_ASSERT
             inv_assert(sprite_num < 8, "sprite-num=%d in draw-object(%d)", sprite_num, obj_num);
         #endif
-        spr_move(sprite_num, obj_x[obj_num], obj_y[obj_num]);
+
+        spr_move(sprite_num, obj_x[obj_num], fxp12_4_to_frac(obj_y_12_4[obj_num]));//Convert obj_y_12_4 to int
 
         spr_color(sprite_num, obj_sprite_color[obj_num]);
         //TODO always <255?
@@ -1010,8 +1011,12 @@ void init_invaders() {
 
     obj_x               = (signed int[]){160,           160};
     obj_speed_x         = (signed int[]){0,             0};
-    obj_y               = (signed int[]){230,           230};
-    obj_speed_y         = (signed int[]){0,             0};
+
+    //Convert y into 12.4
+    obj_y_12_4          = (fxp12_4[])   { int_to_fxp12_4(230),  int_to_fxp12_4(230) };
+                            //(signed int[]){(230<<4),      230<<4};
+    obj_speed_y_12_4    = (fxp12_4[])   { int_to_fxp12_4(0),    frac_to_fxp12_4(8)  };
+                            //(signed int[]){0,             0};
     obj_alive           = (bool[])      {true,          false};
     obj_sprite_num      = (byte[])      {0,             1};
     obj_sprite_color    = (byte[])      {VCOL_WHITE,    VCOL_WHITE};
@@ -1092,7 +1097,7 @@ __forceinline const void END_BORDER() {
 }
 
 /* Must be called before sid_rand() or sid_int_rand() */
-byte init_sid_rand() {
+void init_sid_rand() {
     sid.voices[2].freq=0xffff;
     sid.voices[2].ctrl=0b10000000;   //noise waveform, gate off
 }
