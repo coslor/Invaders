@@ -15,9 +15,7 @@
     "build": "debug",
     "definitions": [
         "USE_BORDER",
-        "DO_UNROLL",
-        "NO_LONG",
-        "NO_FLOAT"
+        "DO_UNROLL"
     ],
     "includes": [
         "src/invaders.h",
@@ -31,9 +29,10 @@
         "-DNEW_FROM_HERE",
         "-n",
         "-DEBUG",
-        "-O3",
-        "-Dstrict",
-        "-DDMY_ASSERT"    
+        "-O0",
+        "-DDstrict",
+        "-DDMY_ASSERT",
+        "-xz"    
     ],
     "compiler": ""
 }

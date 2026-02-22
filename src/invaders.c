@@ -808,17 +808,24 @@ void move_object(byte obj_num) {
     //TODO refactor this to eliminate copypasta
 
     
+
+//#region obj_y_fpx_12_4 Add obj_speed_y to obj_y
     //signed char cmp = cmp_fxp12_4(obj_speed_y_12_4, _packed_int_to_fxp12_4(0));
     int obj_y_speed_packed = fxp12_4_to_packed_int(obj_speed_y_12_4[obj_num]);
-    if (obj_y_speed_packed != 0) { 
+    if (obj_y_speed_packed != 0) { //need packed fmt in here to check for int.frac==0
         fxp12_4 new_y_12_4 = obj_y_12_4[obj_num];
+        //int new_y_packed = fxp12_4_to_packed_int(new_y_12_4);
         if (obj_y_speed_packed > 0) {
-            //if (fxp12_4_to_packed_int(new_y_12_4) < fxp12_4_to_packed_int(MAX_SPR_Y_12_4)) {
-                //new_y_12_4 += obj_speed_y_12_4[obj_num];
-            //}
-        } else{ //must be <0
-           if (fxp12_4_to_packed_int(new_y_12_4) > fxp12_4_to_packed_int(MIN_SPR_Y_12_4)) {
-                new_y_12_4 += obj_speed_y_12_4[obj_num];
+            int new_y_cmp_MAX_SPR_Y = cmp_fxp12_4(new_y_12_4, MAX_SPR_Y_12_4);
+            if ( new_y_cmp_MAX_SPR_Y < 0) { //new_y < MAX_SPR_Y
+                new_y_12_4 = add_fxp12_4_to_fxp12_4(new_y_12_4, obj_speed_y_12_4[obj_num]);
+            }
+        } else{ //obj_ y_speed_packed must be <0
+            int new_y_cmp_MIN_SPR_Y = cmp_fxp12_4(new_y_12_4, MIN_SPR_Y_12_4);
+            if (new_y_cmp_MIN_SPR_Y > 0) {
+           //if (fxp12_4_to_packed_int(new_y_12_4) > fxp12_4_to_packed_int(MIN_SPR_Y_12_4)) {
+           //     new_y_12_4 += obj_speed_y_12_4[obj_num];
+                new_y_12_4 = add_fxp12_4_to_fxp12_4(new_y_12_4, obj_speed_y_12_4[obj_num]);
            }
             //We must have hit a border
             else if (obj_kill_on_border[obj_num]) {
@@ -838,6 +845,7 @@ void move_object(byte obj_num) {
             }// else new_y
         }//else new_y != obj_y
     } //if obj_y_speed
+//#endregion obj_y_fpx_12_4
 }
 
 void kill_object(byte obj_num) {
