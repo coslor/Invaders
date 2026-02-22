@@ -215,6 +215,22 @@ int main() {
 
     while(playing) {
 
+       // //Cheat keys
+        // // f1-f7    : choose the current row
+        // // 1-6      : shoot the invader on the current row, in that column
+        // char key = getchx();
+        // if (key>='1' && key <= '6') {
+        //     byte col=(key-'1');
+        //     shoot_invader(target_row, col);
+        //     //TODO FIXME BUG doing a printf() after changing back to text mode 
+        //     // causes a rather catastrophic crash -- the emulator locks up!
+        //     // // printf("pew pew\n");
+
+        // }
+        // else if (key>=0x85 && key <= 0x8b) {
+        //     target_row = fn_key_row[key - 0x85];
+
+        // }
 
         handle_inputs(JOY_NUM);
         //move_object(SHIP_OBJ_NUM);
@@ -759,11 +775,13 @@ void fire_bullet(byte obj_num) {
 
         obj_x[BULLET_OBJ_NUM] = obj_x[SHIP_OBJ_NUM];
 
-        obj_y_12_4[BULLET_OBJ_NUM] = obj_y_12_4[SHIP_OBJ_NUM];
+        obj_y[BULLET_OBJ_NUM] = obj_y[SHIP_OBJ_NUM];
+        //obj_y_12_4[BULLET_OBJ_NUM] = obj_y_12_4[SHIP_OBJ_NUM];
         obj_speed_x[BULLET_OBJ_NUM] = 0;
 
         //Convert BULLET_SPEED to fix12.4 & put it in y
-        obj_speed_y_12_4[BULLET_OBJ_NUM] = BULLET_SPEED_12_4;
+        //obj_speed_y_12_4[BULLET_OBJ_NUM] = BULLET_SPEED_12_4;
+        obj_speed_y[BULLET_OBJ_NUM] = -1;
 
         obj_sprite_num[BULLET_OBJ_NUM] = 1;
         obj_image_handle[BULLET_OBJ_NUM] = BULLET_IMAGE_NUM;
@@ -809,40 +827,24 @@ void move_object(byte obj_num) {
 
     
 
-//#region obj_y_fpx_12_4 Add obj_speed_y to obj_y
-    //signed char cmp = cmp_fxp12_4(obj_speed_y_12_4, _packed_int_to_fxp12_4(0));
-    int obj_y_speed_packed = fxp12_4_to_packed_int(obj_speed_y_12_4[obj_num]);
-    if (obj_y_speed_packed != 0) { //need packed fmt in here to check for int.frac==0
-        fxp12_4 new_y_12_4 = obj_y_12_4[obj_num];
-        //int new_y_packed = fxp12_4_to_packed_int(new_y_12_4);
-        if (obj_y_speed_packed > 0) {
-            int new_y_cmp_MAX_SPR_Y = cmp_fxp12_4(new_y_12_4, MAX_SPR_Y_12_4);
-            if ( new_y_cmp_MAX_SPR_Y < 0) { //new_y < MAX_SPR_Y
-                new_y_12_4 = add_fxp12_4_to_fxp12_4(new_y_12_4, obj_speed_y_12_4[obj_num]);
+    if (obj_speed_y[obj_num] != 0) { 
+        signed int new_y = obj_y[obj_num];
+        if (obj_speed_y[obj_num] > 0) {
+            if (new_y < MAX_SPR_Y) {
+                new_y += obj_speed_y[obj_num];
+            } 
+            else if (new_y > MIN_SPR_Y) {
+                new_y += obj_speed_y[obj_num];           
             }
-        } else{ //obj_ y_speed_packed must be <0
-            int new_y_cmp_MIN_SPR_Y = cmp_fxp12_4(new_y_12_4, MIN_SPR_Y_12_4);
-            if (new_y_cmp_MIN_SPR_Y > 0) {
-           //if (fxp12_4_to_packed_int(new_y_12_4) > fxp12_4_to_packed_int(MIN_SPR_Y_12_4)) {
-           //     new_y_12_4 += obj_speed_y_12_4[obj_num];
-                new_y_12_4 = add_fxp12_4_to_fxp12_4(new_y_12_4, obj_speed_y_12_4[obj_num]);
-           }
             //We must have hit a border
             else if (obj_kill_on_border[obj_num]) {
                 kill_object(obj_num);
                 return;
             }
         }
-        if (new_y_12_4 != obj_y_12_4[obj_num]) {
-            if ((new_y_12_4>=MIN_SPR_Y_12_4)  && (new_y_12_4<=MAX_SPR_Y_12_4)) {
-                obj_y_12_4[obj_num]=new_y_12_4;
-            }
-            //We must have hit a border
-            else {
-                if (obj_kill_on_border[obj_num]) {
-                    kill_object(obj_num);
-                }//if obj_kill
-            }// else new_y
+        if (new_y != obj_y[obj_num]) {
+            if ((new_y>=MIN_SPR_Y)  && (new_y<=MAX_SPR_Y)) {
+                obj_y[obj_num]=new_y;            }// else new_y
         }//else new_y != obj_y
     } //if obj_y_speed
 //#endregion obj_y_fpx_12_4
@@ -868,7 +870,6 @@ void kill_object(byte obj_num) {
     }
 }
 
-
 //MAIN thread
 void draw_object(int obj_num) {
     #ifdef MY_ASSERT
@@ -885,7 +886,7 @@ void draw_object(int obj_num) {
             inv_assert(sprite_num < 8, "sprite-num=%d in draw-object(%d)", sprite_num, obj_num);
         #endif
 
-        spr_move(sprite_num, obj_x[obj_num], fxp12_4_to_frac(obj_y_12_4[obj_num]));//Convert obj_y_12_4 to int
+        spr_move(sprite_num, obj_x[obj_num], obj_y[obj_num]);
 
         spr_color(sprite_num, obj_sprite_color[obj_num]);
         //TODO always <255?
@@ -1021,10 +1022,12 @@ void init_invaders() {
     obj_speed_x         = (signed int[]){0,             0};
 
     //Convert y into 12.4
-    obj_y_12_4          = (fxp12_4[])   { int_to_fxp12_4(230),  int_to_fxp12_4(230) };
+    obj_y          =   //(fxp12_4[])   { int_to_fxp12_4(230),  int_to_fxp12_4(230) };
                             //(signed int[]){(230<<4),      230<<4};
-    obj_speed_y_12_4    = (fxp12_4[])   { int_to_fxp12_4(0),    frac_to_fxp12_4(8)  };
-                            //(signed int[]){0,             0};
+                            (signed int[]){230,230};
+    obj_speed_y    =    //(fxp12_4[])   { int_to_fxp12_4(0),    frac_to_fxp12_4(8)  };
+                        (signed int[]){0,             0};
+
     obj_alive           = (bool[])      {true,          false};
     obj_sprite_num      = (byte[])      {0,             1};
     obj_sprite_color    = (byte[])      {VCOL_WHITE,    VCOL_WHITE};

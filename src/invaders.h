@@ -20,8 +20,6 @@
 
 #include <audio/sidfx.h>
 
-#include "fixed_point_12_4.h"
-
 #endif
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
@@ -66,18 +64,13 @@ const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
 const int 	MIN_SPR_X = 35;
 const int 	MAX_SPR_X = 320;
-
 const int 	MIN_SPR_Y = MIN_Y;
-const int 	MIN_SPR_Y_12_4 = MIN_SPR_Y <<4;
-
 const int 	MAX_SPR_Y = 255;
-const int 	MAX_SPR_Y_12_4 = MAX_SPR_Y <<4;
 
 const byte  ROWS_MAX_FRAMES = 32;
 const int   MAX_Y_ROW = 222;
 
 const byte  Y_INC = 5;
-const int	Y_INC_12_4 = Y_INC <<4;
 const int   X_INC = 5;
 
 const byte 	SPRITE_IMAGE_BASE = 0x80;
@@ -170,20 +163,8 @@ typedef enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET} PlayerObjectType;
 
 signed int  obj_x[NUM_OBJECTS]; 
 signed int  obj_speed_x[NUM_OBJECTS];
-
-// typedef struct {
-// 	byte	integer[2];
-// 	byte	fraction;
-// } fxp12_4;
-
-fxp12_4 fxp1;
-
-// 12.4 fixed-point #
-fxp12_4 	obj_y_12_4[NUM_OBJECTS];
-//ACTUALLY A 12.4 fixed-point value
-fxp12_4  	obj_speed_y_12_4[NUM_OBJECTS];
-
-
+signed int  obj_y[NUM_OBJECTS];
+signed int  obj_speed_y[NUM_OBJECTS];
 bool        obj_alive[NUM_OBJECTS];
 byte        obj_sprite_num[NUM_OBJECTS];
 byte        obj_sprite_color[NUM_OBJECTS];
@@ -219,13 +200,7 @@ const byte pow2[8] = {
 };
 
 static const int SHIP_SPEED = 3;
-
-// So I *thing* it works like this:
-//	0b0000000000010000 = 1
-//	0b0000000000001000 = 1/2
-//	0b0000000000000100 = 1/4
-//  etc
-static const fxp12_4 BULLET_SPEED_12_4 = frac_to_fxp12_4(8);
+static const int BULLET_SPEED = 3;
 
 ////
 //from DrMortalWombat's hscrollshmup game sample
