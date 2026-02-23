@@ -30,10 +30,12 @@ __export static const char logo_bmp[] = {
     #embed 8000 2 LOGO_FILE  
 };
 
+//#section
 #pragma data(logo_screen_sec)
 __export static char logo_screen[1000] = {
     #embed 1000 9002 LOGO_FILE
 };
+//#endsection
 
 #pragma data(logo_color_sec)
 //load the text & color screens into
@@ -232,11 +234,13 @@ int main() {
 
         // }
 
-        handle_inputs(JOY_NUM);
-        //move_object(SHIP_OBJ_NUM);
-        if (obj_alive[BULLET_OBJ_NUM]) {
-            move_object(BULLET_OBJ_NUM);
-            draw_object(BULLET_OBJ_NUM);
+        if (playing) {
+            handle_inputs(JOY_NUM);
+            //move_object(SHIP_OBJ_NUM);
+            if (obj_alive[BULLET_OBJ_NUM]) {
+                move_object(BULLET_OBJ_NUM);
+                draw_object(BULLET_OBJ_NUM);
+            }
         }
 
         draw_object(SHIP_OBJ_NUM);
@@ -253,8 +257,10 @@ int main() {
 
         //Actually show the sprites, and move them
         START_BORDER(VCOL_BLUE);
-        
-        smooshed = ! move_invaders();
+
+        if (playing) {
+            smooshed = ! move_invaders();
+        }
         set_sprites_for_all();
 
         if (smooshed) {
@@ -414,7 +420,7 @@ void draw_sprite_row(byte spr_row) {
 //IRQ THREAD
 void raster_irq_handler() {
 
-    if (playing) {
+    //if (playing) {
         // //TODO needed? Useful?    
         // if (vic.intr_ctrl < 128) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
         //     vic.color_back=VCOL_YELLOW;
@@ -463,7 +469,7 @@ void raster_irq_handler() {
         set_next_irq(inv_start_line[current_row_num], true);
 
         lines_used=vic.raster - prev_raster;
-    }
+    //}
 
     vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
 
@@ -1094,14 +1100,14 @@ void game_over() {
 //     return c;
 // }
 
-__forceinline const void START_BORDER(byte new_color) {
+inline const void START_BORDER(byte new_color) {
     if (DO_BORDER) {
         old_border_color = vic.color_border;
         vic.color_border = new_color;
     }
 }
 
-__forceinline const void END_BORDER() {
+inline const void END_BORDER() {
     if (DO_BORDER) {
         vic.color_border = old_border_color;
     }
