@@ -1,29 +1,31 @@
 #ifndef INVADERS_H
 #define INVADERS_H
 
-#if 1
-#include "invaders_memory.h"
-#include "inv_assert.h" 
-#include "keyboard_reader.h"
+//#section includes
+#if 1 //includes
+	#include "invaders_memory.h"
+	#include "inv_assert.h" 
+	#include "keyboard_reader.h"
 
-#include <c64/types.h>
-#include <string.h>
-#include <stdbool.h>
+	#include <c64/types.h>
+	#include <string.h>
+	#include <stdbool.h>
 
-#include <c64/joystick.h>
-#include <c64/keyboard.h>
-#include <c64/vic.h>
-#include <c64/sprites.h>
-#include <c64/memmap.h>
-#include <c64/rasterirq.h>
-#include <c64/cia.h>
+	#include <c64/joystick.h>
+	#include <c64/keyboard.h>
+	#include <c64/vic.h>
+	#include <c64/sprites.h>
+	#include <c64/memmap.h>
+	#include <c64/rasterirq.h>
+	#include <c64/cia.h>
 
-#include <audio/sidfx.h>
-
+	#include <audio/sidfx.h>
 #endif
+//#endsection
+
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
-#define     NUM_ROWS 5
+#define     NUM_ROWS 6
 #define     INVADERS_PER_ROW 6
 
 #define 	DO_UNROLL true
@@ -46,13 +48,7 @@
 
 #define     IRQ_VECTOR *(void **)0x0314
 
-//////////////////////
-// SCANLINES
-//////////////////////
-static const byte  SCANLINES_TO_DRAW_SPRITE=15;
 
-static const byte  SCANLINES_PER_ROW=10 + SCANLINES_TO_DRAW_SPRITE;
-/////////////////////
 
 
 const       byte MAX_IMAGE_HANDLES=2;
@@ -76,18 +72,24 @@ const int   X_INC = 5;
 const byte 	SPRITE_IMAGE_BASE = 0x80;
 
 //26 is small ship, 24 is big one
-const byte SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + 26;
-const byte SMOOSHED_SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + 27;
-const byte BULLET_IMAGE_NUM = SPRITE_IMAGE_BASE + 25;
-//0 is the big Invaders, 12 is the small ones
-const byte INVADER_IMAGE_BASE = SPRITE_IMAGE_BASE + 12;
+const byte 	BIG_SHIP_OFFSET = 24;
+const byte 	SMALL_SHIP_OFFSET = 26;
+const byte 	SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + SMALL_SHIP_OFFSET;
 
-const byte SHIP_OBJ_NUM = 0;
-const byte BULLET_OBJ_NUM = 1;
+const byte 	SMOOSHED_SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + 27;
+const byte 	BULLET_IMAGE_NUM = SPRITE_IMAGE_BASE + 25;
 
-const int SHIP_Y = 230;
+const byte	BIG_INV_OFFSET = 0;
+const byte 	SMALL_INV_OFFSET = 12;
 
-const byte INVADER_SPRITE_HEIGHT = 10;
+const byte 	INVADER_IMAGE_BASE = SPRITE_IMAGE_BASE + SMALL_INV_OFFSET; //12;
+
+const byte 	SHIP_OBJ_NUM = 0;
+const byte 	BULLET_OBJ_NUM = 1;
+
+const int 	SHIP_Y = 230;
+
+const byte 	INVADER_SPRITE_HEIGHT = 10;
 
 
 //TODO come up with better names for these
@@ -96,8 +98,7 @@ const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
 
 const int NUM_OBJECTS = 2;
 
-
-int        current_row_num=0;
+int        	current_row_num=0;
 
 bool        inv_alive[TOTAL_INVS_SIZE]; // = {
 //signed int  inv_x[TOTAL_INVS_SIZE]; // = {
@@ -176,15 +177,31 @@ PlayerObjectType obj_type[NUM_OBJECTS];
 
 byte        obj_image_handle[NUM_OBJECTS];
 
-int collided_inv_index=0xff;
+//int collided_inv_index=0xff;
+
+////
+//Hardware collision detection stuff
+////
+
+//Needs to be >NUM_ROWS at least
+static const byte MAX_FRAME_COLLISIONS=16;
+
+//A list of all frame collisions registered during a frame
+volatile byte frame_collision_mask[MAX_FRAME_COLLISIONS];
+
+//A list of the rasterline that each collision took place on
+volatile byte frame_collision_line[MAX_FRAME_COLLISIONS];
+
+//The number of collisions so far this frame
+volatile byte frame_collision_count;
 
 //
-//inv_start_line contains 2 extra elements:
+//raster_irq_line contains:
 //- #0 is at the top of the screen, and it sets the screen to text mode
 //- From 1-NUM_ROWS are for the Invader rows
 //- #NUM_ROWS+1 is at the bottom of the screen, and it's for the ship
 //
-unsigned int inv_start_line[NUM_ROWS + 3];
+unsigned int raster_irq_line[NUM_ROWS + 3];//why +3 and not +2???
 
 
 // Powers of 2, for quick lookups
@@ -230,8 +247,8 @@ const SIDFX	SIDFXExplosion[1] = {{
 void flip_image(byte index);
 void print_invaders();
 __forceinline void move_invader(byte index);
-void raster_irq_handler();
-bool set_next_irq(unsigned int rasterline, bool calling_from_irq);
+void irq_handler();
+bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq);
 void draw_sprite_row(byte current_row_num);
 void init_invaders();
 void init_sprites();

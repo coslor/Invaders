@@ -7,6 +7,20 @@
 // Invaders...raping!
 //
 
+//////////////////////
+// SCANLINES
+//////////////////////
+static const byte  BIG_SHIPS_LINES_SPRITE=8;
+static const byte  BIG_SHIPS_LINES_ROW=18 + BIG_SHIPS_LINES_SPRITE;
+
+static const byte  SMALL_SHIPS_LINES_SPRITE=12;
+static const byte  SMALL_SHIPS_LINES_ROW=13 + SMALL_SHIPS_LINES_SPRITE;
+
+static const byte  SCANLINES_TO_DRAW_SPRITE=    SMALL_SHIPS_LINES_SPRITE;
+static const byte  SCANLINES_PER_ROW=           SMALL_SHIPS_LINES_ROW;
+/////////////////////
+
+
 char* text_screen = ((char *)0x400);
 char* text_color = ((char *)0x1000);
 
@@ -63,12 +77,16 @@ const byte fn_key_row[7] = {
 
 const byte asdf_row[6] = "asdfgh";
 
+//TODO refactor this
 __export byte coll_spr_num=0xff;
 __export byte coll_spr_y = 0xff;
 
 const unsigned short invaders_2600_size;
 
 const int JOY_NUM=0;
+
+volatile bool collision = false;
+volatile int coll_line = -1;
 
 //MAIN THREAD
 //#pragma optimize(0)
@@ -94,14 +112,17 @@ int main() {
     while(true) {
         vic_waitFrame();
         sidfx_loop();
+        keyb_poll();
+        joy_poll(JOY_NUM);
+
 
 //        if (kr_is_key_pressed(KR_ROW_1, KR_COL_1)) {
-        if (key_pressed('1')){
+        if (key_pressed(KSCAN_1)){
             sidfx_play(0, SIDFXFire, 1);
         }
         // if (kr_is_key_pressed(KR_ROW_2, KR_COL_2)) {
-        if (key_pressed('2')) {
-			sidfx_play(1, SIDFXExplosion, 1);
+        if (key_pressed(KSCAN_2)) {
+			sidfx_play(0, SIDFXExplosion, 1);
         }
         // if (key_pressed(KSCAN_3)) {
         //     sidfx_play(2, SIDFXBigExplosion, 3);
@@ -110,7 +131,11 @@ int main() {
         //if (key_pressed(KSCAN_SPACE)) {
         //if (key == ' ') {
         //if (kr_is_key_pressed(KR_ROW_SPACE, KR_COL_SPACE)) {
-        if (key_pressed(' ')) {
+        if (key_pressed(KSCAN_SPACE) || joyb[JOY_NUM]) {
+            __asm {
+                nop
+                nop
+            }
             //    getchx();
             break;
         }
@@ -166,8 +191,8 @@ int main() {
     //     sta $dc0f
     //     sta $dd0e
     //     sta $dd0f
-    //     lda $d01e
-    //     lda $d01f
+        lda $d01e       //make sure sprite collisions cleared
+        lda $d01f
     }
 
     //After loading & showing logo, so it's Ok to turn BASIC off
@@ -196,23 +221,32 @@ int main() {
 
     int row_num = 0;
 
-    collided_inv_index = 0xff;
+    //collided_inv_index = 0xff;
 
     rows_x_shift = 50;
     rows_x_frame_speed = 4;
 
     rows_frame_num = 0;
 
-    collided_inv_index=0xff;
+    //collided_inv_index=0xff;
 
     playing = true;
 
     draw_object((byte)0); //initialize ship image
 
     //__asm { cli }
-    IRQ_VECTOR=raster_irq_handler;
 
-    set_next_irq(inv_start_line[0], false);
+    //ACK any flags already here
+    vic.intr_ctrl = 0xff;
+
+    IRQ_VECTOR=irq_handler;
+
+
+    //intr_enable=$d01a
+    vic.intr_enable = 0b00001011;  //sprite-sprite collision interrupts enabled
+
+    set_next_raster_irq(raster_irq_line[0], false);
+
     //__asm { sei }
 
     while(playing) {
@@ -234,12 +268,19 @@ int main() {
 
         // }
 
+        //read inputs & move bullet
         if (playing) {
             handle_inputs(JOY_NUM);
             //move_object(SHIP_OBJ_NUM);
             if (obj_alive[BULLET_OBJ_NUM]) {
                 move_object(BULLET_OBJ_NUM);
                 draw_object(BULLET_OBJ_NUM);
+
+                //TODO do we need this here, or in the irq handling?
+                // if (vic.spr_sprcol) {
+                //     kill_bullet(BULLET_OBJ_NUM);
+                //     //TODO: ***add enemy-blowing-up here*
+                // }
             }
         }
 
@@ -248,11 +289,14 @@ int main() {
         //TODO it seems criminal to waste this time
         vic_waitBottom();
 
+        ////reset collision counter with a new frame
+        //frame_collision_count = 0;
+
         //TODO fix this & get collisions working
         //wait_line_and_watch_for_collisions(255);
         //END_BORDER();
 
-        //play slice of special effects each frame
+        //play slice of SID sound FX each frame
         sidfx_loop();
 
         //Actually show the sprites, and move them
@@ -261,6 +305,7 @@ int main() {
         if (playing) {
             smooshed = ! move_invaders();
         }
+
         set_sprites_for_all();
 
         if (smooshed) {
@@ -270,13 +315,42 @@ int main() {
         
         END_BORDER();
 
-#ifdef DO_UNROLL
         #pragma unroll(full)
-#endif
         for (byte row=0;row<NUM_ROWS;row++) {
             flip_row_image(row);
         }
-    }
+
+        if (frame_collision_count > 0) {
+            kill_bullet(BULLET_OBJ_NUM);
+            //TODO kill enemies
+            frame_collision_count = 0;
+
+            int coll_x = obj_x[BULLET_OBJ_NUM];
+            int coll_y = frame_collision_line[frame_collision_count];
+
+            byte row_found=0xff, col_found=0xff;
+            for (int r=0;r<NUM_ROWS;r++) {
+                int dist = abs(coll_y - row_y[r]);
+                if (dist <= 30) {
+                    row_found = r;
+                    break;
+                }
+            }
+            for (int c=0;c<INVADERS_PER_ROW;c++) {
+                int dist=abs(coll_x - col_x[c]);
+                if (dist < 30) {
+                    col_found = c;
+                    break;
+                }
+            }
+
+            if (row_found!=0xff && col_found!=0xff) {
+                shoot_invader(row_found, col_found);
+            }
+        }
+
+    } //while playing
+
     if (smooshed) {
         spr_image(0, SMOOSHED_SHIP_IMAGE_NUM);
 
@@ -307,22 +381,20 @@ void shoot_invader(byte si_row, byte si_col) {
     }
 
     inv_alive[inv_index]=false;
-    // inv_assert(col_invs_left_alive[si_col] > 0, "mismatch in col-invs--left-alive");
     col_invs_left_alive[si_col]--;
     
     //row_dirty[si_row] = true;
 
     byte spr_mask=0;
 
-#ifdef DO_UNROLL
-    #pragma unroll(full)
-#endif
-    for (byte c=0;c<INVADERS_PER_ROW;c++) {
-        byte off=row_inv_index[si_row]+c;
-        if (inv_alive[off]) {
-            spr_mask |= 1<<inv_sprite_num[off];
-        }
-    }
+    // #pragma unroll(full)
+    // for (byte c=0;c<INVADERS_PER_ROW;c++) {
+    //     byte off=row_inv_index[si_row]+c;
+    //     if (inv_alive[off]) {
+    //         spr_mask |= 1<<inv_sprite_num[off];
+    //     }
+    // }
+    spr_mask = row_sprite_enable_mask[si_row] ^= pow2[si_col]; 
     row_sprite_enable_mask[si_row] = spr_mask;
 
 }
@@ -359,11 +431,6 @@ void set_sprites_for_all() {
 //IRQ THREAD
 void draw_sprite_row(byte spr_row) {
 
-    #ifdef MY_ASSERT                        //0123456789012345678901234567890123456789
-        inv_assert(vic.spr_multi==0xff,     "multi=0 for row %d in draw-sprite-row", spr_row);
-        inv_assert(vic.spr_expand_x == 0,   "xpandx=1 for row %d in draw-sprite-row", spr_row);
-        inv_assert(spr_row < NUM_ROWS,      "spr-row=%d in draw-sprite-row", spr_row);
-    #endif
     //Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
     //          in shoot_invader()
     //TODO why doesn't this turn off the player & bullet?
@@ -382,11 +449,7 @@ void draw_sprite_row(byte spr_row) {
 
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
-        #ifdef MY_ASSERT
-            inv_assert(c+2<8,"Bad c+2(%d) in draw-sprite-row", c+2);
-        #endif
-
-        vic.spr_pos[c+2].y= this_row_y;  //do this last? Nope.
+        vic.spr_pos[c+2].y= this_row_y;  //Update Y first.
     }
 
     vic.spr_mcolor0 = row_mcolor0[spr_row];
@@ -394,86 +457,93 @@ void draw_sprite_row(byte spr_row) {
 
     byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
 
-    #ifdef MY_ASSERT
-        inv_assert(new_handle > 0, "new-handle=0 in draw-sprite-row(%d)", spr_row);
-    #endif
 
     #pragma unroll(full)
     for (byte c=0;c<INVADERS_PER_ROW; c++) {
-        // byte inv_index = row_index + c; //row * INVADERS_PER_ROW + c;
-        // if (! inv_alive[inv_index]) {
-        //     continue;
-        // }
-
         byte spr_num = c + 2;
-
-        #ifdef MY_ASSERT
-            inv_assert(spr_num<8, "spr-num=%d at draw-sprite-row", spr_num);
-        #endif
-
         spr_image(spr_num, new_handle);
-        // vic.spr_pos[spr_num].y= this_row_y;  //;do this last?
     }
 }
 
+/*
+*   Build a list of all sprite-sprite collisions that occur in one frame. 
+*   NOTES:  1) frame_irq_collision_count should be reset each frame (thus the name)
+*           2) if the # of collisions exceeds MAX_COLLISIONS, then the last detected collision mask
+*               will be in frame_irq_collision_mask[collision_count] & the rest will be silently
+*               discarded.
+*           3) for each collision, the (approximate-but-pretty-close) rasterline it occurred on 
+                in frame_will also be stored
+*/
+void register_collision(byte coll_mask) {
+    byte new_coll_count = frame_collision_count;
+    frame_collision_mask[frame_collision_count]=coll_mask;
+    frame_collision_line[frame_collision_count] = vic.raster;
+    if (new_coll_count<MAX_FRAME_COLLISIONS) new_coll_count++;
+    frame_collision_count = new_coll_count;
+}
 
 //IRQ THREAD
-void raster_irq_handler() {
+#pragma optimize(0)
+void irq_handler() {
+    //intr_ctrl  =$d019
+    //intr_enable=$d01a
 
-    //if (playing) {
-        // //TODO needed? Useful?    
-        // if (vic.intr_ctrl < 128) {          //This is a raster interrupt ONLY if bit 7 of intr_ctrl/$d019 is set
-        //     vic.color_back=VCOL_YELLOW;
-        //     __asm {
-        //         rti;
-        //     }
-        // }
+    byte intr_ctrl=vic.intr_ctrl;
+    //Check to see if this is a VIC interrupt. If not, ignore it
+    if (intr_ctrl & 0b10000000) {
+        if (intr_ctrl & 0b00000100) {   //collision IRQ
+            vic.intr_ctrl =0xff; //|= 0b10001111;    //ACK spr-spr interrupt
+            //vic.spr_sprcol = 0xff;  //enable more collisions
 
-        prev_raster = vic.raster;
+            //NOTE: apparently we need to read spr_sprcol AFTER we ack the interrupt.
+            //      This is safe (sort-of-atomic) because we're in an IRQ handler
+            register_collision(vic.spr_sprcol);
 
+            // //TODO we need to read spr_sprcol here
+            // coll_spr_num = vic.spr_sprcol;
+        }
+        //TODO this assumes no sprite-background collisions, may need to be extended
+        else {  
+            prev_raster = vic.raster;
+            if (prev_raster >= 230) {
 
-        if (prev_raster >= 230) {
-            //START_BORDER(VCOL_YELLOW);
-
-            // inv_assert(ship.sprite_num < 8, "bad ship sprite in rirq");
-            //vic.spr_color[ship.sprite_num] = ship.sprite_color;
-
-            //TODO always <0xff?
-            
-            if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
-                vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
+                //TODO always <0xff?            
+                if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
+                    vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
+                }
+                if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
+                    vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
+                }
             }
-            if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
-                vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
+            else {
+
+                vic.color_back = VCOL_BLACK;
+
+                START_BORDER(VCOL_GREEN);
+                draw_sprite_row(current_row_num);
+                END_BORDER();
             }
-            //END_BORDER();
+
+            if ((++current_row_num) >= NUM_ROWS) {
+                current_row_num = 0;
+            }
+
+            set_next_raster_irq(raster_irq_line[current_row_num], true);
+
+            vic.intr_ctrl = 0b10000011;    //ACK raster interrupt
+
+            lines_used=vic.raster - prev_raster;
         }
-        else {
+    }
 
-            vic.color_back = VCOL_BLACK;
+    //ACK all currently active interrupt events. Only do this when all enabled sources (raster, 
+    //  sprite-back collision, and/or sprite-sprite collision) have been dealt with.
+    //TODO: What if we don't do this? Re-enable if necessary
+    //'cause here's the deal: what if we have multiple events (raster irq, collision irq) on
+    //  the same rasterline? I'm assuming that we would get multiple IRQs, but would
+    //  the line below mask out any additional ones that haven't been dealt with yet?
+    vic.intr_ctrl |= 0b10000000; 
 
-            START_BORDER(VCOL_GREEN);
-            #ifdef MY_ASSERT
-                inv_assert(current_row_num < NUM_ROWS, 
-                    "current-row-num=%d in raster..handler", current_row_num);
-            #endif
-
-            draw_sprite_row(current_row_num);
-            END_BORDER();
-        }
-
-        if ((++current_row_num) >= NUM_ROWS) {
-            current_row_num = 0;
-        }
-
-        set_next_irq(inv_start_line[current_row_num], true);
-
-        lines_used=vic.raster - prev_raster;
-    //}
-
-    vic.intr_ctrl |= 0b10000000; //0xff;           //ACK irq
-
-    //take_vic_snapshot();
     __asm{ 
         // lsr $d019   //vic.intr_ctrl -- ACK interrupt
 
@@ -496,14 +566,14 @@ void raster_irq_handler() {
  *      false otherwise.
  */
 #pragma optimize(noinline)
- bool set_next_irq(unsigned int rasterline, bool calling_from_irq) {
+bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq) {
 //IRQ THREAD
     //from https://codebase64.com/doku.php?id=base:introduction_to_raster_irqs
 
     bool ok=false;
 
     //TODO: this check has GOT to be more expensive than just calling the redundant sei/cli
-    if (! calling_from_irq) {
+    if (! calling_from_irq) { //SEI
         __asm {
             sei
         }
@@ -529,11 +599,11 @@ void raster_irq_handler() {
     // Bit #1: 1 = Sprite-background collision interrupt enabled.
     // Bit #2: 1 = Sprite-sprite collision interrupt enabled.
     // Bit #3: 1 = Light pen interrupt enabled.
-    vic.intr_enable = 1;
+    vic.intr_enable = 0b00000101;
     ok = true;
 
     //NOTE:see note above
-    if (! calling_from_irq) {
+    if (! calling_from_irq) { //CLI
         __asm{
             cli
         }
@@ -660,13 +730,11 @@ bool move_rows_down(byte px_down) {
         nop
     }
 
-#ifdef DO_UNROLL
     #pragma unroll(full)
-#endif
     for (int r=0;r<NUM_ROWS;r++) {       
 
         row_y[r] += px_down;
-        inv_start_line[r] += px_down;
+        raster_irq_line[r] += px_down;
 
         //TODO make a proper GAME OVER
         if ((row_y[r] + INVADER_SPRITE_HEIGHT) >= (SHIP_Y+4)) { //MAX_Y_ROW) {
@@ -686,12 +754,10 @@ bool move_rows_down(byte px_down) {
     return true;
 }
 
-// void poll_inputs(char joy_num) {
 
-// }
 
 //MAIN thread
-#pragma optimize(0)
+//#pragma optimize(0)
 //TODO add joystick support
 bool handle_inputs(char joy_num) {
 
@@ -733,6 +799,21 @@ bool handle_inputs(char joy_num) {
     // if (key == 0) {
     //      return false;
     // }
+
+       // //Cheat keys
+        // // f1-f7    : choose the current row
+        // // 1-6      : shoot the invader on the current row, in that column
+        // char key = getchx();
+        // if (key>='1' && key <= '6') {
+        //     byte col=(key-'1');
+        //     shoot_invader(target_row, col);
+        //     //TODO FIXME BUG doing a printf() after changing back to text mode 
+        //     // causes a rather catastrophic crash -- the emulator locks up!
+        //     // // printf("pew pew\n");
+        // }
+        // else if (key>=0x85 && key <= 0x8b) {
+        //     target_row = fn_key_row[key - 0x85];
+        // }
 
     byte key = keyb_codes[keyb_key & 0b01111111];
     
@@ -803,11 +884,6 @@ void fire_bullet(byte obj_num) {
 void move_object(byte obj_num) {
     signed int this_x = obj_x[obj_num];
 
-    #ifdef MY_ASSERT
-    inv_assert(this_x >= MIN_SPR_X && this_x <= MAX_SPR_X, "this_x out of bounds:%d", this_x);
-    #endif
-
-
     if (obj_speed_x[obj_num] != 0) { 
         signed int new_x = obj_x[obj_num];
         if (obj_speed_x[obj_num] > 0) {
@@ -826,35 +902,35 @@ void move_object(byte obj_num) {
             }
             else if (obj_kill_on_border[obj_num]) {
                 kill_object(obj_num);
-            }
-        }
-    }
-    //TODO refactor this to eliminate copypasta
-
+            }//if obj_kill
+        }//if new_x!=obj_x
+    }//if obj_speed
     
+    //TODO refactor this to eliminate copypasta & endless braces
 
     if (obj_speed_y[obj_num] != 0) { 
         signed int new_y = obj_y[obj_num];
         if (obj_speed_y[obj_num] > 0) {
             if (new_y < MAX_SPR_Y) {
                 new_y += obj_speed_y[obj_num];
-            } 
-            else if (new_y > MIN_SPR_Y) {
-                new_y += obj_speed_y[obj_num];           
             }
-            //We must have hit a border
-            else if (obj_kill_on_border[obj_num]) {
-                kill_object(obj_num);
-                return;
+        } else {
+            if (new_y > MIN_SPR_Y) {
+                new_y += obj_speed_y[obj_num];
             }
-        }
-        if (new_y != obj_y[obj_num]) {
-            if ((new_y>=MIN_SPR_Y)  && (new_y<=MAX_SPR_Y)) {
-                obj_y[obj_num]=new_y;            }// else new_y
-        }//else new_y != obj_y
-    } //if obj_y_speed
-//#endregion obj_y_fpx_12_4
-}
+        } 
+        //if (new_y != obj_y[obj_num]) {      //has anything changed?
+            if ((new_y>MIN_SPR_Y)  && (new_y<MAX_SPR_Y)) {    //new_y is in bounds
+                obj_y[obj_num]=new_y;            
+            } else {
+                if (obj_kill_on_border[obj_num]) {   //we have hit a border. Should we kill the object?
+                    kill_object(obj_num);
+                    return;
+                }//if (obj_kill_on_border)
+            }//if new_y in bounds
+        //}//if (new_y != obj_y)
+    } //if obj_y_speed != 0
+}   //move_object()
 
 void kill_object(byte obj_num) {
     switch (obj_type[obj_num]) {
@@ -984,16 +1060,14 @@ void init_invaders() {
         col_invs_left_alive[c]  = NUM_ROWS;
     }
 
+    //TODO implement raster splits at 0 and 8 to switch in/out of text mode
     for (int i=0;i<NUM_ROWS;i++) {
-        inv_start_line[i] = INV_MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
-        // inv_start_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
+        raster_irq_line[i] = INV_MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
+        // raster_irq_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
     }
     //TODO cheating
-    inv_start_line[NUM_ROWS] = 230;
+    raster_irq_line[NUM_ROWS] = 230;
 
-#ifdef DO_UNROLL
-    //#pragma unroll(full)
-#endif
     for (byte r=0;r<NUM_ROWS; r++) {
         // inv_assert(r < NUM_ROWS, "r is broken");
         row_y[r]                = INV_MIN_Y + SCANLINES_PER_ROW * r; //SCANLINES_PER_ROW * r;
@@ -1011,11 +1085,6 @@ void init_invaders() {
 
         row_sprite_enable_mask[r] = 255;
         
-
-// #ifdef DO_UNROLL
-//         #pragma unroll(full)
-// #endif
-        
         for (int c=0;c<INVADERS_PER_ROW; c++) {
             byte index=row_inv_index[r]+c;
             inv_alive[index]            = true;
@@ -1024,7 +1093,7 @@ void init_invaders() {
         }
     }
 
-    obj_x               = (signed int[]){160,           160};
+    obj_x               = (signed int[]){160,           0};
     obj_speed_x         = (signed int[]){0,             0};
 
     //Convert y into 12.4
@@ -1138,7 +1207,7 @@ unsigned int sid_int_rand() {
  *  Draw the text screen, including the top status line and 
  *  some (num_stars) random stars.
  * 
- * TODO: use a different charset
+ * TODO: use a different charset for the text
  */
 void init_screen(byte num_stars) {
     clear_text_screen();
