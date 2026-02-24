@@ -249,6 +249,10 @@ int main() {
 
     //__asm { sei }
 
+
+    ////
+    // START MAIN LOOP
+    ////
     while(playing) {
 
        // //Cheat keys
@@ -306,6 +310,10 @@ int main() {
             smooshed = ! move_invaders();
         }
 
+        ////
+        // WTF? How could this work OUTSIDE of the IRQ thread? Makes no sense!
+        // TODO fix this late-night stupidity
+        ////
         set_sprites_for_all();
 
         if (smooshed) {
@@ -408,14 +416,11 @@ void set_sprites_for_all() {
         //TODO replace with inv_sprite_num?
         byte spr_num = c+2;
 
-        if (! col_invs_left_alive[c]) { continue; }
+        //TODO re-check this optimization
+        //if (! col_invs_left_alive[c]) { continue; }
 
         int spr_pos_x = col_x[c] + rows_x_shift; //row_x_index[spr_row];
         rows_inv_spr_pos_x[c]    = spr_pos_x;
-
-        #ifdef MY_ASSERT
-            inv_assert(spr_num<8,"spr-num=%d at set-sprites-for-all", spr_num);
-        #endif
 
         //Using this instead of vic.sprxy() saves us a few cycles by not setting sprite.y
         vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
@@ -424,7 +429,6 @@ void set_sprites_for_all() {
         else
             vic.spr_msbx &= ~(1 << spr_num);
     }
-    //take_vic_snapshot();
 
 }
 
@@ -437,6 +441,14 @@ void draw_sprite_row(byte spr_row) {
     //BUG: I think it does, b/c the bullet won't go away
     //FIXED : changed to &= instead of =
     vic.spr_enable &= row_sprite_enable_mask[spr_row];
+
+    if (row_sprite_enable_mask[spr_row] != 0xff){
+        __asm {
+            nop
+            nop
+
+        }
+    }
 
     if (!row_alive[spr_row]) {
         // __asm {
@@ -856,7 +868,6 @@ bool handle_inputs(char joy_num) {
 
 //MAIN thread
 void fire_bullet(byte obj_num) {
-    inv_assert(obj_type[obj_num] == TYPE_BULLET, "wrong playerobject type");
     if (obj_type[obj_num] == TYPE_BULLET) {
         sidfx_play(0, SIDFXFire, 1);
 
