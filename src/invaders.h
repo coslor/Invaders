@@ -100,37 +100,60 @@ const int NUM_OBJECTS = 2;
 
 int        	current_row_num=0;
 
-bool        inv_alive[TOTAL_INVS_SIZE]; // = {
+bool        inv_alive[TOTAL_INVS_SIZE];
+
 //signed int  inv_x[TOTAL_INVS_SIZE]; // = {
 //signed int  inv_y[TOTAL_INVS_SIZE]; // = {
 //signed int  inv_speed_x[TOTAL_INVS_SIZE];
 //signed int  inv_speed_y[TOTAL_INVS_SIZE];
+
 byte        inv_sprite_num[TOTAL_INVS_SIZE];
-//int         inv_spr_pos_x[TOTAL_INVS_SIZE];
-//byte        inv_spr_pos_y[TOTAL_INVS_SIZE];
+
+//Individual invaders' sprite x pos as drawn
+int         inv_spr_x[TOTAL_INVS_SIZE];
+
+//Individual invaders' sprite y pos as drawn
+byte        inv_spr_y[TOTAL_INVS_SIZE];
+
 //byte        inv_row[TOTAL_INVS_SIZE];
 //byte        inv_col[TOTAL_INVS_SIZE];
 
+//Base (no shifts) Y value for the row
 int         row_y[NUM_ROWS];
 
 //TODO refactor so that we can make these const's
+
+//the # of images in the animation loop for this row
 byte        row_num_images[NUM_ROWS];
+//the image "handles" (addr=handle*64+bank) for this row's animation frame
 byte        row_image_handles[NUM_ROWS][MAX_IMAGE_HANDLES];
-byte        row_image_handle_row[NUM_ROWS];
-byte        row_image_row_index[NUM_ROWS];
+
+//byte        row_image_handle_row[NUM_ROWS];
+//byte        row_image_row_index[NUM_ROWS];
+
+//The current frame # in the row's animation loop
 byte        row_image_num[NUM_ROWS];
 
+//Each row's sprite color. Invaders don't use the sprite main color.
 byte        row_color[NUM_ROWS];
-byte        row_mcolor0[NUM_ROWS];              //Invaders should be drawn with mcolor0 & mcolor1
+
+//Each row's multicolor-color #1. Invaders should be drawn with mcolor0 & mcolor1.
+byte        row_mcolor0[NUM_ROWS];
+
+//Each row's multicolor-color #2
 byte        row_mcolor1[NUM_ROWS];
 
+//Does this row have any living Invaders in it?
 bool        row_alive[NUM_ROWS];
 
-//left & right-most borders for all rows
-signed int  rows_max_spr_x;// = MIN_SPR_X;
-signed int  rows_min_spr_x;// = MAX_SPR_X;
+//left-most x border for all rows
+signed int  rows_min_spr_x;
 
-signed int  rows_x_shift;
+//right-most x border for all rows
+signed int  rows_max_spr_x;
+
+//How far from col[x] each col should be drawn (for shifts back & forth horizontally)
+signed int  cols_x_shift;
 
 //TODO: this is more movement speed, not frame speed
 signed int  rows_x_frame_speed;             //X motion speed
@@ -138,28 +161,34 @@ signed int  rows_x_frame_speed;             //X motion speed
 
 //TODO Fix this--it's halfway all rows (for movement) and halfway by row (for images)
 
-//# of frames for Invaders between moving/flipping images
+//The # of frames for Invaders between moving/flipping images
+
 //This is for Invader rows movement
 byte        rows_frame_num;// = 0;
 //This is for invader row image flipping
 byte        row_max_frames[NUM_ROWS];
 byte        row_frame_num[NUM_ROWS];
 
+//The index (from 0 to (NUM_ROWS*INVADERS_PER_ROW-1)) of the Invader
+//	at col#0 for each row
 byte        row_inv_index[NUM_ROWS];
+
+//For each row, pre-calculate the value for vioc.spr_enable
 byte        row_sprite_enable_mask[NUM_ROWS];
 
-int         rows_inv_spr_pos_x[INVADERS_PER_ROW];
+//The X coordinate for each column. All Invaders in a column have the same x
+int         cols_inv_spr_pos_x[INVADERS_PER_ROW];
 
+//the # of Invaders left alive in a column
 byte        col_invs_left_alive[INVADERS_PER_ROW];
+
+//The "raw" x coord for each column, not including shift. FOr the exact value as shown, use cols_inv_spr_pos_x
 int         col_x[INVADERS_PER_ROW];
 
-
+//Are we still playing? If not, stop moving stuff!
 bool        playing;
 
-
-//__export byte vic_copy[0x2f];
-
-//We can actually leave off the typedef for Oscar, but it pisses off the C checker
+//Non-Invaders objects, like the ship & bullet
 typedef enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET} PlayerObjectType;
 
 signed int  obj_x[NUM_OBJECTS]; 
@@ -171,13 +200,14 @@ byte        obj_sprite_num[NUM_OBJECTS];
 byte        obj_sprite_color[NUM_OBJECTS];
 byte        obj_sprite_mcolor0[NUM_OBJECTS];
 byte        obj_sprite_mcolor1[NUM_OBJECTS];
+
+//Should we kill this Object if it hits a border?
 bool        obj_kill_on_border[NUM_OBJECTS];
 
 PlayerObjectType obj_type[NUM_OBJECTS];
 
+//Note that atm there is no provision for Object animation
 byte        obj_image_handle[NUM_OBJECTS];
-
-//int collided_inv_index=0xff;
 
 ////
 //Hardware collision detection stuff
@@ -216,7 +246,10 @@ const byte pow2[8] = {
     0b10000000,
 };
 
-static const int SHIP_SPEED = 3;
+//How fast does the ship move horizontally?
+static const int SHIP_SPEED = 2;
+
+//How fast does the bullet move vertically?
 static const int BULLET_SPEED = 3;
 
 ////
