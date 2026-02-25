@@ -158,7 +158,6 @@ int main() {
 	init_screen(50);
 
 	//point the VIC to the right screen (to record sprite #s for example)
-	//vic_setmode(VICM_HIRES_MC, logo_screen,logo_bmp); // $d018=$49 $d011=$3b $dd00=$c6
 	vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
 	spr_init((char *)0x400);
 
@@ -170,11 +169,6 @@ int main() {
 
 
 	//TODO BUG: if the lower-right-est Invader is killed, the Player ship is no longer displayed STILL HERE??
-
-	//BUG:pressed keys cause all kinds of screen flicker & distortion.
-	//  Answer: bypass the kernal keyboard read code when JMPing at the end of the IRQ handler.
-	//          However, when you do that, you can't use the kernal keyboard routines(duh!)
-	//FIXED
 
 	//Kill **all** other interrupts?
 	__asm {
@@ -195,7 +189,7 @@ int main() {
 		lda $d01f
 	}
 
-	//After loading & showing logo, so it's Ok to turn BASIC off
+	//After loading & showing logo, it's Ok to turn BASIC off
 	// mmap_trampoline();
 	// mmap_set(MMAP_NO_ROM);
 	
@@ -225,6 +219,7 @@ int main() {
 
 	//How far all cols are shifted to the right as Invaders move back & forth
 	cols_x_shift = 50;
+
 	rows_x_frame_speed = 4;
 
 	rows_frame_num = 0;
@@ -232,24 +227,13 @@ int main() {
 	//collided_inv_index=0xff;
 
 	playing = true;
-
 	draw_object((byte)0); //initialize ship image
-
-	//__asm { cli }
 
 	//ACK any flags already here
 	vic.intr_ctrl = 0xff;
-
-	IRQ_VECTOR=irq_handler;
-
-
-	//intr_enable=$d01a
+	IRQ_VECTOR=handle_irq;
 	vic.intr_enable = 0b00001011;  //sprite-sprite collision interrupts enabled
-
 	set_next_raster_irq(raster_irq_line[0], false);
-
-	//__asm { sei }
-
 
 	////
 	// START MAIN LOOP
@@ -507,7 +491,7 @@ void register_collision(byte coll_mask) {
 
 //IRQ THREAD
 #pragma optimize(0)
-void irq_handler() {
+void handle_irq() {
 	//intr_ctrl  =$d019
 	//intr_enable=$d01a
 
@@ -516,45 +500,18 @@ void irq_handler() {
 	if (intr_ctrl & 0b10000000) {
 		if (intr_ctrl & 0b00000100) {   //collision IRQ
 			vic.intr_ctrl =0xff; //|= 0b10001111;    //ACK spr-spr interrupt
-			//vic.spr_sprcol = 0xff;  //enable more collisions
 
 			//NOTE: apparently we need to read spr_sprcol AFTER we ack the interrupt.
 			//      This is safe (sort-of-atomic) because we're in an IRQ handler
 			register_collision(vic.spr_sprcol);
 
-			// //TODO we need to read spr_sprcol here
+			// //TODO do we need to read spr_sprcol here?
 			// coll_spr_num = vic.spr_sprcol;
 		}
 		//TODO this assumes no sprite-background collisions, may need to be extended
 		else {  
 			prev_raster = vic.raster;
-			if (prev_raster >= 230) {
-
-				//TODO always <0xff?            
-				if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
-					vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
-				}
-				if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
-					vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
-				}
-			}
-			else {
-
-				vic.color_back = VCOL_BLACK;
-
-				START_BORDER(VCOL_GREEN);
-				draw_sprite_row(current_row_num);
-				END_BORDER();
-			}
-
-			if ((++current_row_num) >= NUM_ROWS) {
-				current_row_num = 0;
-			}
-
-			set_next_raster_irq(raster_irq_line[current_row_num], true);
-
-			vic.intr_ctrl = 0b10000011;    //ACK raster interrupt
-
+			handle_raster_irq(prev_raster);
 			lines_used=vic.raster - prev_raster;
 		}
 	}
@@ -584,8 +541,38 @@ void irq_handler() {
 
 }
 
+
+void handle_raster_irq(byte raster) {
+	if (raster >= 230) {
+
+		//TODO always <0xff?            
+		if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
+			vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
+		}
+		if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
+			vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
+		}
+	}
+	else {
+		vic.color_back = VCOL_BLACK;
+
+		START_BORDER(VCOL_GREEN);
+		draw_sprite_row(current_row_num);
+		END_BORDER();
+	}
+
+	if ((++current_row_num) >= NUM_ROWS) {
+		current_row_num = 0;
+	}
+
+	set_next_raster_irq(raster_irq_line[current_row_num], true);
+
+	vic.intr_ctrl = 0b10000011;    //ACK raster interrupt
+}
+
 /*
- *  Returns true if the raster hasn't already passed the requested line (plus a buffer),
+ *  Called from the raster IRQ handler -- calculates the line# for the next raster IRQ and gives
+ *		it to the VIC to set up. Returns true if the raster hasn't already passed the requested line (plus a buffer),
  *      false otherwise.
  */
 #pragma optimize(noinline)
@@ -595,7 +582,7 @@ bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq) {
 
 	bool ok=false;
 
-	//TODO: this check has GOT to be more expensive than just calling the redundant sei/cli
+	//NOTE: t his ch eck is important!
 	if (! calling_from_irq) { //SEI
 		__asm {
 			sei
@@ -607,8 +594,6 @@ bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq) {
 	cia2.sdr=0x7f;
 	byte b=cia1.sdr;
 	b=cia2.sdr;
-
-
 
 	vic.raster = (byte)rasterline; //&0b11111111;                    //rest of raster line# 
 	if (rasterline < 256) {
@@ -632,12 +617,14 @@ bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq) {
 		}
 	}
 
-	//take_vic_snapshot();
 	return ok;
 }
 
 //MAIN THREAD
-//#pragma optimize(noinline)
+/**
+ * 	Increment the Invader row flip counter. If it reaches the max, change the current 
+ * 		image to the next one in the row's animation loop.
+ */
 void flip_row_image(byte row) {
 	//__asm { cli }
 	#ifdef MY_ASSERT
@@ -776,16 +763,6 @@ bool move_rows_down(byte px_down) {
 		if ((row_y[r] + INVADER_SPRITE_HEIGHT) >= (SHIP_Y+4)) { //MAX_Y_ROW) {
 			return false;
 		}
-		// out_of_bounds != (row_y[r] > MAX_Y_ROW);
-
-		// if (row_y[r] > MAX_Y_ROW) {
-			
-		//     vic.color_back = VCOL_RED;
-		//     playing = false;
-		//     printf("exit in move-rows-down()\n");
-		//     return;
-		// }
-
 	}
 	return true;
 }
@@ -793,8 +770,14 @@ bool move_rows_down(byte px_down) {
 
 
 //MAIN thread
-//#pragma optimize(0)
-//TODO add joystick support
+/**
+ * 	Process inputs from the keyboard & mouse. We should be able to deal
+ * 		With more than one (2-3, depending) key down at once.
+ * 
+ * 		Right now, the keyboard controls are immutable, and are:
+ * 		A  D	= left,right
+ * 		RETURN	= fire
+ **/
 bool handle_inputs(char joy_num) {
 
 	keyb_poll();
@@ -803,34 +786,6 @@ bool handle_inputs(char joy_num) {
 			// printf("%c", keyb_codes[keyb_key & 0b01111111]);
 
 	START_BORDER(VCOL_WHITE);
-
-	// signed int key_x_speed=0, key_y_speed=0;
-	// bool key_fire_pressed = false;
-	
-	
-	// // joy_poll(joy_num);
-	// //keyb_poll();
-	// char key = kr_read_key();
-
-	// //vic.color_back=(keyb_key);
-
-	// // while (c:\Users\chris\Downloads\spaxce invaders c64 multi.klakeyb_key != 0) {
-	// //     joy_num++;
-	// //     // __asm {
-	// //     //     nop
-	// //     // }
-	// // };
-
-	// //keyboard combos:
-	// //  W
-	// // ASD  fire=RETURN
-	// //or
-	// //  UP == SHIFT-DN
-	// //LT  RT            fire = SPACE
-	// // (LT is shift-RT arrow)
-	// //
-	// // OR joystick#2
-	// //
 
 	// if (key == 0) {
 	//      return false;
@@ -915,7 +870,9 @@ void fire_bullet(byte obj_num) {
 }
 
 //MAIN thread
-#pragma  optimize(0)
+/**
+ * 	Move a PlayerObject
+ */
 void move_object(byte obj_num) {
 	signed int this_x = obj_x[obj_num];
 
@@ -967,6 +924,9 @@ void move_object(byte obj_num) {
 	} //if obj_y_speed != 0
 }   //move_object()
 
+/*
+ *	"Kill" a PlayerObject
+ */
 void kill_object(byte obj_num) {
 	switch (obj_type[obj_num]) {
 		case TYPE_BULLET: {
@@ -988,6 +948,9 @@ void kill_object(byte obj_num) {
 }
 
 //MAIN thread
+/*
+ *	"Draw" (set up the sprite for) the PlayerObjects, like the ship & bullet.
+*/
 void draw_object(int obj_num) {	
 	byte sprite_num = obj_sprite_num[obj_num];
 	spr_show(sprite_num, obj_alive[obj_num]);

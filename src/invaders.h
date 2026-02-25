@@ -156,6 +156,8 @@ signed int  rows_max_spr_x;
 signed int  cols_x_shift;
 
 //TODO: this is more movement speed, not frame speed
+
+//How far (in pixels) the rows move horizontally each frame
 signed int  rows_x_frame_speed;             //X motion speed
 
 
@@ -280,7 +282,9 @@ const SIDFX	SIDFXExplosion[1] = {{
 void flip_image(byte index);
 void print_invaders();
 __forceinline void move_invader(byte index);
-void irq_handler();
+void handle_irq();
+void handle_raster_irq(byte raster);
+
 bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq);
 void draw_sprite_row(byte current_row_num);
 void init_invaders();
