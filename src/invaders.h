@@ -286,7 +286,7 @@ void handle_irq();
 void handle_raster_irq(byte raster);
 
 bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq);
-void draw_sprite_row(byte current_row_num);
+inline void draw_sprite_row(byte current_row_num);
 void init_invaders();
 void init_sprites();
 void flip_row_image(byte row);

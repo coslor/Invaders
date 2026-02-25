@@ -9,6 +9,15 @@
 
 //////////////////////
 // SCANLINES
+//	These constants determine the timing of the raster interrupts. 
+//		Make them too small, and the Invader sprites become
+//		flashing garbage. Too large, and you can't fit all of the Invaders 
+//		onscreen. Check "lines_used" to see a snapshot of the # of lines
+//		that you've been taking to set up the next sprite.
+//
+//	Note that it takes more time to draw big sprites than small ones.
+//		Interesting, no? The times also vary based on how many sprites
+//		in a row, and how many rows.
 //////////////////////
 static const byte  BIG_SHIPS_LINES_SPRITE=8;
 static const byte  BIG_SHIPS_LINES_ROW=18 + BIG_SHIPS_LINES_SPRITE;
@@ -61,6 +70,10 @@ __export static char logo_color[1000] = {
 
 __export int prev_raster=0;
 
+// Keep this debugging variable. 
+//	Tells you the # of lines your code is taking to set up the next sprite.
+//	Very useful when trying to determine timing. 
+// @see SCANLINES_TO_DRAW_SPRITE 
 __export int lines_used = -1;
 __export int total_invs;
 
@@ -425,13 +438,9 @@ void set_sprites_for_all() {
 }
 
 //IRQ THREAD
-void draw_sprite_row(byte spr_row) {
+inline void draw_sprite_row(byte spr_row) {
 
-	//Instead of calling spr_show() 6 times, we pre-calc the spr_enable mask for the whole row
-	//          in shoot_invader()
-	//TODO why doesn't this turn off the player & bullet?
-	//BUG: I think it does, b/c the bullet won't go away
-	//FIXED : changed to &= instead of =
+	//Note the "&=" instead of "=", since the Invaders have to co-exist with the Objects
 	vic.spr_enable &= row_sprite_enable_mask[spr_row];
 
 	if (row_sprite_enable_mask[spr_row] != 0xff){
@@ -453,23 +462,27 @@ void draw_sprite_row(byte spr_row) {
 
 	int this_row_y = row_y[spr_row];
 
+	byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
 	#pragma unroll(full)
 	for (byte c=0;c<INVADERS_PER_ROW; c++) {
 		//Update Y as early as possible. That way, even if we end up with a 
 		//	discolored or distorted sprite, at least we'll see something.
-		vic.spr_pos[c+2].y= this_row_y;  
+		byte spr_num = c+2;
+		
+		vic.spr_pos[spr_num].y= this_row_y;  
+		spr_image(spr_num, new_handle);
 	}
 
 	vic.spr_mcolor0 = row_mcolor0[spr_row];
 	vic.spr_mcolor1 = row_mcolor1[spr_row];
 
-	byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
+	// byte new_handle = row_image_handles[spr_row][row_image_num[spr_row]];
 
-	#pragma unroll(full)
-	for (byte c=0;c<INVADERS_PER_ROW; c++) {
-		byte spr_num = c + 2;
-		spr_image(spr_num, new_handle);
-	}
+	// #pragma unroll(full)
+	// for (byte c=0;c<INVADERS_PER_ROW; c++) {
+	// 	byte spr_num = c + 2;
+	// 	spr_image(spr_num, new_handle);
+	// }
 }
 
 /*
