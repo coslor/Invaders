@@ -168,7 +168,8 @@ int main() {
 	clear_hires_screen();
 
 	clear_text_screen();
-	init_screen(50);
+	//TODO re-enable stars
+	init_screen(0);
 
 	//point the VIC to the right screen (to record sprite #s for example)
 	vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
@@ -259,7 +260,7 @@ int main() {
 		// char key = getchx();
 		// if (key>='1' && key <= '6') {
 		//     byte col=(key-'1');
-		//     shoot_invader(target_row, col);
+		//     kill_invader(target_row, col);
 		//     //TODO FIXME BUG doing a printf() after changing back to text mode 
 		//     // causes a rather catastrophic crash -- the emulator locks up!
 		//     // // printf("pew pew\n");
@@ -291,12 +292,9 @@ int main() {
 		//TODO it seems criminal to waste this time
 		vic_waitBottom();
 
-		////reset collision counter with a new frame
+		//reset collision counter with a new frame
+		//TODO this was commented out--why?
 		//frame_collision_count = 0;
-
-		//TODO fix this & get collisions working
-		//wait_line_and_watch_for_collisions(255);
-		//END_BORDER();
 
 		//play slice of SID sound FX each frame
 		sidfx_loop();
@@ -328,7 +326,8 @@ int main() {
 
 		if (frame_collision_count > 0) {
 			kill_bullet(BULLET_OBJ_NUM);
-			//TODO kill enemies
+
+			//TODO should this be reset here, or after waitBottom()? Maybe both?
 			frame_collision_count = 0;
 
 			int coll_x = obj_x[BULLET_OBJ_NUM];
@@ -343,7 +342,7 @@ int main() {
 				}
 			}
 			for (int c=0;c<INVADERS_PER_ROW;c++) {
-				int dist=abs(coll_x - col_x[c]);
+				int dist=abs(coll_x - cols_inv_spr_pos_x[c]);
 				if (dist < 30) {
 					col_found = c;
 					break;
@@ -351,7 +350,7 @@ int main() {
 			}
 
 			if (row_found!=0xff && col_found!=0xff) {
-				shoot_invader(row_found, col_found);
+				kill_invader(row_found, col_found);
 			}
 			else {
 				__asm {
@@ -381,19 +380,18 @@ int main() {
 
 
 //MAIN THREAD
-void shoot_invader(byte si_row, byte si_col) {
+void kill_invader(byte si_row, byte si_col) {
 
 	byte row_index = row_inv_index[si_row];
 	byte inv_index = row_index + si_col;
 
-	//inv_assert(inv_alive[index],"zombie Invaders");
 	if (! inv_alive[inv_index] ){
 		//We've already killed this invader, so ignore it
 		return;
 	}
 
 	//TODO re-enable
-	// inv_alive[inv_index]=false;
+	inv_alive[inv_index]=false;
 	col_invs_left_alive[si_col]--;
 	
 	//row_dirty[si_row] = true;
@@ -407,7 +405,16 @@ void shoot_invader(byte si_row, byte si_col) {
 	//         spr_mask |= 1<<inv_sprite_num[off];
 	//     }
 	// }
-	spr_mask = row_sprite_enable_mask[si_row] ^= pow2[si_col]; 
+
+
+	//	pow2[5-si_col]+2: @see row_sprite_enable_mask comments
+	//TODO this is UGLY, FIX IT
+	spr_mask = row_sprite_enable_mask[si_row];
+	if (obj_alive[0]) spr_mask |=1; else spr_mask &= 0b11111110;
+	if (obj_alive[1]) spr_mask |=2; else spr_mask &= 0b11111101;
+
+	//spr_mask ^= pow2[(5-si_col)+2]; 
+	spr_mask &= (0xff-pow2[si_col+2]);
 	row_sprite_enable_mask[si_row] = spr_mask;
 
 }
@@ -440,10 +447,12 @@ void set_sprites_for_all() {
 //IRQ THREAD
 inline void draw_sprite_row(byte spr_row) {
 
-	//Note the "&=" instead of "=", since the Invaders have to co-exist with the Objects
-	vic.spr_enable &= row_sprite_enable_mask[spr_row];
+	//	Note the "&=" instead of "=", since the Invaders have to co-exist with the Objects
+	//@see row_sprite_enable_mask
+	vic.spr_enable = row_sprite_enable_mask[spr_row];
+	//vic.spr_enable &= row_sprite_enable_mask[spr_row];
 
-	if (row_sprite_enable_mask[spr_row] != 0xff){
+	if (row_sprite_enable_mask[spr_row] != 0b11111111){
 		__asm {
 			nop
 			nop
@@ -494,10 +503,10 @@ inline void draw_sprite_row(byte spr_row) {
 *           3) for each collision, the (approximate-but-pretty-close) rasterline it occurred on 
 				in frame_will also be stored
 */
-void register_collision(byte coll_mask) {
+void register_collision(byte coll_mask, byte raster) {
 	byte new_coll_count = frame_collision_count;
 	frame_collision_mask[frame_collision_count]=coll_mask;
-	frame_collision_line[frame_collision_count] = vic.raster;
+	frame_collision_line[frame_collision_count] = raster;	//passed raster along in case we get interrupted
 	if (new_coll_count<MAX_FRAME_COLLISIONS) new_coll_count++;
 	frame_collision_count = new_coll_count;
 }
@@ -512,20 +521,22 @@ void handle_irq() {
 	//Check to see if this is a VIC interrupt. If not, ignore it
 	if (intr_ctrl & 0b10000000) {
 		if (intr_ctrl & 0b00000100) {   //collision IRQ
-			vic.intr_ctrl =0xff; //|= 0b10001111;    //ACK spr-spr interrupt
+			vic.intr_ctrl = 00000100;    //ACK spr-spr interrupt
+			//vic.intr_ctrl = intr_ctrl;
 
 			//NOTE: apparently we need to read spr_sprcol AFTER we ack the interrupt.
 			//      This is safe (sort-of-atomic) because we're in an IRQ handler
-			register_collision(vic.spr_sprcol);
+			register_collision(vic.spr_sprcol, vic.raster);
 
 			// //TODO do we need to read spr_sprcol here?
-			// coll_spr_num = vic.spr_sprcol;
+			coll_spr_num = vic.spr_sprcol;
 		}
 		//TODO this assumes no sprite-background collisions, may need to be extended
 		else {  
 			prev_raster = vic.raster;
 			handle_raster_irq(prev_raster);
 			lines_used=vic.raster - prev_raster;
+			vic.intr_ctrl = 0b00000001;
 		}
 	}
 
@@ -558,7 +569,6 @@ void handle_irq() {
 void handle_raster_irq(byte raster) {
 	if (raster >= 230) {
 
-		//TODO always <0xff?            
 		if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
 			vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
 		}
@@ -682,7 +692,7 @@ void find_min_max_spr_x() {
 	
 	for (byte c=0;c<INVADERS_PER_ROW;c++) {
 		if (col_invs_left_alive[c] > 0) {
-			int spr_col_x = col_x[c] + cols_x_shift;
+			int spr_col_x = cols_inv_spr_pos_x[c];
 			
 			if (spr_col_x < rows_min_spr_x) {
 				rows_min_spr_x = spr_col_x;
@@ -721,10 +731,6 @@ bool bounce_rows() {
 
 	//TODO combine these 2 if's?
 	if ((rows_x_frame_speed > 0) && (rows_max_spr_x >= MAX_SPR_X)) {
-		#ifdef MY_ASSERT
-			inv_assert((rows_x_frame_speed = 4), "rows_x_frame_speed=%d bounce_rows",rows_x_frame_speed);
-		#endif
-
 		ok= move_rows_down(Y_INC);
 		cols_x_shift -= rows_x_frame_speed-1; //X_INC*2;
 		rows_x_frame_speed *= -1;
@@ -810,7 +816,7 @@ bool handle_inputs(char joy_num) {
 		// char key = getchx();
 		// if (key>='1' && key <= '6') {
 		//     byte col=(key-'1');
-		//     shoot_invader(target_row, col);
+		//     kill_invader(target_row, col);
 		//     //TODO FIXME BUG doing a printf() after changing back to text mode 
 		//     // causes a rather catastrophic crash -- the emulator locks up!
 		//     // // printf("pew pew\n");
@@ -877,6 +883,11 @@ void fire_bullet(byte obj_num) {
 		obj_image_handle[BULLET_OBJ_NUM] = BULLET_IMAGE_NUM;
 
 		obj_alive[BULLET_OBJ_NUM] = true;
+
+		//enable showing the bullet in all rows
+		for (int r=0;r<NUM_ROWS;r++) {
+			row_sprite_enable_mask[r] |=2;
+		}
 		
 		//vic.color_back = VCOL_LT_GREEN;
 	}
@@ -980,10 +991,13 @@ void draw_object(int obj_num) {
 		if (obj_sprite_mcolor1[obj_num] < 0xff) {
 			vic.spr_mcolor1 = obj_sprite_mcolor1[obj_num];
 		}
-		
+		//TODO? assumes only 2 objects
 		spr_image(obj_sprite_num[obj_num], obj_image_handle[obj_num]);
+		vic.spr_enable |= obj_num;
 	}
-
+	else  {
+		vic.spr_enable &= (255 - pow2[obj_num]);
+	}
 
 	//__asm{ sei }
 }
@@ -1065,7 +1079,7 @@ void init_invaders() {
 		row_mcolor0[r]          = (r + 2) % 16;
 		row_mcolor1[r]          = (row_mcolor0[r] == VCOL_RED ? VCOL_GREEN : VCOL_RED);
 
-		row_sprite_enable_mask[r] = 0xff;
+		row_sprite_enable_mask[r] = 0b11111111;
 		
 		for (int c=0;c<INVADERS_PER_ROW; c++) {
 			byte inv_index			= row_inv_index[r]+c;

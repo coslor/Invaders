@@ -175,7 +175,13 @@ byte        row_frame_num[NUM_ROWS];
 //	at col#0 for each row
 byte        row_inv_index[NUM_ROWS];
 
-//For each row, pre-calculate the value for vioc.spr_enable
+	/*	Precalculate vic.spr_enable. The bits should be in this order (low to hi):
+		0=ship
+		1=bullet
+		2=Invader #0 (leftmost)
+		...
+		7=Invader 5 (rightmost)
+	*/
 byte        row_sprite_enable_mask[NUM_ROWS];
 
 //The X coordinate for each column. All Invaders in a column have the same x
@@ -290,7 +296,7 @@ inline void draw_sprite_row(byte current_row_num);
 void init_invaders();
 void init_sprites();
 void flip_row_image(byte row);
-void shoot_invader(byte row, byte col);
+void kill_invader(byte row, byte col);
 void poll_inputs(char joy_num);
 void move_object(byte obj_num);
 void draw_object(int obj_num);

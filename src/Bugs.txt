@@ -1,0 +1,6 @@
+**BUGS**
+
+#1: 2/26/26 Even if all bottom rows are gone, the Invaders squish the player as thought they were there. 
+#2: 2/26/26 No noise when Invader shot
+#3: 2/26/26 No score change when Invader shot
+#4: 2/26/26 No score display
