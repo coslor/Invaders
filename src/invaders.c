@@ -18,15 +18,26 @@
 //	Note that it takes more time to draw big sprites than small ones.
 //		Interesting, no? The times also vary based on how many sprites
 //		in a row, and how many rows.
-//////////////////////
+///////////////////////
+
 static const byte  BIG_SHIPS_LINES_SPRITE=8;
 static const byte  BIG_SHIPS_LINES_ROW=18 + BIG_SHIPS_LINES_SPRITE;
 
-static const byte  SMALL_SHIPS_LINES_SPRITE=12;
-static const byte  SMALL_SHIPS_LINES_ROW=13 + SMALL_SHIPS_LINES_SPRITE;
+static const byte  SMALL_SHIPS_LINES_SPRITE=15;
+static const byte  SMALL_SHIPS_LINES_ROW=12 + SMALL_SHIPS_LINES_SPRITE;
 
-static const byte  SCANLINES_TO_DRAW_SPRITE=    SMALL_SHIPS_LINES_SPRITE;
+/* How many scanlines BEFORE the sprite is to be shown, do we need for setup (color, image, etc)?*/
+static const byte  SCANLINES_TO_BUILD_SPRITE=    SMALL_SHIPS_LINES_SPRITE;
+
+/* How many total scanlines, including SCANLINES_TO_BUILD_SPRITE and the time
+ *	it actually takes to draw the sprite, do we need for each row?
+*/
 static const byte  SCANLINES_PER_ROW=           SMALL_SHIPS_LINES_ROW;
+/////////////////////
+//	NOTE:when you tune these ^^^^ be sure to check for sprite collisions
+//		afterwards. I have no goddamn idea why, but cutting the timing too thin
+//		results in collisions being ignored *sometimes*. It may not fail
+//		until the 3rd or 4th or later collision.
 /////////////////////
 
 
@@ -73,7 +84,7 @@ __export int prev_raster=0;
 // Keep this debugging variable. 
 //	Tells you the # of lines your code is taking to set up the next sprite.
 //	Very useful when trying to determine timing. 
-// @see SCANLINES_TO_DRAW_SPRITE 
+// @see SCANLINES_TO_BUILD_SPRITE 
 __export int lines_used = -1;
 __export int total_invs;
 
@@ -278,12 +289,6 @@ int main() {
 			if (obj_alive[BULLET_OBJ_NUM]) {
 				move_object(BULLET_OBJ_NUM);
 				draw_object(BULLET_OBJ_NUM);
-
-				//TODO do we need this here, or in the irq handling?
-				// if (vic.spr_sprcol) {
-				//     kill_bullet(BULLET_OBJ_NUM);
-				//     //TODO: ***add enemy-blowing-up here*
-				// }
 			}
 		}
 
@@ -311,13 +316,13 @@ int main() {
 		// TODO fix this late-night stupidity
 		////
 		set_sprites_for_all();
+		END_BORDER();
 
 		if (smooshed) {
 			playing = false;
 			break;
 		}
 		
-		END_BORDER();
 
 		#pragma unroll(full)
 		for (byte row=0;row<NUM_ROWS;row++) {
@@ -335,7 +340,7 @@ int main() {
 
 			byte row_found=0xff, col_found=0xff;
 			for (int r=0;r<NUM_ROWS;r++) {
-				int dist = abs(coll_y - row_y[r]);
+				int dist = abs(coll_y - row_inv_spr_pos_y[r]);
 				if (dist <= 30) {
 					row_found = r;
 					break;
@@ -390,31 +395,31 @@ void kill_invader(byte si_row, byte si_col) {
 		return;
 	}
 
-	//TODO re-enable
 	inv_alive[inv_index]=false;
+
 	col_invs_left_alive[si_col]--;
-	
-	//row_dirty[si_row] = true;
+
+	//There's no col_alive yet...should there be?
+	// if (col_invs_left_alive[si_col]==0) {
+	// 	col_alive[si_row]=false;
+	// }
+
+	byte invs_alive = (--row_invs_left_alive[si_row]);
+	if (invs_alive==0) {
+		row_alive[si_row]=false;
+	}
 
 	byte spr_mask=0;
 
-	// #pragma unroll(full)
-	// for (byte c=0;c<INVADERS_PER_ROW;c++) {
-	//     byte off=row_inv_index[si_row]+c;
-	//     if (inv_alive[off]) {
-	//         spr_mask |= 1<<inv_sprite_num[off];
-	//     }
-	// }
-
-
-	//	pow2[5-si_col]+2: @see row_sprite_enable_mask comments
 	//TODO this is UGLY, FIX IT
 	spr_mask = row_sprite_enable_mask[si_row];
-	if (obj_alive[0]) spr_mask |=1; else spr_mask &= 0b11111110;
-	if (obj_alive[1]) spr_mask |=2; else spr_mask &= 0b11111101;
 
 	//spr_mask ^= pow2[(5-si_col)+2]; 
 	spr_mask &= (0xff-pow2[si_col+2]);
+
+	if (obj_alive[0]) spr_mask |=1; else spr_mask &= 0b11111110;
+	if (obj_alive[1]) spr_mask |=2; else spr_mask &= 0b11111101;
+	
 	row_sprite_enable_mask[si_row] = spr_mask;
 
 }
@@ -453,19 +458,19 @@ inline void draw_sprite_row(byte spr_row) {
 	//vic.spr_enable &= row_sprite_enable_mask[spr_row];
 
 	if (row_sprite_enable_mask[spr_row] != 0b11111111){
-		__asm {
-			nop
-			nop
+		// __asm {
+		// 	nop
+		// 	nop
 
-		}
+		// }
 	}
 
 	if (!row_alive[spr_row]) {
-		__asm {
-//            cli
-			nop
-			nop
-		}
+// 		__asm {
+// //            cli
+// 			nop
+// 			nop
+// 		}
 		return;
 	}
 
@@ -479,6 +484,7 @@ inline void draw_sprite_row(byte spr_row) {
 		byte spr_num = c+2;
 		
 		vic.spr_pos[spr_num].y= this_row_y;  
+		row_inv_spr_pos_y[spr_row] = this_row_y;
 		spr_image(spr_num, new_handle);
 	}
 
@@ -548,6 +554,7 @@ void handle_irq() {
 	//  the line below mask out any additional ones that haven't been dealt with yet?
 	vic.intr_ctrl |= 0b10000000; 
 
+	vic.intr_enable = 0b00000101;
 	__asm{ 
 		// lsr $d019   //vic.intr_ctrl -- ACK interrupt
 
@@ -569,12 +576,12 @@ void handle_irq() {
 void handle_raster_irq(byte raster) {
 	if (raster >= 230) {
 
-		if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
-			vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
-		}
-		if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
-			vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
-		}
+		// if (obj_sprite_mcolor0[SHIP_OBJ_NUM] < 0xff) {
+		// 	vic.spr_mcolor0 = obj_sprite_mcolor0[SHIP_OBJ_NUM];
+		// }
+		// if (obj_sprite_mcolor1[SHIP_OBJ_NUM] < 0xff) {
+		// 	vic.spr_mcolor1 = obj_sprite_mcolor1[SHIP_OBJ_NUM];
+		// }
 	}
 	else {
 		vic.color_back = VCOL_BLACK;
@@ -584,11 +591,16 @@ void handle_raster_irq(byte raster) {
 		END_BORDER();
 	}
 
-	if ((++current_row_num) >= NUM_ROWS) {
-		current_row_num = 0;
+	//FIXME infinite loop if no rows are alive
+	while (true) {
+		if ((++current_row_num) >= NUM_ROWS) {
+			current_row_num = 0;
+		}
+		if (row_alive[current_row_num]) {
+			set_next_raster_irq(raster_irq_line[current_row_num], true);
+			break;
+		}
 	}
-
-	set_next_raster_irq(raster_irq_line[current_row_num], true);
 
 	vic.intr_ctrl = 0b10000011;    //ACK raster interrupt
 }
@@ -598,7 +610,6 @@ void handle_raster_irq(byte raster) {
  *		it to the VIC to set up. Returns true if the raster hasn't already passed the requested line (plus a buffer),
  *      false otherwise.
  */
-#pragma optimize(noinline)
 bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq) {
 //IRQ THREAD
 	//from https://codebase64.com/doku.php?id=base:introduction_to_raster_irqs
@@ -714,6 +725,29 @@ void find_min_max_spr_x() {
 	return;
 }//find_min_max_spr_x
 
+/*
+*	Find the bottom-most row with any Invaders in it, then find the first living Invader in that row
+*		and use that inv_spr_y[] value as our rows_max_spr_y
+*/
+void find_rows_max_spr_y() {
+	rows_max_spr_y=0;
+	for (byte r=NUM_ROWS-1;r>=0;r--) {
+		if (! row_alive[r]) {
+			continue;
+		}
+		byte inv_index = row_inv_index[r];
+		for (int c=0;c<INVADERS_PER_ROW;c++) {
+			if (inv_alive[inv_index+c]) {
+				rows_max_spr_y=row_inv_spr_pos_y[r];
+				return;
+			}//if
+		}//for c
+	}//for r
+	if (rows_max_spr_y == 0 ) {
+		vic.color_back=VCOL_RED;
+	}
+}
+
 
 /*
  * Check to see if the max/min X position has been crossed. If so,
@@ -725,9 +759,13 @@ void find_min_max_spr_x() {
 */
 //MAIN thread
 bool bounce_rows() {
+
+	START_BORDER(VCOL_YELLOW);
+
 	bool ok = true;
 
 	find_min_max_spr_x();
+	find_rows_max_spr_y();
 
 	//TODO combine these 2 if's?
 	if ((rows_x_frame_speed > 0) && (rows_max_spr_x >= MAX_SPR_X)) {
@@ -745,6 +783,7 @@ bool bounce_rows() {
 		rows_x_frame_speed *= -1;
 	}
 	return ok;
+	END_BORDER();
 }
 
 //MAIN THREAD
@@ -779,7 +818,8 @@ bool move_rows_down(byte px_down) {
 		raster_irq_line[r] += px_down;
 
 		//TODO make a proper GAME OVER
-		if ((row_y[r] + INVADER_SPRITE_HEIGHT) >= (SHIP_Y+4)) { //MAX_Y_ROW) {
+		//if ((row_y[r] + INVADER_SPRITE_HEIGHT) >= (SHIP_Y+4)) { //MAX_Y_ROW) {
+		if (rows_max_spr_y >= (SHIP_Y+4)) {
 			return false;
 		}
 	}
@@ -964,7 +1004,7 @@ void kill_object(byte obj_num) {
 //         }
 
 		default: {
-			vic.color_back = VCOL_RED;
+			vic.color_back = VCOL_LT_BLUE;
 			printf("kill-object() got obj type %d\n", obj_type[obj_num]);
 			while(true);
 		}
@@ -1058,8 +1098,8 @@ void init_invaders() {
 
 	//TODO implement raster splits at 0 and 8 to switch in/out of text mode
 	for (int i=0;i<NUM_ROWS;i++) {
-		raster_irq_line[i] = INV_MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
-		// raster_irq_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_DRAW_SPRITE;
+		raster_irq_line[i] = INV_MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_BUILD_SPRITE;
+		// raster_irq_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_BUILD_SPRITE;
 	}
 	//TODO cheating
 	raster_irq_line[NUM_ROWS] = 230;
@@ -1073,6 +1113,7 @@ void init_invaders() {
 		row_image_num[r]        = 0;
 		row_max_frames[r]       = ROW_MAX_FRAMES;
 		row_frame_num[r]        = 0;
+		row_invs_left_alive[r]	= INVADERS_PER_ROW;
 		row_alive[r]            = true;
 		row_inv_index[r]        = r * INVADERS_PER_ROW;
 		row_color[r]            = 0;    //Invaders don't use sprite main color
@@ -1085,8 +1126,8 @@ void init_invaders() {
 			byte inv_index			= row_inv_index[r]+c;
 			inv_alive[inv_index]	= true;
 			inv_sprite_num[inv_index] = 2 + c;
-			inv_spr_x[inv_index]	= 0;
-			inv_spr_x[inv_index]	= 0;
+			// inv_spr_x[inv_index]	= 0;
+			// inv_spr_x[inv_index]	= 0;
 		}
 	}
 

@@ -109,11 +109,11 @@ bool        inv_alive[TOTAL_INVS_SIZE];
 
 byte        inv_sprite_num[TOTAL_INVS_SIZE];
 
-//Individual invaders' sprite x pos as drawn
-int         inv_spr_x[TOTAL_INVS_SIZE];
+// //Individual invaders' sprite x pos as drawn
+// int         inv_spr_x[TOTAL_INVS_SIZE];
 
-//Individual invaders' sprite y pos as drawn
-byte        inv_spr_y[TOTAL_INVS_SIZE];
+// //Individual invaders' sprite y pos as drawn
+// byte        inv_spr_y[TOTAL_INVS_SIZE];
 
 //byte        inv_row[TOTAL_INVS_SIZE];
 //byte        inv_col[TOTAL_INVS_SIZE];
@@ -146,11 +146,14 @@ byte        row_mcolor1[NUM_ROWS];
 //Does this row have any living Invaders in it?
 bool        row_alive[NUM_ROWS];
 
-//left-most x border for all rows
+//left-most x border for all rows;calculated in find_min_max_spr_x()
 signed int  rows_min_spr_x;
 
-//right-most x border for all rows
+//right-most x border for all rows;calculated in find_min_max_spr_x()
 signed int  rows_max_spr_x;
+
+//bottom-most border for all rows; calculated in find_rows_max_spr_y()
+byte 		rows_max_spr_y;
 
 //How far from col[x] each col should be drawn (for shifts back & forth horizontally)
 signed int  cols_x_shift;
@@ -183,6 +186,11 @@ byte        row_inv_index[NUM_ROWS];
 		7=Invader 5 (rightmost)
 	*/
 byte        row_sprite_enable_mask[NUM_ROWS];
+
+/* Actual sprite y position for Invaders in each row (all the same for that row) */
+int 		row_inv_spr_pos_y[NUM_ROWS];
+
+byte 		row_invs_left_alive[NUM_ROWS];
 
 //The X coordinate for each column. All Invaders in a column have the same x
 int         cols_inv_spr_pos_x[INVADERS_PER_ROW];

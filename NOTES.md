@@ -40,7 +40,7 @@ $d01e cannot be written to, and is reset upon reading
 
 1. X Disable timer interrupts on the CIA
 
-1. store the value 3 in D01A, to enable raster and sprite to data collision interrupts.
+1. store the value 3 in d01a (vic.intr_enable), to enable raster and sprite to data collision interrupts.
 
 1. store the value $FF in D012 to get interrupts on raster line FF.
 
@@ -55,7 +55,7 @@ Then in my own interrupt routine:
 
 1.if that doesn't result in a 0, I call the routine that handles sprite to datacollision. For now this increments the border colour and saves the value 0 in the $D01F (again, that last one as a test)
 
-1.In both cases I store the $FF in $D019 to acknowledge the interrupt and be able to receive the next.
+1.In both cases I store the $FF in $d019 (vic.intr_ctrl) to acknowledge the interrupt and be able to receive the next.
 
 "For the MBC and MMC interrupts, only the first collision will trigger an
 interrupt (i.e. if the collision registers $d01e resp. $d01f contained the
@@ -63,9 +63,9 @@ value zero before the collision). To trigger further interrupts after a
 collision, the concerning register has to be cleared first by reading from
 it."
 
-"It's a double whammy. You need to write to $D019 to reset the interrupt condition, AND you read from $D01E/$D01F to reset the sprite collision."
+"It's a double whammy. You need to write to $d019 (vic.intr_ctrl) to reset the interrupt condition, AND you read from $D01E/$D01F to reset the sprite collision."
 
-To clear a latched bit in $d01a, write a 1 to it
+To clear a latched bit in $d01a (vic.intr_enable), write a 1 to it
 
 Only the first collision will trigger an
 interrupt (i.e. if the collision registers $d01e or $d01f contained the
@@ -73,7 +73,7 @@ value zero before the collision). To trigger further interrupts after a
 collision, the respective register has to be cleared first by reading from
 it.
 
-The bit 7 in the latch $d019 reflects the inverted state of the IRQ output
+The bit 7 in the latch $d019 (vic.intr_ctrl) reflects the inverted state of the IRQ output
 of the VIC.
 
 ----
@@ -83,3 +83,49 @@ MISC
 - 64 cycles/line
 - 
 
+----
+----
+vic.intr_ctrl
+There are four interrupt sources in the VIC. Each source has a corresponding
+bit in the interrupt latch (register $d019 (vic.intr_ctrl)) and a bit in the interrupt
+enable register ($d01a (vic.intr_enable)). When an interrupts occurs, the corresponding bit in
+the latch is set. To clear it, the processor has to write a "1" there "by
+hand". The VIC doesn't clear the latch on its own.
+
+If at least one latch bit and the corresponding bit in the enable register
+is set, the VIC holds the IRQ line low and thereby triggers an interrupt in
+the processor. So the four interrupt sources can be independently enabled
+and disabled using the enable bits. Since the VIC, as mentioned, doesn't
+clear the interrupt latch by itself, the processor has to do this before it
+resets the I flag or returns from the interrupt routine. Otherwise the
+interrupt will be re-triggered immediately (the IRQ input of the 6510 is
+state-sensitive).
+
+The following table describes the four interrupt sources and their bits in
+the latch and enable registers:
+
+ Bit|Name| Trigger condition
+ ---+----+-----------------------------------------------------------------
+  0 | RST| Reaching a certain raster line. The line is specified by writing
+    |    | to register $d012 and bit 7 of $d011, and internally stored by
+    |    | the VIC for the raster compare. The test for reaching the
+    |    | interrupt raster line is done in cycle 1 of every line (for line
+    |    | 0, in cycle 2). It is possible to trigger an interrupt
+    |    | immediately by writing to $d011/$d012, but the interrupt can
+    |    | never occur more than once per raster line.
+  1 | MBC| Collision of at least one sprite with the text/bitmap graphics
+    |    | (one sprite data sequencer outputs non-transparent pixel at the
+    |    | same time at which the graphics data sequencer outputs a
+    |    | foreground pixel)
+  2 | MMC| Collision of two or more sprites (two sprite data sequencers
+    |    | output a non-transparent pixel at the same time)
+  3 | LP | Negative edge on the LP input (lightpen)
+
+For the MBC and MMC interrupts, only the first collision will trigger an
+interrupt (i.e. if the collision registers $d01e or $d01f contained the
+value zero before the collision). To trigger further interrupts after a
+collision, the respective register has to be cleared first by reading from
+it.
+
+The bit 7 in the latch $d019 (vic.intr_ctrl) reflects the inverted state of the IRQ output
+of the VIC.
