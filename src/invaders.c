@@ -23,8 +23,8 @@
 static const byte  BIG_SHIPS_LINES_SPRITE=8;
 static const byte  BIG_SHIPS_LINES_ROW=18 + BIG_SHIPS_LINES_SPRITE;
 
-static const byte  SMALL_SHIPS_LINES_SPRITE=15;
-static const byte  SMALL_SHIPS_LINES_ROW=12 + SMALL_SHIPS_LINES_SPRITE;
+static const byte  SMALL_SHIPS_LINES_SPRITE=16;
+static const byte  SMALL_SHIPS_LINES_ROW=13 + SMALL_SHIPS_LINES_SPRITE;
 
 /* How many scanlines BEFORE the sprite is to be shown, do we need for setup (color, image, etc)?*/
 static const byte  SCANLINES_TO_BUILD_SPRITE=    SMALL_SHIPS_LINES_SPRITE;
@@ -60,7 +60,7 @@ static const char spriteset[] =  {
 #pragma reference(spriteset)
 
 #pragma data(logo_bmp_sec)
-__export static const char logo_bmp[] = {
+__export static char logo_bmp[] = {
 	#embed 8000 2 LOGO_FILE  
 };
 
@@ -112,6 +112,8 @@ const int JOY_NUM=0;
 volatile bool collision = false;
 volatile int coll_line = -1;
 
+Bitmap	bmc;
+
 //MAIN THREAD
 //#pragma optimize(0)
 int main() {
@@ -126,6 +128,8 @@ int main() {
 	// Disable CIA interrupts, we do not want interference
 	// with our joystick interrupt
 	cia_init();
+
+	bm_init(&bmc, logo_bmp,40,25);
 
 	display_logo();
 
@@ -178,13 +182,14 @@ int main() {
 
 	clear_hires_screen();
 
-	clear_text_screen();
+	//clear_text_screen();
 	//TODO re-enable stars
-	init_screen(0);
+	init_screen_mc(25);
 
 	//point the VIC to the right screen (to record sprite #s for example)
-	vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
-	spr_init((char *)0x400);
+	//TODO BANK vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
+	//spr_init((char *)0x400);
+	spr_init(logo_color);
 
 	init_invaders();
 	init_sprites();
@@ -219,10 +224,11 @@ int main() {
 	// mmap_set(MMAP_NO_ROM);
 	
 
-	//All sprites are multicolor
-	vic.spr_multi   = 0b11111111;
+	//All sprites are multicolor EXCEPT for the missile!
+	vic.spr_multi   = 0b11111101;
 	vic.spr_mcolor0 = VCOL_LT_GREEN;
 	vic.spr_mcolor1 = VCOL_RED;
+	//spr_color(obj_sprite_num[BULLET_OBJ_NUM], VCOL_RED);
 
 	// //Instead of dealing with the CIA stuff here and in the irq routine, I should
 	// //  probably turn them off completely. What exactly does this code do?
@@ -319,7 +325,8 @@ int main() {
 		END_BORDER();
 
 		if (smooshed) {
-			playing = false;
+			game_over();
+
 			break;
 		}
 		
@@ -368,7 +375,10 @@ int main() {
 	} //while playing
 
 	if (smooshed) {
-		spr_image(0, SMOOSHED_SHIP_IMAGE_NUM);
+		for (int i=0;i<60;i++) {
+			vic_waitFrame();
+			sidfx_loop();
+		}
 
 		gotoxy(15,11);
 		printf("GAME OVER");
@@ -421,6 +431,8 @@ void kill_invader(byte si_row, byte si_col) {
 	if (obj_alive[1]) spr_mask |=2; else spr_mask &= 0b11111101;
 	
 	row_sprite_enable_mask[si_row] = spr_mask;
+
+	sidfx_play(0, SIDFXExplosion, 1);
 
 }
 
@@ -819,7 +831,7 @@ bool move_rows_down(byte px_down) {
 
 		//TODO make a proper GAME OVER
 		//if ((row_y[r] + INVADER_SPRITE_HEIGHT) >= (SHIP_Y+4)) { //MAX_Y_ROW) {
-		if (rows_max_spr_y >= (SHIP_Y+4)) {
+		if (rows_max_spr_y >= (SHIP_Y-10)) {
 			return false;
 		}
 	}
@@ -1141,18 +1153,19 @@ void init_invaders() {
 	//Convert y into 12.4
 	obj_y          =   //(fxp12_4[])   { int_to_fxp12_4(230),  int_to_fxp12_4(230) };
 							//(signed int[]){(230<<4),      230<<4};
-							(signed int[]){230,230};
+						(signed int[])	{SHIP_Y,		SHIP_Y};
 	obj_speed_y    =    //(fxp12_4[])   { int_to_fxp12_4(0),    frac_to_fxp12_4(8)  };
-						(signed int[]){0,             0};
+						(signed int[])	{0,             0};
 
 	obj_alive           = (bool[])      {true,          false};
 	obj_sprite_num      = (byte[])      {0,             1};
-	obj_sprite_color    = (byte[])      {VCOL_WHITE,    VCOL_WHITE};
+	obj_sprite_color    = (byte[])      {VCOL_WHITE,    VCOL_RED};
 	obj_sprite_mcolor0  = (byte[])      {VCOL_GREEN,    VCOL_GREEN};
 	obj_sprite_mcolor1  = (byte[])      {VCOL_RED,      VCOL_RED};
 	obj_kill_on_border  = (bool[])      {false,         true};
-	obj_type            = (PlayerObjectType[]){TYPE_SHIP,TYPE_BULLET};
-	obj_image_handle    = (byte[])  {SHIP_IMAGE_NUM, BULLET_IMAGE_NUM};
+	obj_type            = (PlayerObjectType[])
+										{TYPE_SHIP,		TYPE_BULLET};
+	obj_image_handle    = (byte[])  	{SHIP_IMAGE_NUM, BULLET_IMAGE_NUM};
 	
 	rows_frame_num      = 0;
 	
@@ -1196,6 +1209,9 @@ void display_logo(){
 
 void game_over() {
 	playing = false;
+	sidfx_play(0, SIDFXExplosion, 1);
+	spr_image(0, SMOOSHED_SHIP_IMAGE_NUM);
+
 }
 
 // char getch_with_keybounce() {
@@ -1254,7 +1270,7 @@ void init_screen(byte num_stars) {
 
 	for(byte i=0;i<num_stars;i++) {
 		unsigned int pos;
-		byte* text=(byte*)0x400;
+		byte* text=(byte*)0x4000;	//FIXME remove magic number
 		byte* color=(byte*)(0xd800);
 
 		while ( text[pos=40+(rand() % 960)] != 32);
@@ -1273,6 +1289,23 @@ void init_screen(byte num_stars) {
 
 }
 
+#pragma optimize(noinline)
+__noinline void init_screen_mc(byte num_stars) {
+	for (byte i=0;i<num_stars;i++) {
+		int x=rand() % 320;
+		int y=rand() % 200;
+
+		bmmc_put(&bmc, x,y,3);
+
+		// unsigned int pos;
+		// byte* text=(byte*)0x4000;	//FIXME remove magic number
+		// byte* color=(byte*)(0xd800);
+
+		// while ( text[pos=40+(rand() % 960)] != 32);
+		// text[pos]=46; //screencode for "."
+		// color[pos]=rand() % 16;
+	}
+}
 void clear_hires_screen() {
 		//clear out the hires stuff
 	memset(logo_bmp, 0, 8000);
@@ -1282,6 +1315,7 @@ void clear_hires_screen() {
 
 void clear_text_screen() {
 	//clear out the text stuff
+	//FIXME remove magic
 	memset((void *)0x400, 0x20, 1000);
 	memset((void *)0xd800, 0, 1000);    
 }

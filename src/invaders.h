@@ -20,6 +20,8 @@
 	#include <c64/cia.h>
 
 	#include <audio/sidfx.h>
+
+	#include <gfx/mcbitmap.h>
 #endif
 //#endsection
 
@@ -63,13 +65,13 @@ const int 	MAX_SPR_X = 320;
 const int 	MIN_SPR_Y = MIN_Y;
 const int 	MAX_SPR_Y = 255;
 
-const byte  ROWS_MAX_FRAMES = 32;
+const byte  ROWS_MAX_FRAMES = 12;
 const int   MAX_Y_ROW = 222;
 
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
-const byte 	SPRITE_IMAGE_BASE = 0x80;
+const byte 	SPRITE_IMAGE_BASE = 8; //0?
 
 //26 is small ship, 24 is big one
 const byte 	BIG_SHIP_OFFSET = 24;
@@ -87,7 +89,7 @@ const byte 	INVADER_IMAGE_BASE = SPRITE_IMAGE_BASE + SMALL_INV_OFFSET; //12;
 const byte 	SHIP_OBJ_NUM = 0;
 const byte 	BULLET_OBJ_NUM = 1;
 
-const int 	SHIP_Y = 230;
+const int 	SHIP_Y = 235;
 
 const byte 	INVADER_SPRITE_HEIGHT = 10;
 
@@ -338,6 +340,7 @@ void init_sid_rand();
 unsigned int sid_int_rand();
 
 void init_screen(byte num_stars);
+void init_screen_mc(byte num_stars);
 void clear_hires_screen();
 void clear_text_screen();
 
