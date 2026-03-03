@@ -129,3 +129,16 @@ it.
 
 The bit 7 in the latch $d019 (vic.intr_ctrl) reflects the inverted state of the IRQ output
 of the VIC.
+
+
+__BORDER BANDS__
+| COLOR      |  SECTION            |
+|---         |---                  |
+| LT_GREY    | bullet handling     |
+| GREEN      | handle raster irq   |
+| WHITE      | handle inputs       |
+| PURPLE     | SID handling        |
+| LT_GREEN   | move Invaders       |
+| ORANGE     | flip_row_image()    |
+| LT_BLUE    | default             |
+

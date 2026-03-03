@@ -23,7 +23,7 @@
     ],
     "args": [
         "-gp",
-        "-v2",
+        "-v",
         "-DdVSPRITES_MAX=16",
         "-DdNUM_IRQS=28",
         "-DNEW_FROM_HERE",

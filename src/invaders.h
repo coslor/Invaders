@@ -50,13 +50,13 @@
 
 #define     IRQ_VECTOR *(void **)0x0314
 
-
+#define 	DEBUG_POINT() __asm { nop; nop ; nop; };
 
 
 const       byte MAX_IMAGE_HANDLES=2;
 
 const int   MIN_Y = 50;   //MAX(SCANLINES_PER_ROW,50);
-const int 	INV_MIN_Y = MIN_Y + 25;
+const int 	INV_MIN_Y = MIN_Y; // + 25;
 
 const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
@@ -71,20 +71,22 @@ const int   MAX_Y_ROW = 222;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
-const byte 	SPRITE_IMAGE_BASE = 8; //0?
 
 //26 is small ship, 24 is big one
 const byte 	BIG_SHIP_OFFSET = 24;
 const byte 	SMALL_SHIP_OFFSET = 26;
-const byte 	SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + SMALL_SHIP_OFFSET;
-
-const byte 	SMOOSHED_SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + 27;
-const byte 	BULLET_IMAGE_NUM = SPRITE_IMAGE_BASE + 25;
 
 const byte	BIG_INV_OFFSET = 0;
 const byte 	SMALL_INV_OFFSET = 12;
 
-const byte 	INVADER_IMAGE_BASE = SPRITE_IMAGE_BASE + SMALL_INV_OFFSET; //12;
+//SPTITE_IMAGE_BASE=(&spriteset-0x4000)/0x40=(0x7000-0x4000)/0x40=0xc0
+const int 	SPRITE_IMAGE_BASE = 0xc0; //8; //0?
+const int 	SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + SMALL_SHIP_OFFSET;
+
+int 	SMOOSHED_SHIP_IMAGE_NUM = SPRITE_IMAGE_BASE + 27;
+int 	BULLET_IMAGE_NUM = 0xd9; //(0x7640-0x4000)/0x40; //SPRITE_IMAGE_BASE + 25;
+
+const int 	INVADER_IMAGE_BASE = SPRITE_IMAGE_BASE + SMALL_INV_OFFSET; //12;
 
 const byte 	SHIP_OBJ_NUM = 0;
 const byte 	BULLET_OBJ_NUM = 1;
@@ -95,7 +97,7 @@ const byte 	INVADER_SPRITE_HEIGHT = 10;
 
 
 //TODO come up with better names for these
-//const byte  MAX_FRAMES=32;      //determines speed of invader X motion
+//const byte  MAX_FRAMES=32;    //determines speed of invader X motion
 const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
 
 const int NUM_OBJECTS = 2;
@@ -128,7 +130,8 @@ int         row_y[NUM_ROWS];
 //the # of images in the animation loop for this row
 byte        row_num_images[NUM_ROWS];
 //the image "handles" (addr=handle*64+bank) for this row's animation frame
-byte        row_image_handles[NUM_ROWS][MAX_IMAGE_HANDLES];
+byte        row_image_handle_num[NUM_ROWS];
+byte 		row_image_handle[MAX_IMAGE_HANDLES * NUM_ROWS];
 
 //byte        row_image_handle_row[NUM_ROWS];
 //byte        row_image_row_index[NUM_ROWS];
@@ -252,6 +255,11 @@ volatile byte frame_collision_count;
 unsigned int raster_irq_line[NUM_ROWS + 3];//why +3 and not +2???
 
 
+//Each row gets its own "vic", which gets copied to the real VIC when the time comes
+VIC 	row_vic[NUM_ROWS];
+//Each row gets a copy of the sprite image handle pointers, located at screen+0x3e8
+byte	row_sprite_handles[NUM_ROWS * 8];
+
 // Powers of 2, for quick lookups
 const byte pow2[8] = {
     0b00000001,
@@ -302,17 +310,20 @@ void handle_irq();
 void handle_raster_irq(byte raster);
 
 bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq);
-inline void draw_sprite_row(byte current_row_num);
+
+void draw_sprite_row(VIC* this_vic, byte* sprite_handle_bytes, byte inv_row);
+//inline void draw_sprite_row(byte current_row_num);
+
 void init_invaders();
 void init_sprites();
 void flip_row_image(byte row);
-void kill_invader(byte row, byte col);
+void kill_invader(byte si_row, byte si_col);
 void poll_inputs(char joy_num);
 void move_object(byte obj_num);
-void draw_object(int obj_num);
+void draw_object(byte obj_num);
 void fire_bullet(byte obj_num);
 void kill_bullet(byte obj_num);
-byte wait_line_and_watch_for_collisions(int line);
+byte wait_line_and_watch_for_collisions(byte line);
 void set_sprites_for_all();
 //void take_vic_snapshot();
 
@@ -340,9 +351,12 @@ void init_sid_rand();
 unsigned int sid_int_rand();
 
 void init_screen(byte num_stars);
-void init_screen_mc(byte num_stars);
+void init_screen_hires(byte num_stars);
 void clear_hires_screen();
 void clear_text_screen();
+
+void wait_for_fire();
+void copy_vic(VIC *, VIC *);
 
 
 #pragma compile("invaders.c")
