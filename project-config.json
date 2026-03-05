@@ -14,7 +14,7 @@
     ],
     "build": "debug",
     "definitions": [
-        "USE_BORDER",
+        "xUSE_BORDER",
         "DO_UNROLL"
     ],
     "includes": [
@@ -28,7 +28,7 @@
         "-DdNUM_IRQS=28",
         "-DNEW_FROM_HERE",
         "-n",
-        "-DEBUG",
+        "-DdDEBUG",
         "-O3",
         "-DDstrict",
         "-DDMY_ASSERT",

@@ -7,6 +7,8 @@
 // Invaders...raping!
 //
 
+#pragma data(data)
+
 //////////////////////
 // SCANLINES
 //	These constants determine the timing of the raster interrupts. 
@@ -41,41 +43,10 @@ static const byte  SCANLINES_PER_ROW=           SMALL_SHIPS_LINES_ROW;
 /////////////////////
 
 
-char* text_screen = ((char *)0x400);
-char* text_color = ((char *)0x1000);
+// char* text_screen = ((char *)0x400);
+// char* text_color = ((char *)0x1000);
 
-#define LOGO_FILE "resources/space_invaders_logo.kla"
-
-#pragma data(spriteset_sec)
-
-////
-//  NOTE: anything like this, where its data that needs to be there, but the 
-//      var itself isn't referenced anywhere, needs to be called out 
-//      with __export or #pragma reference(name), or it will be optimized away!
-////
-static const char spriteset[] =  {
-	#embed spd_sprites "resources/invaders-2600.spd"
-
-};
-#pragma reference(spriteset)
-
-#pragma data(logo_bmp_sec)
-__export static char logo_bmp[] = {
-	#embed 8000 2 LOGO_FILE  
-};
-
-//#section
-#pragma data(logo_screen_sec)
-__export static char logo_screen[1000] = {
-	#embed 1000 9002 LOGO_FILE
-};
-//#endsection
-
-#pragma data(logo_color_sec)
-//load the text & color screens into
-__export static char logo_color[1000] = {
-	#embed 1000 8002 LOGO_FILE
-};
+// #define LOGO_FILE "resources/space_invaders_logo.kla"
 
 #pragma data(data)
 
@@ -112,7 +83,9 @@ const int JOY_NUM=0;
 volatile bool collision = false;
 volatile int coll_line = -1;
 
-Bitmap	bmc;
+Bitmap		bitmap = {
+	(static char *)logo_bmp, nullptr, 40, 25, 320
+};
 
 //MAIN THREAD
 //#pragma optimize(0)
@@ -129,7 +102,7 @@ int main() {
 	// with our joystick interrupt
 	cia_init();
 
-	bm_init(&bmc, logo_bmp,40,25);
+	bm_init(&bitmap, (byte *)logo_bmp,40,25);
 
 	display_logo();
 
@@ -175,7 +148,7 @@ int main() {
 	//  adds just the soupcon of true randomness we really need.
 
 	init_sid_rand();
-	srand(sid_rand());
+	srand(1);
 
 	vic.color_back = VCOL_LT_GREY;
 	vic.color_border = VCOL_DARK_GREY;
@@ -290,6 +263,7 @@ int main() {
 
 		//read inputs & move bullet
 		if (playing) {
+			START_BORDER(VCOL_ORANGE);
 			handle_inputs(JOY_NUM);
 			//move_object(SHIP_OBJ_NUM);
 			if (obj_alive[BULLET_OBJ_NUM]) {
@@ -299,7 +273,8 @@ int main() {
 		}
 
 		draw_object(SHIP_OBJ_NUM);
-		
+		END_BORDER();
+
 		//TODO it seems criminal to waste this time
 		vic_waitBottom();
 
@@ -316,7 +291,9 @@ int main() {
 		if (playing) {
 			smooshed = ! move_invaders();
 		}
-
+		END_BORDER();
+		vic.color_border = VCOL_DARK_GREY;
+		
 		////
 		// WTF? How could this work OUTSIDE of the IRQ thread? Makes no sense!
 		// TODO fix this late-night stupidity
@@ -331,11 +308,14 @@ int main() {
 		}
 		
 
+		START_BORDER(VCOL_YELLOW);
 		#pragma unroll(full)
 		for (byte row=0;row<NUM_ROWS;row++) {
 			flip_row_image(row);
 		}
+		END_BORDER();
 
+		//for (coll=0;coll<frame_collision_count;coll++) {
 		if (frame_collision_count > 0) {
 			kill_bullet(BULLET_OBJ_NUM);
 
@@ -1143,6 +1123,17 @@ void init_invaders() {
 		}
 	}
 
+	/** NEW VERSION
+	//TODO implement raster splits at 0 and 8 to switch in/out of text mode
+	for (int i=0;i<NUM_ROWS;i++) {
+		raster_irq_line[i] = row_y[i] - SCANLINES_TO_BUILD_SPRITE;
+			//MIN_Y+(SCANLINES_PER_ROW*i)-SCANLINES_TO_BUILD_SPRITE;
+		// raster_irq_line[i] = MIN_Y+SCANLINES_PER_ROW*i-SCANLINES_TO_BUILD_SPRITE;
+	}
+	//TODO cheating
+	raster_irq_line[NUM_ROWS] = 230;
+	*/
+
 	for (int c=0;c<INVADERS_PER_ROW;c++) {
 		col_x[c] = 0 + c*35;
 	}
@@ -1289,13 +1280,33 @@ void init_screen(byte num_stars) {
 
 }
 
+/*
+	CLears the multicolor screen, and draws num_stars 
+*/
 #pragma optimize(noinline)
 __noinline void init_screen_mc(byte num_stars) {
+
+	/*
+	%00 for background color 0 ($d021)
+	%01 for the upper nibble of the screen matrix
+		NOTE: %01 is transparent for sprite collisions
+	%10 for lower nibble of the screen matrix
+	%11 for the lower nibble of color RAM
+	*/
+	// for (int i=0;i<1000;i++) {
+	// 	*(logo_color+i)=rand() % 16 * 16;
+	// }
+
+	memset((void *)0xd800, 1, 1000);    
+
 	for (byte i=0;i<num_stars;i++) {
 		int x=rand() % 320;
 		int y=rand() % 200;
 
-		bmmc_put(&bmc, x,y,3);
+		bmmc_put(&bitmap, x,y,1);
+		int char_num=(y/8)*40+(x/8);
+		*(logo_color+char_num)=rand() % 16 * 16;
+
 
 		// unsigned int pos;
 		// byte* text=(byte*)0x4000;	//FIXME remove magic number

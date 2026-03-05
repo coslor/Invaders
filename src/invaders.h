@@ -25,6 +25,8 @@
 #endif
 //#endsection
 
+#pragma data(data)
+
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
 #define     NUM_ROWS 6
@@ -38,9 +40,9 @@
 	static const bool DO_BORDER=false;
 #endif
 
-#ifdef USE_BORDER
+//#ifdef USE_BORDER
     byte old_border_color=0;
-#endif
+//#endif
 
 // #define     START_BORDER(color) #ifdef USE_BORDER  old_border_color=vic.color_border;vic.color_border = color;  #endif
 // #define     END_BORDER #ifdef USE_BORDER  vic.color_border=old_border_color;  #endif
@@ -71,7 +73,7 @@ const int   MAX_Y_ROW = 222;
 const byte  Y_INC = 5;
 const int   X_INC = 5;
 
-const byte 	SPRITE_IMAGE_BASE = 8; //0?
+const byte 	SPRITE_IMAGE_BASE = 0xc0; //0?
 
 //26 is small ship, 24 is big one
 const byte 	BIG_SHIP_OFFSET = 24;
