@@ -8,13 +8,14 @@
         "src/inv_assert.h",
         "src/inv_assert.c",
         "src/keyboard_reader.c",
+        "src/stacking_borders.c",
         "src/resources/invaders-2600.spd",
         "src/resources/space_invaders_logo.kla"
          
     ],
     "build": "debug",
     "definitions": [
-        "xUSE_BORDER",
+        "USE_BORDERS",
         "DO_UNROLL"
     ],
     "includes": [

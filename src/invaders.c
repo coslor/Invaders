@@ -25,8 +25,8 @@
 static const byte  BIG_SHIPS_LINES_SPRITE=8;
 static const byte  BIG_SHIPS_LINES_ROW=18 + BIG_SHIPS_LINES_SPRITE;
 
-static const byte  SMALL_SHIPS_LINES_SPRITE=16;
-static const byte  SMALL_SHIPS_LINES_ROW=13 + SMALL_SHIPS_LINES_SPRITE;
+static const byte  SMALL_SHIPS_LINES_SPRITE=17;
+static const byte  SMALL_SHIPS_LINES_ROW=15 + SMALL_SHIPS_LINES_SPRITE;
 
 /* How many scanlines BEFORE the sprite is to be shown, do we need for setup (color, image, etc)?*/
 static const byte  SCANLINES_TO_BUILD_SPRITE=    SMALL_SHIPS_LINES_SPRITE;
@@ -75,6 +75,8 @@ const byte asdf_row[6] = "asdfgh";
 //TODO refactor this
 __export byte coll_spr_num=0xff;
 __export byte coll_spr_y = 0xff;
+__export byte back_coll_spr_num=0xff;
+
 
 const unsigned short invaders_2600_size;
 
@@ -86,6 +88,8 @@ volatile int coll_line = -1;
 Bitmap		bitmap = {
 	(static char *)logo_bmp, nullptr, 40, 25, 320
 };
+
+// Invaders...looting!
 
 //MAIN THREAD
 //#pragma optimize(0)
@@ -148,6 +152,7 @@ int main() {
 	//  adds just the soupcon of true randomness we really need.
 
 	init_sid_rand();
+	//NOTE: let's go for predictability during development
 	srand(1);
 
 	vic.color_back = VCOL_LT_GREY;
@@ -155,13 +160,10 @@ int main() {
 
 	clear_hires_screen();
 
-	//clear_text_screen();
 	//TODO re-enable stars
-	init_screen_mc(25);
+	init_screen_mc(0);
 
 	//point the VIC to the right screen (to record sprite #s for example)
-	//TODO BANK vic_setmode(VICM_TEXT, (char *)0x0400, (char *)0x1000);
-	//spr_init((char *)0x400);
 	spr_init(logo_color);
 
 	init_invaders();
@@ -244,26 +246,10 @@ int main() {
 	////
 	while(playing) {
 
-	   // //Cheat keys
-		// // f1-f7    : choose the current row
-		// // 1-6      : shoot the invader on the current row, in that column
-		// char key = getchx();
-		// if (key>='1' && key <= '6') {
-		//     byte col=(key-'1');
-		//     kill_invader(target_row, col);
-		//     //TODO FIXME BUG doing a printf() after changing back to text mode 
-		//     // causes a rather catastrophic crash -- the emulator locks up!
-		//     // // printf("pew pew\n");
 
-		// }
-		// else if (key>=0x85 && key <= 0x8b) {
-		//     target_row = fn_key_row[key - 0x85];
-
-		// }
-
+		START_BORDER(VCOL_MED_GREY);
 		//read inputs & move bullet
 		if (playing) {
-			START_BORDER(VCOL_ORANGE);
 			handle_inputs(JOY_NUM);
 			//move_object(SHIP_OBJ_NUM);
 			if (obj_alive[BULLET_OBJ_NUM]) {
@@ -271,33 +257,40 @@ int main() {
 				draw_object(BULLET_OBJ_NUM);
 			}
 		}
-
 		draw_object(SHIP_OBJ_NUM);
-		END_BORDER();
+		END_BORDER();//blue
 
+		START_BORDER(VCOL_WHITE);
 		//TODO it seems criminal to waste this time
 		vic_waitBottom();
+		END_BORDER(); //white
 
 		//reset collision counter with a new frame
 		//TODO this was commented out--why?
 		//frame_collision_count = 0;
 
+		START_BORDER(VCOL_LT_GREEN);
 		//play slice of SID sound FX each frame
 		sidfx_loop();
+		END_BORDER();//lt_green
 
 		//Actually show the sprites, and move them
-		START_BORDER(VCOL_BLUE);
+		//START_BORDER(VCOL_BLUE);
 
+		// START_BORDER(VCOL_PURPLE);
+		// if (playing) {
+		// 	move_bombs();
+		// }
+		// END_BORDER();//purple
+
+		START_BORDER(VCOL_YELLOW);
 		if (playing) {
-			smooshed = ! move_invaders();
+			smooshed = ! move_invaders() ;
+			move_bombs();
 		}
 		END_BORDER();
-		vic.color_border = VCOL_DARK_GREY;
 		
-		////
-		// WTF? How could this work OUTSIDE of the IRQ thread? Makes no sense!
-		// TODO fix this late-night stupidity
-		////
+		START_BORDER(VCOL_CYAN);
 		set_sprites_for_all();
 		END_BORDER();
 
@@ -308,13 +301,14 @@ int main() {
 		}
 		
 
-		START_BORDER(VCOL_YELLOW);
+		START_BORDER(VCOL_BROWN);
 		#pragma unroll(full)
 		for (byte row=0;row<NUM_ROWS;row++) {
 			flip_row_image(row);
 		}
-		END_BORDER();
+		END_BORDER(); //brown
 
+		START_BORDER(VCOL_PURPLE);
 		//for (coll=0;coll<frame_collision_count;coll++) {
 		if (frame_collision_count > 0) {
 			kill_bullet(BULLET_OBJ_NUM);
@@ -334,7 +328,7 @@ int main() {
 				}
 			}
 			for (int c=0;c<INVADERS_PER_ROW;c++) {
-				int dist=abs(coll_x - cols_inv_spr_pos_x[c]);
+				int dist=abs(coll_x - col_inv_spr_pos_x[c]);
 				if (dist < 30) {
 					col_found = c;
 					break;
@@ -351,6 +345,7 @@ int main() {
 				}
 			}
 		}
+		END_BORDER();//purple
 
 	} //while playing
 
@@ -418,9 +413,7 @@ void kill_invader(byte si_row, byte si_col) {
 
 //MAIN THREAD
 void set_sprites_for_all() {
-#ifdef DO_UNROLL    
 	#pragma unroll(full)
-#endif
 	for (int c=0;c<INVADERS_PER_ROW;c++) {
 		//TODO replace with inv_sprite_num?
 		byte spr_num = c+2;
@@ -429,7 +422,7 @@ void set_sprites_for_all() {
 		//if (! col_invs_left_alive[c]) { continue; }
 
 		int spr_pos_x = col_x[c] + cols_x_shift; //row_x_index[spr_row];
-		cols_inv_spr_pos_x[c]    = spr_pos_x;
+		col_inv_spr_pos_x[c]    = spr_pos_x;
 
 		//Using this instead of vic.sprxy() saves us a few cycles by not setting sprite.y
 		vic.spr_pos[spr_num].x = spr_pos_x; //& 0xff
@@ -509,6 +502,15 @@ void register_collision(byte coll_mask, byte raster) {
 	frame_collision_count = new_coll_count;
 }
 
+/** 
+ * Registers only collisions between bombs & the ship
+*/
+void register_bomb_collision(byte coll_mask, byte raster) {
+	__asm {
+		nop
+	}
+}
+
 //IRQ THREAD
 #pragma optimize(0)
 void handle_irq() {
@@ -518,18 +520,23 @@ void handle_irq() {
 	byte intr_ctrl=vic.intr_ctrl;
 	//Check to see if this is a VIC interrupt. If not, ignore it
 	if (intr_ctrl & 0b10000000) {
-		if (intr_ctrl & 0b00000100) {   //collision IRQ
-			vic.intr_ctrl = 00000100;    //ACK spr-spr interrupt
+		if (intr_ctrl & 0b00000100) {   //spr-spr collision IRQ
+			vic.intr_ctrl = 00000100;   //ACK spr-spr interrupt
 			//vic.intr_ctrl = intr_ctrl;
 
 			//NOTE: apparently we need to read spr_sprcol AFTER we ack the interrupt.
 			//      This is safe (sort-of-atomic) because we're in an IRQ handler
 			register_collision(vic.spr_sprcol, vic.raster);
 
-			// //TODO do we need to read spr_sprcol here?
 			coll_spr_num = vic.spr_sprcol;
 		}
-		//TODO this assumes no sprite-background collisions, may need to be extended
+		else if (intr_ctrl & 0b00000010) {	//is it spr-back collision?
+			vic.intr_ctrl = 0b00000010;		//Yes, so ACK spr-back IRQ
+			back_coll_spr_num = vic.spr_backcol;
+			if ((back_coll_spr_num & 0x00000011) != 0) {	//are the ship or bullet involved? 
+				register_bomb_collision(back_coll_spr_num, vic.raster);//if so, do something
+			}
+		}
 		else {  
 			prev_raster = vic.raster;
 			handle_raster_irq(prev_raster);
@@ -695,7 +702,7 @@ void find_min_max_spr_x() {
 	
 	for (byte c=0;c<INVADERS_PER_ROW;c++) {
 		if (col_invs_left_alive[c] > 0) {
-			int spr_col_x = cols_inv_spr_pos_x[c];
+			int spr_col_x = col_inv_spr_pos_x[c];
 			
 			if (spr_col_x < rows_min_spr_x) {
 				rows_min_spr_x = spr_col_x;
@@ -831,6 +838,8 @@ bool move_rows_down(byte px_down) {
  **/
 bool handle_inputs(char joy_num) {
 
+	static bool b_pressed = false;
+
 	keyb_poll();
 	joy_poll(joy_num);
 
@@ -892,6 +901,28 @@ bool handle_inputs(char joy_num) {
 		END_BORDER();
 		return true;
 	}
+
+	if (key_pressed(KSCAN_B) && (b_pressed == false) && (num_bombs < MAX_BOMBS)) {
+		b_pressed = true;
+		//Find a column with some live Invaders in it
+		byte col;
+		do {
+			col=rand() % INVADERS_PER_ROW;
+		} while (col_invs_left_alive[col]==0);
+
+		for (int row=NUM_ROWS-1;row>-1;row++) {
+			int inv_index=row_inv_index[row] + col;
+			if (inv_alive[inv_index] ) {
+				//TODO replace these magic numbers (4)
+				add_bomb(col_inv_spr_pos_x[col] + 4,
+					row_inv_spr_pos_y[row] + 4);
+				break;
+			}	//if inv_alive
+		}//for r
+	} else {			//if B
+		b_pressed = false;
+	}
+
 	END_BORDER();
 	return false;
 }
@@ -1163,6 +1194,17 @@ void init_invaders() {
 	rows_max_spr_x      = MIN_SPR_X;
 	rows_min_spr_x      = MAX_SPR_X;
 	
+
+	//Init bombs
+	for (byte i=0;i<MAX_BOMBS;i++) {
+		bomb_alive[i]=false;
+		bomb_x[i]=0;
+		bomb_y[i]=0;
+		bomb_color[i]=VCOL_BLACK;
+		bomb_y_speed[i]=BOMB_Y_SPEED;		
+	}
+	num_bombs=0;
+
 	__asm {
 		nop
 	}
@@ -1174,7 +1216,7 @@ void init_sprites() {
 	vic.spr_mcolor0 = 1;    //TODO change this raw #
 	vic.spr_mcolor0 = 2;    //TODO change this raw #
 
-	//#pragma unroll(full)
+	#pragma unroll(full)
 	for (int ic=0;ic<NUM_ROWS;ic++) {
 		byte spr_num=ic+2;
 
@@ -1216,18 +1258,18 @@ void game_over() {
 //     return c;
 // }
 
-inline const void START_BORDER(byte new_color) {
-	if (DO_BORDER) {
-		old_border_color = vic.color_border;
-		vic.color_border = new_color;
-	}
-}
+// inline const void START_BORDER(byte new_color) {
+// 	if (DO_BORDER) {
+// 		old_border_color = vic.color_border;
+// 		vic.color_border = new_color;
+// 	}
+// }
 
-inline const void END_BORDER() {
-	if (DO_BORDER) {
-		vic.color_border = old_border_color;
-	}
-}
+// inline const void END_BORDER() {
+// 	if (DO_BORDER) {
+// 		vic.color_border = old_border_color;
+// 	}
+// }
 
 /* Must be called before sid_rand() or sid_int_rand() */
 void init_sid_rand() {
@@ -1259,6 +1301,8 @@ unsigned int sid_int_rand() {
 void init_screen(byte num_stars) {
 	clear_text_screen();
 
+	//NOTE: can't unroll this loop, since the bounds are not constant
+	//#pragma unroll(full)
 	for(byte i=0;i<num_stars;i++) {
 		unsigned int pos;
 		byte* text=(byte*)0x4000;	//FIXME remove magic number
@@ -1283,8 +1327,7 @@ void init_screen(byte num_stars) {
 /*
 	CLears the multicolor screen, and draws num_stars 
 */
-#pragma optimize(noinline)
-__noinline void init_screen_mc(byte num_stars) {
+void init_screen_mc(byte num_stars) {
 
 	/*
 	%00 for background color 0 ($d021)
@@ -1293,28 +1336,18 @@ __noinline void init_screen_mc(byte num_stars) {
 	%10 for lower nibble of the screen matrix
 	%11 for the lower nibble of color RAM
 	*/
-	// for (int i=0;i<1000;i++) {
-	// 	*(logo_color+i)=rand() % 16 * 16;
-	// }
-
-	memset((void *)0xd800, 1, 1000);    
+    memset(logo_color, 0x12, 1000);
+	memset((char *)0xd800, 0x03, 1000);
+	memset(logo_bmp, 0x00, 8000);
 
 	for (byte i=0;i<num_stars;i++) {
 		int x=rand() % 320;
 		int y=rand() % 200;
 
 		bmmc_put(&bitmap, x,y,1);
-		int char_num=(y/8)*40+(x/8);
-		*(logo_color+char_num)=rand() % 16 * 16;
 
-
-		// unsigned int pos;
-		// byte* text=(byte*)0x4000;	//FIXME remove magic number
-		// byte* color=(byte*)(0xd800);
-
-		// while ( text[pos=40+(rand() % 960)] != 32);
-		// text[pos]=46; //screencode for "."
-		// color[pos]=rand() % 16;
+		int char_num=((y-50)/8)*40+((x-24)/8);
+		logo_color[char_num]=(rand() % 16) <<4 ;	//color in upper nibble 
 	}
 }
 void clear_hires_screen() {
@@ -1329,5 +1362,68 @@ void clear_text_screen() {
 	//FIXME remove magic
 	memset((void *)0x400, 0x20, 1000);
 	memset((void *)0xd800, 0, 1000);    
+}
+
+/**
+ * Move the active bombs. We want to erase all bombs here, since one of them 
+ * 	might have been killed since move_bombs() last ran. Then we can move
+ * 	only the living ones. Note that we want to use color %10 or %11 to draw the 
+ * 	bullet, since %01 is transparent as far as sprite-background collisions
+ * 	go. If we want to change the color of the bombs, we need to change the
+ * 	contents of the logo_color cells.
+ * @see init_screen_mc
+ */
+void move_bombs() {
+	if (num_bombs == 0) {
+		return;
+	}
+
+	#pragma unroll(full)
+	for (byte i=0;i<MAX_BOMBS; i++) {
+		if (bomb_alive[i] && 
+			(bomb_countdown[i]-- != 0)) {
+			continue;
+		}
+
+		bmmc_put(&bitmap, bomb_x[i], bomb_y[i], 0); //erase
+		if (! bomb_alive[i]) {
+			continue;
+		}
+
+		bomb_countdown[i]=MAX_BOMB_COUNTDOWN;
+		bomb_y[i] += bomb_y_speed[i];
+		if (bomb_y[i] > 200) {	//TODO replace with constant
+			bomb_alive[i]=false;
+			num_bombs--;
+			continue;
+		}
+		bmmc_put(&bitmap, bomb_x[i], bomb_y[i], 1); //draw?
+	}
+
+}
+/**	Find the next bomb slot that isn't already alive, and bring it to life. 
+ * @param x	x-coordinate in SPRITE format
+ * @param y	y-coordinate in SPRITE format
+ * @returns true if there is room for another bomb, false if all slots are filled with live bombs
+ */
+bool add_bomb(int x, byte y) {
+	if (num_bombs < MAX_BOMBS) {
+		for (byte i=0;i<MAX_BOMBS; i++) {
+			if (bomb_alive[i]==false) {
+				bomb_x[num_bombs]		=x-24 + 5;	//convert sprite-hires
+				bomb_y[num_bombs]		=y-50 + 5;	//convert sprite-hires
+				bomb_alive[num_bombs]	=true;
+				bomb_y_speed[num_bombs]	= BOMB_Y_SPEED;
+				bomb_countdown[num_bombs]= MAX_BOMB_COUNTDOWN;
+				num_bombs++;
+				return true;
+			} //if alive
+		}//for i
+	}//if < MAX_BOMBS
+	return false;
+}
+
+void kill_bomb() {
+
 }
 

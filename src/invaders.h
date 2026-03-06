@@ -29,16 +29,16 @@
 
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
-#define     NUM_ROWS 6
+#define     NUM_ROWS 5
 #define     INVADERS_PER_ROW 6
 
 #define 	DO_UNROLL true
 
-#ifdef USE_BORDER 
-	static const bool DO_BORDER=true;
-#else
-	static const bool DO_BORDER=false;
-#endif
+// #ifdef USE_BORDER 
+// 	static const bool DO_BORDER=true;
+// #else
+// 	static const bool DO_BORDER=false;
+// #endif
 
 //#ifdef USE_BORDER
     byte old_border_color=0;
@@ -196,13 +196,13 @@ int 		row_inv_spr_pos_y[NUM_ROWS];
 
 byte 		row_invs_left_alive[NUM_ROWS];
 
-//The X coordinate for each column. All Invaders in a column have the same x
-int         cols_inv_spr_pos_x[INVADERS_PER_ROW];
+//The X coordinate, as drawn, for each column. All Invaders in a column have the same x.
+int         col_inv_spr_pos_x[INVADERS_PER_ROW];
 
 //the # of Invaders left alive in a column
 byte        col_invs_left_alive[INVADERS_PER_ROW];
 
-//The "raw" x coord for each column, not including shift. FOr the exact value as shown, use cols_inv_spr_pos_x
+//The "raw" x coord for each column, not including shift. For the exact value as drawn, use col_inv_spr_pos_x
 int         col_x[INVADERS_PER_ROW];
 
 //Are we still playing? If not, stop moving stuff!
@@ -297,6 +297,18 @@ const SIDFX	SIDFXExplosion[1] = {{
 
 
 
+static const byte MAX_BOMBS=6;
+static const byte BOMB_Y_SPEED=2;
+
+bool 	bomb_alive[MAX_BOMBS];
+int 	bomb_x[MAX_BOMBS];
+byte 	bomb_y[MAX_BOMBS];
+byte	bomb_y_speed[MAX_BOMBS];
+byte	bomb_color[MAX_BOMBS];
+byte	num_bombs;
+byte 	bomb_countdown[MAX_BOMBS];
+byte	MAX_BOMB_COUNTDOWN=8;
+
 void flip_image(byte index);
 void print_invaders();
 __forceinline void move_invader(byte index);
@@ -333,9 +345,10 @@ bool handle_inputs(byte joy_num);
 
 //byte kr_read_key();
 
-__forceinline const void START_BORDER(byte new_color);
-__forceinline const void END_BORDER();
-
+// __forceinline const void START_BORDER(byte new_color);
+// __forceinline const void END_BORDER();
+inline void START_BORDER(VICColors color);
+inline void END_BORDER();
 
 byte sid_rand();
 void init_sid_rand();
@@ -346,6 +359,10 @@ void init_screen_mc(byte num_stars);
 void clear_hires_screen();
 void clear_text_screen();
 
+void move_bombs();
+bool add_bomb(int x, byte y);
+void kill_bomb();
+void register_bomb_collision(byte coll_mask, byte raster);
 
 #pragma compile("invaders.c")
 #endif
