@@ -30,7 +30,7 @@
         "-DNEW_FROM_HERE",
         "-n",
         "-DdDEBUG",
-        "-O3",
+        "-O2",
         "-DDstrict",
         "-DDMY_ASSERT",
         "-xz"    

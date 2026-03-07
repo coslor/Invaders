@@ -25,7 +25,7 @@
 static const byte  BIG_SHIPS_LINES_SPRITE=8;
 static const byte  BIG_SHIPS_LINES_ROW=18 + BIG_SHIPS_LINES_SPRITE;
 
-static const byte  SMALL_SHIPS_LINES_SPRITE=17;
+static const byte  SMALL_SHIPS_LINES_SPRITE=15;
 static const byte  SMALL_SHIPS_LINES_ROW=15 + SMALL_SHIPS_LINES_SPRITE;
 
 /* How many scanlines BEFORE the sprite is to be shown, do we need for setup (color, image, etc)?*/
@@ -678,7 +678,7 @@ void flip_row_image(byte row) {
 	//     }
 	// }
 
-	if ((++(row_frame_num[row])) > row_max_frames[row]) {
+ 	if ((++(row_frame_num[row])) > row_max_frames[row]) {
 
 		byte new_image_num=((row_image_num[row]+1) % row_num_images[row]);
 
@@ -1341,8 +1341,8 @@ void init_screen_mc(byte num_stars) {
 	memset(logo_bmp, 0x00, 8000);
 
 	for (byte i=0;i<num_stars;i++) {
-		int x=rand() % 320;
-		int y=rand() % 200;
+		unsigned int x=rand() % 320;
+		unsigned int y=rand() % 200;
 
 		bmmc_put(&bitmap, x,y,1);
 
