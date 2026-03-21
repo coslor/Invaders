@@ -927,7 +927,7 @@ void handle_inputs(char joy_num) {
 			if (col_invs_left_alive[col]>0) {
 				//Then find a row where the bottom-lost live Invader isn't so low that we can't draw the bomb.
 				//	Note that this might mean that we won't drop a bomb at all.
-				for (int row=NUM_ROWS-1;row>-1;row++) {
+				for (int row=NUM_ROWS-1;row>-1;row--) {
 					int inv_index=row_inv_index[row] + col;
 					if ((inv_alive[inv_index]) && (row_inv_spr_pos_y[row]<245)) {
 						//TODO replace these magic numbers (4)

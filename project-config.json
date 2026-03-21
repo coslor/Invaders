@@ -17,7 +17,7 @@
     "definitions": [
         "xUSE_BORDERS",
         "DO_UNROLL",
-        "xPLAY_LOGO_MUSIC"
+        "PLAY_LOGO_MUSIC"
     ],
     "includes": [
         "src/invaders.h",
