@@ -107,12 +107,15 @@ int main() {
 	cia_init();
 
 	bm_init(&bitmap, (byte *)logo_bmp,40,25);
+
+	#ifdef PLAY_LOGO_MUSIC		
 	music_init(0);
+	#endif
 
 	display_logo();
 
-	sidfx_init();
-	sid.fmodevol = 15;
+	// sidfx_init();
+	//sid.fmodevol = 15;
 	
 	//this is just here to play with the SIDFx stuff
 	while(true) {
@@ -120,23 +123,20 @@ int main() {
 		music_play();
 		#endif
 		vic_waitFrame();
-		sidfx_loop();
+		// sidfx_loop();
 		keyb_poll();
 		joy_poll(JOY_NUM);
 
+		// if (key_pressed(KSCAN_1)){
+		// 	sidfx_play(0, SIDFXFire, 1);
+		// }
+		// if (key_pressed(KSCAN_2)) {
+		// 	sidfx_play(0, SIDFXExplosion, 1);
+		// }
+		// if (key_pressed(KSCAN_3)) {
+		//     sidfx_play(2, SIDFXBigExplosion, 3);
 
-//        if (kr_is_key_pressed(KR_ROW_1, KR_COL_1)) {
-		if (key_pressed(KSCAN_1)){
-			sidfx_play(0, SIDFXFire, 1);
-		}
-		// if (kr_is_key_pressed(KR_ROW_2, KR_COL_2)) {
-		if (key_pressed(KSCAN_2)) {
-			sidfx_play(0, SIDFXExplosion, 1);
-		}
-		if (key_pressed(KSCAN_3)) {
-		    sidfx_play(2, SIDFXBigExplosion, 3);
-
-		}
+		// }
 
 		if (key_pressed(KSCAN_SPACE) || joyb[JOY_NUM]) {
 			__asm {
@@ -147,6 +147,10 @@ int main() {
 			break;
 		}
 	}
+
+	sid.fmodevol = 0;
+	sid.fmodevol = 15;
+	sidfx_init();
 
 	//We're going to use the SID later for music & sfx, which will
 	//  mess up any attempts to use it for PRNG so let's just
@@ -1461,7 +1465,7 @@ void music_init(char tune) {
 	// Call the function entry using inline assembler
 	__asm {
 		lda		tune
-		jsr		$a000
+		jsr		$1000
 	}
 }
 
@@ -1470,6 +1474,6 @@ void music_init(char tune) {
 void music_play(void) {
 	// Call the function entry using inline assembler
 	__asm {
-		jsr		$a003
+		jsr		$1003
 	}
 }

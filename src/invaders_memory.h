@@ -1,11 +1,14 @@
-#pragma region( lower, 0xa00, 0x3fff, , , {code} )
+#pragma region( lower, 0xa00, 0x0fff, , , {code} )
 
+
+#pragma section(music_sec, 0)
+#pragma region(music_reg, 0x1000, 0x1fff,,, {music_sec})
 
 // #pragma section( spriteset_sec, 0)
 // #pragma region( spriteset_reg, 0x2000, 0x2fff, , , {spriteset_sec} )
 
-//#pragma section( middle_sec, 0)
-//#pragma region(middle_reg, 0x3000, 0x3fff,,, {code, data, bss})
+#pragma section( middle_sec, 0)
+#pragma region(middle_reg, 0x2000, 0x3fff,,, {code})
 
 
 // #pragma section( upper, 0)
@@ -25,8 +28,6 @@
 
 #pragma region( main, 0x7800, 0x9fff, , , {heap, stack, code, data, bss} )
 
-#pragma section(music_sec, 0)
-#pragma region(music_reg, 0xa000, 0xbfff,,, {music_sec})
 
 #define LOGO_FILE "resources/space_invaders_logo.kla"
 
@@ -70,7 +71,7 @@ __export static char logo_color[1000] = {
 // We also drop the first 0x7e bytes of the SID file, they contain
 // only file level meta data
 __export const char music[] = {
-	#embed 0x2000 0x7e "resources/gtu_a000_1x.sid" 
-//	#embed 0x2000 "resources/Space_Invaders_Medley.sid" 
+//	#embed 0x2000 0x7e "resources/gtu_a000_1x.sid" 
+	#embed 0x2000 0x7e "resources/Space_Invaders_Medley.sid" 
 
 };
