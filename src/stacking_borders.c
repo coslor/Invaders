@@ -5,23 +5,23 @@
 #include <c64/vic.h>
 
 /**
- *  We want to be able to show the # of raster lines that parts of the program use. The simplest way to
- *      do this on the C64 is to change the border color while something is running. However, with
- *      interrupts and tasks within tasks, it's not quite as simple. stacking_borders uses a simple stack
+ *  We want to be able to show the # of raster lines that parts of the program use. 
+ *      The simplest way todo this on the C64 is to change the border color 
+ *      while something is running. However, with interrupts and tasks within tasks, 
+ *      it's not quite that simple. stacking_borders uses a simple stack
  *      to allow for up to 16 levels of nested borders. 
- *      
  */
-static const byte MAX_STACK_SIZE=16;
+static const byte _MAX_STACK_SIZE=16;
 
-static VICColors border_stack[MAX_STACK_SIZE];
-static byte stack_ptr=0;
+static VICColors _border_stack[_MAX_STACK_SIZE];
+static byte _stack_ptr=0;
 
 /**
  * @returns false if the stack was full
  */
-bool push(VICColors color) {
-    if (stack_ptr<MAX_STACK_SIZE) {
-        border_stack[stack_ptr++]=color;
+bool _push(VICColors color) {
+    if (_stack_ptr<_MAX_STACK_SIZE) {
+        _border_stack[_stack_ptr++]=color;
         return true;
     }
     return false;
@@ -30,20 +30,20 @@ bool push(VICColors color) {
 /**
  * @returns true if the stack wasn't empty, and sets value to the color at the top; false if the stack is empty
  */
-bool pop(VICColors *value) {
-    if (stack_ptr>0) {
-        *value=border_stack[--stack_ptr];
+bool _pop(VICColors *value) {
+    if (_stack_ptr>0) {
+        *value=_border_stack[--_stack_ptr];
         return true;
     }
     return false;
 }
 
 bool is_stack_empty() {
-    return (stack_ptr==0);
+    return (_stack_ptr==0);
 }
 
 void empty_stack() {
-    stack_ptr==0;
+    _stack_ptr==0;
 }
 
 /**
@@ -51,7 +51,7 @@ void empty_stack() {
  * */
 inline void START_BORDER(VICColors color) {
 #ifdef USE_BORDERS
-    if (push(vic.color_border)) {
+    if (_push(vic.color_border)) {
         vic.color_border=color;
     }
     else {
@@ -66,7 +66,7 @@ inline void START_BORDER(VICColors color) {
 inline void END_BORDER(){
 #ifdef USE_BORDERS
     VICColors color;
-    if (pop(&color)) {
+    if (_pop(&color)) {
         vic.color_border=color;
     }
     else {
@@ -75,7 +75,7 @@ inline void END_BORDER(){
 #endif
 };
 
-inline void wait_lines(byte min_lines) {
+inline void _wait_lines(byte min_lines) {
     byte old_raster=vic.raster;
     while ((vic.raster-old_raster)<50) {
         __asm {

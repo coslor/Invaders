@@ -15,8 +15,9 @@
     ],
     "build": "debug",
     "definitions": [
-        "USE_BORDERS",
-        "DO_UNROLL"
+        "xUSE_BORDERS",
+        "DO_UNROLL",
+        "xPLAY_LOGO_MUSIC"
     ],
     "includes": [
         "src/invaders.h",
@@ -24,7 +25,7 @@
     ],
     "args": [
         "-gp",
-        "-v2",
+        "-Dv2",
         "-DdVSPRITES_MAX=16",
         "-DdNUM_IRQS=28",
         "-DNEW_FROM_HERE",

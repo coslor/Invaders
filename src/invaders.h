@@ -29,10 +29,8 @@
 
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
-#define     NUM_ROWS 5
-#define     INVADERS_PER_ROW 6
-
-#define 	DO_UNROLL true
+#define     NUM_ROWS 			5
+#define     INVADERS_PER_ROW 	6
 
 // #ifdef USE_BORDER 
 // 	static const bool DO_BORDER=true;
@@ -64,7 +62,7 @@ const int   TOTAL_INVS_SIZE=NUM_ROWS * INVADERS_PER_ROW;
 
 const int 	MIN_SPR_X = 35;
 const int 	MAX_SPR_X = 320;
-const int 	MIN_SPR_Y = MIN_Y;
+const int 	MIN_SPR_Y = 100;
 const int 	MAX_SPR_Y = 255;
 
 const byte  ROWS_MAX_FRAMES = 12;
@@ -196,19 +194,25 @@ int 		row_inv_spr_pos_y[NUM_ROWS];
 
 byte 		row_invs_left_alive[NUM_ROWS];
 
+/* handle = row_image_handles[spr_row][row_image_num[spr_row]] */
+byte 		row_latest_handle[NUM_ROWS];
+
 //The X coordinate, as drawn, for each column. All Invaders in a column have the same x.
 int         col_inv_spr_pos_x[INVADERS_PER_ROW];
 
 //the # of Invaders left alive in a column
 byte        col_invs_left_alive[INVADERS_PER_ROW];
 
-//The "raw" x coord for each column, not including shift. For the exact value as drawn, use col_inv_spr_pos_x
+//The "raw" x coord for each column, not including shift. For the exact value as drawn in sprite coords, 
+//	use col_inv_spr_pos_x
 int         col_x[INVADERS_PER_ROW];
 
 //Are we still playing? If not, stop moving stuff!
 bool        playing;
 
-//Non-Invaders objects, like the ship & bullet
+////////////////////////
+// Non-Invaders objects, like the ship & bullet
+////////////////////////
 typedef enum PlayerObjectType {TYPE_SHIP, TYPE_BULLET} PlayerObjectType;
 
 signed int  obj_x[NUM_OBJECTS]; 
@@ -245,9 +249,17 @@ volatile byte frame_collision_line[MAX_FRAME_COLLISIONS];
 //The number of collisions so far this frame
 volatile byte frame_collision_count;
 
+// When searching for an Invader to mmatch a spr/spr collision, 
+//	this is how close a row has to be, to count as a match
+static const byte	FIND_ROW_DISTANCE=20;
+
+// When searching for an Invader to mmatch a spr/spr collision, 
+//	this is how close a column has to be, to count as a match
+static const byte	FIND_COL_DISTANCE=20;
+
 //
 //raster_irq_line contains:
-//- #0 is at the top of the screen, and it sets the screen to text mode
+//- #0 is at the top of the screen, and it sets the screen to text mode (TODO implement this)
 //- From 1-NUM_ROWS are for the Invader rows
 //- #NUM_ROWS+1 is at the bottom of the screen, and it's for the ship
 //
@@ -272,10 +284,12 @@ static const int SHIP_SPEED = 2;
 //How fast does the bullet move vertically?
 static const int BULLET_SPEED = 3;
 
-////
-//from DrMortalWombat's hscrollshmup game sample
-////
-// Sound effect for a player shot
+
+//////////////////////////////////
+//	Sound effects
+//	from DrMortalWombat's hscrollshmup game sample
+//////////////////////////////////
+
 const SIDFX	SIDFXFire[1] = {{
 	8000, 1000, 
 	SID_CTRL_GATE | SID_CTRL_SAW,
@@ -295,19 +309,60 @@ const SIDFX	SIDFXExplosion[1] = {{
 	8, 40
 }};
 
+// Sound effect for player explosion
+SIDFX	SIDFXBigExplosion[3] = {
+	{
+	1000, 1000, 
+	SID_CTRL_GATE | SID_CTRL_SAW,
+	SID_ATK_2 | SID_DKY_6,
+	0xf0  | SID_DKY_168,
+	-20, 0,
+	4, 0
+	},
+	{
+	1000, 1000, 
+	SID_CTRL_GATE | SID_CTRL_NOISE,
+	SID_ATK_2 | SID_DKY_6,
+	0xf0  | SID_DKY_168,
+	-20, 0,
+	10, 0
+	},
+	{
+	1000, 1000, 
+	SID_CTRL_GATE | SID_CTRL_NOISE,
+	SID_ATK_2 | SID_DKY_6,
+	0xf0  | SID_DKY_1500,
+	-10, 0,
+	8, 80
+	},	
+};
+
+const SIDFX	*InvaderDieFX	= SIDFXExplosion;
+const SIDFX *PlayerFireFX	= SIDFXFire;
+const SIDFX *PlayerDieFX	= SIDFXBigExplosion;
+
+
+/////////////////////////////////////
+//	BOMB VARIABLES
+/////////////////////////////////////
 
 
 static const byte MAX_BOMBS=6;
-static const byte BOMB_Y_SPEED=2;
+//How fast to the bombs fall?
+static const byte BOMB_Y_SPEED=1;
 
 bool 	bomb_alive[MAX_BOMBS];
+//Each bomb's X coord, in *hires* coordinates, not sprite ones
 int 	bomb_x[MAX_BOMBS];
-byte 	bomb_y[MAX_BOMBS];
+//Each bomb's Y coord, in *hires* coordinates, not sprite ones
+int 	bomb_y[MAX_BOMBS];
 byte	bomb_y_speed[MAX_BOMBS];
 byte	bomb_color[MAX_BOMBS];
 byte	num_bombs;
+// Each bomb only moves every so many frames
 byte 	bomb_countdown[MAX_BOMBS];
-byte	MAX_BOMB_COUNTDOWN=8;
+byte	MAX_BOMB_COUNTDOWN=4;
+
 
 void flip_image(byte index);
 void print_invaders();
@@ -321,9 +376,9 @@ void init_invaders();
 void init_sprites();
 void flip_row_image(byte row);
 void kill_invader(byte row, byte col);
-void poll_inputs(char joy_num);
+void poll_inputs(byte joy_num);
 void move_object(byte obj_num);
-void draw_object(int obj_num);
+void draw_object(byte obj_num);
 void fire_bullet(byte obj_num);
 void kill_bullet(byte obj_num);
 byte wait_line_and_watch_for_collisions(int line);
@@ -341,13 +396,13 @@ void kill_object(byte obj_num);
 void game_over();
 
 char getch_with_keybounce();
-bool handle_inputs(byte joy_num);
+void handle_inputs(byte joy_num);
 
 //byte kr_read_key();
 
 // __forceinline const void START_BORDER(byte new_color);
 // __forceinline const void END_BORDER();
-inline void START_BORDER(VICColors color);
+inline void START_BORDER(VICColors);
 inline void END_BORDER();
 
 byte sid_rand();
@@ -360,9 +415,12 @@ void clear_hires_screen();
 void clear_text_screen();
 
 void move_bombs();
-bool add_bomb(int x, byte y);
-void kill_bomb();
+bool add_bomb(int x, int y);
+void kill_bomb(byte bomb_num);
 void register_bomb_collision(byte coll_mask, byte raster);
+
+void music_init(char tune);
+void music_play(void);
 
 #pragma compile("invaders.c")
 #endif

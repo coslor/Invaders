@@ -1,10 +1,11 @@
-#pragma region( lower, 0xa00, 0x2fff, , , {code, data, bss} )
+#pragma region( lower, 0xa00, 0x3fff, , , {code} )
+
 
 // #pragma section( spriteset_sec, 0)
 // #pragma region( spriteset_reg, 0x2000, 0x2fff, , , {spriteset_sec} )
 
-#pragma section( middle_sec, 0)
-#pragma region(middle_reg, 0x3000, 0x3fff,,, {code, data, bss})
+//#pragma section( middle_sec, 0)
+//#pragma region(middle_reg, 0x3000, 0x3fff,,, {code, data, bss})
 
 
 // #pragma section( upper, 0)
@@ -22,7 +23,10 @@
 #pragma region( spriteset_reg, 0x7000, 0x77ff,,, {spriteset_sec} )
 
 
-#pragma region( main, 0x7800, 0xa000, , , {code, data, bss, heap, stack} )
+#pragma region( main, 0x7800, 0x9fff, , , {heap, stack, code, data, bss} )
+
+#pragma section(music_sec, 0)
+#pragma region(music_reg, 0xa000, 0xbfff,,, {music_sec})
 
 #define LOGO_FILE "resources/space_invaders_logo.kla"
 
@@ -55,4 +59,18 @@ __export static char logo_screen[1000] = {
 //load the text & color screens into
 __export static char logo_color[1000] = {
 	#embed 1000 8002 LOGO_FILE
+};
+
+// Set the data segment to be the newly created music section,
+// so all initialized data gets placed there by the linker
+#pragma data(music_sec)
+
+// Make sure that the music data is not dropped by the linker for
+// not being referenced with the "__export" storage qualifier.
+// We also drop the first 0x7e bytes of the SID file, they contain
+// only file level meta data
+__export const char music[] = {
+	#embed 0x2000 0x7e "resources/gtu_a000_1x.sid" 
+//	#embed 0x2000 "resources/Space_Invaders_Medley.sid" 
+
 };
