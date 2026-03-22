@@ -35,7 +35,9 @@
         "-O2",
         "-DDstrict",
         "-DDMY_ASSERT",
-        "-xz"    
+        "-xz",
+        "-rmp",
+        "-d64=invaders.d64"
     ],
     "compiler": ""
 }
