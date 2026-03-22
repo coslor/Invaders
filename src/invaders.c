@@ -26,7 +26,7 @@ static const byte  BIG_SHIPS_LINES_SPRITE=8;
 static const byte  BIG_SHIPS_LINES_ROW=18 + BIG_SHIPS_LINES_SPRITE;
 
 static const byte  SMALL_SHIPS_LINES_SPRITE=20;
-static const byte  SMALL_SHIPS_LINES_ROW=12 + SMALL_SHIPS_LINES_SPRITE;
+static const byte  SMALL_SHIPS_LINES_ROW=11 + SMALL_SHIPS_LINES_SPRITE;
 
 /* How many scanlines BEFORE the sprite is to be shown, do we need for setup (color, image, etc)?*/
 static const byte  SCANLINES_TO_BUILD_SPRITE=    SMALL_SHIPS_LINES_SPRITE;
@@ -89,16 +89,24 @@ Bitmap		bitmap = {
 	(static char *)logo_bmp, nullptr, 40, 25, 320
 };
 
+byte thump_num=0;
+SIDFX all_thumps[4][1];
+
 // Invaders...looting!
 
 //MAIN THREAD
-//#pragma optimize(0)
+#pragma unroll(full)
 int main() {
 
 	iocharmap(IOCHM_PETSCII_1);
 
 	mmap_trampoline();
 	mmap_set(MMAP_NO_BASIC);
+
+	all_thumps[0]=Thump_F;
+	all_thumps[1]=Thump_E;
+	all_thumps[2]=Thump_D;
+	all_thumps[3]=Thump_C;
 
 	bool smooshed = false;
 
@@ -114,8 +122,8 @@ int main() {
 
 	display_logo();
 
-	// sidfx_init();
-	//sid.fmodevol = 15;
+	sidfx_init();
+	sid.fmodevol = 15;
 	
 	//this is just here to play with the SIDFx stuff
 	while(true) {
@@ -123,20 +131,32 @@ int main() {
 		music_play();
 		#endif
 		vic_waitFrame();
-		// sidfx_loop();
+		sidfx_loop();
 		keyb_poll();
 		joy_poll(JOY_NUM);
 
-		// if (key_pressed(KSCAN_1)){
-		// 	sidfx_play(0, SIDFXFire, 1);
-		// }
-		// if (key_pressed(KSCAN_2)) {
-		// 	sidfx_play(0, SIDFXExplosion, 1);
-		// }
-		// if (key_pressed(KSCAN_3)) {
-		//     sidfx_play(2, SIDFXBigExplosion, 3);
+		if (key_pressed(KSCAN_1)){
+			sidfx_play(0, SIDFXFire, 1);
+		}
+		if (key_pressed(KSCAN_2)) {
+			sidfx_play(0, SIDFXExplosion, 1);
+		}
+		if (key_pressed(KSCAN_3)) {
+		    sidfx_play(2, SIDFXBigExplosion, 3);
+		}
+		if (key_pressed(KSCAN_4)) {
+		    sidfx_play(1, Thump_F, 1);
+		}
+		if (key_pressed(KSCAN_5)) {
+		    sidfx_play(1, Thump_E, 1);
+		}
+		if (key_pressed(KSCAN_6)) {
+		    sidfx_play(1, Thump_D, 1);
+		}
+		if (key_pressed(KSCAN_7)) {
+		    sidfx_play(1, Thump_C, 1);
+		}
 
-		// }
 
 		if (key_pressed(KSCAN_SPACE) || joyb[JOY_NUM]) {
 			__asm {
@@ -147,6 +167,9 @@ int main() {
 			break;
 		}
 	}
+
+	//FIXME we need to TURN THE DAMN MUSIC OFF! Will this work?
+	music_init(0);
 
 	sid.fmodevol = 0;
 	sid.fmodevol = 15;
@@ -702,13 +725,20 @@ void flip_row_image(byte row) {
 
  	if ((++(row_frame_num[row])) > row_max_frames[row]) {
 
+#ifdef PLAY_THUMPS
+		//FIXME what is row 0 is gone? Then what?
+		//Only play the tone once for all rows
+		if (row == 0) {
+			sid.fmodevol = 8;
+			sidfx_play(1, all_thumps[thump_num++], 1);
+			sid.fmodevol = 15;
+			thump_num = thump_num % 4;
+		}
+#endif
+
 		byte new_image_num=((row_image_num[row]+1) % row_num_images[row]);
 		row_image_num[row]=new_image_num;
 		row_latest_handle[row]=row_image_handles[row][new_image_num];
-
-		//inv_assert(new_image_num>0, "row=%d new-image-num=%d in flip-row-image", row, new_image_num);
-		
-
 		row_frame_num[row]=0;        
 	}
 	//__asm { sei }
@@ -813,6 +843,7 @@ bool bounce_rows() {
 //MAIN THREAD
 //Returns true if OK, false if OOB
 bool move_invaders() {
+
 	bool ok = true;
 	if ((++(rows_frame_num)) >= ROWS_MAX_FRAMES) {
 

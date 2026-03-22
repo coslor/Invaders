@@ -50,9 +50,6 @@
 
 #define     IRQ_VECTOR *(void **)0x0314
 
-
-
-
 const       byte MAX_IMAGE_HANDLES=2;
 
 const int   MIN_Y = 50;   //MAX(SCANLINES_PER_ROW,50);
@@ -95,10 +92,10 @@ const byte 	INVADER_SPRITE_HEIGHT = 10;
 
 
 //TODO come up with better names for these
-//const byte  MAX_FRAMES=32;      //determines speed of invader X motion
-const byte  ROW_MAX_FRAMES=32;  //determines speed of row animations
+//const byte  MAX_FRAMES=32;      	//determines speed of invader X motion
+const byte  ROW_MAX_FRAMES=64;  	//determines speed of row animations
 
-const int NUM_OBJECTS = 2;
+const int 	NUM_OBJECTS = 2;
 
 int        	current_row_num=0;
 
@@ -310,7 +307,7 @@ const SIDFX	SIDFXExplosion[1] = {{
 }};
 
 // Sound effect for player explosion
-SIDFX	SIDFXBigExplosion[3] = {
+const SIDFX	SIDFXBigExplosion[3] = {
 	{
 	1000, 1000, 
 	SID_CTRL_GATE | SID_CTRL_SAW,
@@ -337,9 +334,81 @@ SIDFX	SIDFXBigExplosion[3] = {
 	},	
 };
 
+const SIDFX Thump_F[1] = {
+	{
+		NOTE_F(4),						//freq
+		0x0800,							//pwm
+		//1000,
+		SID_CTRL_RECT | SID_CTRL_GATE,	//ctrl, 
+//		0x88,
+		// 0x00,						//attdec, susrel,
+		// SID_ATK_16 | SID_DKY_114,		//attdec
+		//0xf0  | SID_DKY_1500,			//susrel
+		0x0f,0x00,
+		// -10,								//??dfreq,
+		0,								//??dfreq,
+		0,								//??dwpm,
+		100,20,							//?time
+		10								//?Priority
+	}
+};
+const SIDFX Thump_E[1] = {
+	{
+		NOTE_E(4),						//freq
+		0x0800,							//pwm
+		//1000,
+		SID_CTRL_RECT | SID_CTRL_GATE,	//ctrl, 
+		0x0f,0x00,						//attdec, susrel,
+		//SID_ATK_16 | SID_DKY_114,		//attdec
+		//0xf0  | SID_DKY_1500,			//susrel
+		// -10,								//??dfreq,
+		0,								//??dfreq,
+		0,								//??dwpm,
+		100,20,							//?time
+		10								//?Priority
+	}
+};
+const SIDFX Thump_D[1] = {
+	{
+		NOTE_D(4),						//freq
+		0x0800,							//pwm
+		//1000,
+		SID_CTRL_RECT | SID_CTRL_GATE,	//ctrl, 
+		0x0f,0x00,						//attdec, susrel,
+		//SID_ATK_16 | SID_DKY_114,		//attdec
+		//0xf0  | SID_DKY_1500,			//susrel
+		// -10,								//??dfreq,
+		0,								//??dfreq,
+		0,								//??dwpm,
+		100,20,							//?time
+		10								//?Priority
+	}
+};
+const SIDFX Thump_C[1] = {
+	{
+		NOTE_C(4),						//freq
+		0x0800,							//pwm
+		//1000,
+		SID_CTRL_RECT | SID_CTRL_GATE,	//ctrl, 
+		0x0f,0x00,						//attdec, susrel,
+		//SID_ATK_16 | SID_DKY_114,		//attdec
+		//0xf0  | SID_DKY_1500,			//susrel
+		// -10,								//??dfreq,
+		0,								//??dfreq,
+		0,								//??dwpm,
+		100,20,							//?time
+		10								//?Priority
+	}
+};
+
+// const SIDFX const AllThumps[4][1] = {
+// 	Thump_F,Thump_E,Thump_D,Thump_C
+// };
+
 const SIDFX	*InvaderDieFX	= SIDFXExplosion;
 const SIDFX *PlayerFireFX	= SIDFXFire;
 const SIDFX *PlayerDieFX	= SIDFXBigExplosion;
+//const SIDFX *MusicFX		= ThumpOfDoom;
 
 
 /////////////////////////////////////

@@ -17,7 +17,9 @@
     "definitions": [
         "xUSE_BORDERS",
         "DO_UNROLL",
-        "PLAY_LOGO_MUSIC"
+        "PLAY_LOGO_MUSIC",
+        "PLAY_THUMPS",
+        "MY_ASSERT"
     ],
     "includes": [
         "src/invaders.h",
@@ -28,9 +30,8 @@
         "-Dv2",
         "-DdVSPRITES_MAX=16",
         "-DdNUM_IRQS=28",
-        "-DNEW_FROM_HERE",
         "-n",
-        "-DdDEBUG",
+        "-dDEBUG",
         "-O2",
         "-DDstrict",
         "-DDMY_ASSERT",
