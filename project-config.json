@@ -17,9 +17,9 @@
     "definitions": [
         "xUSE_BORDERS",
         "DO_UNROLL",
-        "PLAY_LOGO_MUSIC",
-        "PLAY_THUMPS",
-        "MY_ASSERT"
+        "xPLAY_LOGO_MUSIC",
+        "xPLAY_THUMPS",
+        "xUSE_ASSERT"
     ],
     "includes": [
         "src/invaders.h",

@@ -416,9 +416,10 @@ const SIDFX *PlayerDieFX	= SIDFXBigExplosion;
 /////////////////////////////////////
 
 
-static const byte MAX_BOMBS=6;
+static const byte MAX_BOMBS=2;
 //How fast to the bombs fall?
-static const byte BOMB_Y_SPEED=1;
+static const byte BOMB_Y_SPEED=2;
+
 
 bool 	bomb_alive[MAX_BOMBS];
 //Each bomb's X coord, in *hires* coordinates, not sprite ones
@@ -429,8 +430,13 @@ byte	bomb_y_speed[MAX_BOMBS];
 byte	bomb_color[MAX_BOMBS];
 byte	num_bombs;
 // Each bomb only moves every so many frames
-byte 	bomb_countdown[MAX_BOMBS];
-byte	MAX_BOMB_COUNTDOWN=4;
+byte 	bomb_move_countdown[MAX_BOMBS];
+const byte	MAX_BOMB_MOVE_COUNTDOWN=1;
+//Drop a new bomb every so many frames
+
+const byte MAX_BOMB_DROP_COUNTDOWN=30;
+byte bomb_drop_countdown=MAX_BOMB_DROP_COUNTDOWN;
+
 
 
 void flip_image(byte index);
@@ -487,9 +493,12 @@ void move_bombs();
 bool add_bomb(int x, int y);
 void kill_bomb(byte bomb_num);
 void register_bomb_collision(byte coll_mask, byte raster);
+void drop_bomb();
 
 void music_init(char tune);
 void music_play(void);
+
+inline byte find_live_row();
 
 #pragma compile("invaders.c")
 #endif
