@@ -26,10 +26,12 @@
 #pragma region( spriteset_reg, 0x7000, 0x77ff,,, {spriteset_sec} )
 
 
-#pragma region( main, 0x7800, 0x9fff, , , {heap, stack, code, data, bss} )
+#pragma region( main, 0x7800, 0xbfff, , , {heap, stack, code, data, bss} )
 
 
-#define LOGO_FILE "resources/space_invaders_logo.kla"
+#define LOGO_FILE 	"resources/space_invaders_logo.kla"
+#define MUSIC_FILE 	"resources/Space_Invaders_Medley.sid"
+#define SPRITE_FILE "resources/invaders-2600.spd"
 
 #pragma data(spriteset_sec)
 
@@ -39,7 +41,7 @@
 //      with __export or #pragma reference(name), or it will be optimized away!
 ////
 const char const spriteset[] =  {
-	#embed spd_sprites "resources/invaders-2600.spd"
+	#embed spd_sprites SPRITE_FILE
 
 };
 #pragma reference(spriteset)
@@ -72,6 +74,6 @@ __export static char logo_color[1000] = {
 // only file level meta data
 __export const char music[] = {
 //	#embed 0x2000 0x7e "resources/gtu_a000_1x.sid" 
-	#embed 0x2000 0x7e "resources/Space_Invaders_Medley.sid" 
+	#embed 0x2000 0x7e MUSIC_FILE 
 
 };

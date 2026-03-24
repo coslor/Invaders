@@ -22,6 +22,10 @@
 	#include <audio/sidfx.h>
 
 	#include <gfx/mcbitmap.h>
+
+	#include <oscar.h>
+
+	#include <conio.h>
 #endif
 //#endsection
 
@@ -416,8 +420,8 @@ const SIDFX *PlayerDieFX	= SIDFXBigExplosion;
 /////////////////////////////////////
 
 
-static const byte MAX_BOMBS=2;
-//How fast to the bombs fall?
+static const byte MAX_BOMBS=1;
+//How fast do the bombs fall?
 static const byte BOMB_Y_SPEED=2;
 
 
@@ -477,7 +481,7 @@ void handle_inputs(byte joy_num);
 
 // __forceinline const void START_BORDER(byte new_color);
 // __forceinline const void END_BORDER();
-inline void START_BORDER(VICColors);
+inline void START_BORDER(VICColors color);
 inline void END_BORDER();
 
 byte sid_rand();

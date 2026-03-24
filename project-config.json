@@ -19,7 +19,7 @@
         "DO_UNROLL",
         "xPLAY_LOGO_MUSIC",
         "xPLAY_THUMPS",
-        "xUSE_ASSERT"
+        "USE_ASSERT"
     ],
     "includes": [
         "src/invaders.h",
@@ -27,7 +27,7 @@
     ],
     "args": [
         "-gp",
-        "-Dv2",
+        "-dv3",
         "-DdVSPRITES_MAX=16",
         "-DdNUM_IRQS=28",
         "-n",
@@ -39,5 +39,5 @@
         "-rmp",
         "-d64=invaders.d64"
     ],
-    "compiler": ""
+    "compiler": "C:/Users/chris/AppData/Local/Programs/oscar64/bin/oscar64.exe"
 }

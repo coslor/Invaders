@@ -1,6 +1,4 @@
-#pragma optimize(speed)
-
-//#define VSPRITES_MAX 16
+//#pragma optimize(speed)
 
 #include "invaders.h"
 //
@@ -59,6 +57,7 @@ __export int prev_raster=0;
 //	Very useful when trying to determine timing. 
 // @see SCANLINES_TO_BUILD_SPRITE 
 __export int lines_used = -1;
+
 __export int total_invs;
 
 __export int flip_lines_used = -1;
@@ -100,10 +99,11 @@ SIDFX all_thumps[4][1];
 #pragma unroll(full)
 int main() {
 
-	iocharmap(IOCHM_PETSCII_1);
-
+	//MUST BE THE FIRST INSTRUCTION
 	mmap_trampoline();
 	mmap_set(MMAP_NO_BASIC);
+
+	iocharmap(IOCHM_PETSCII_1);
 
 	all_thumps[0]=Thump_F;
 	all_thumps[1]=Thump_E;
@@ -186,8 +186,8 @@ int main() {
 	//NOTE: let's go for predictability during development
 	srand(1);
 
-	vic.color_back = VCOL_LT_GREY;
-	vic.color_border = VCOL_DARK_GREY;
+	vic.color_back = VCOL_BLACK;
+	vic.color_border = VCOL_BLACK;
 
 	//We don't need both clear_hires_screen and init_screen_mc()
 	//clear_hires_screen();
@@ -266,7 +266,7 @@ int main() {
 	//ACK any flags already here
 	vic.intr_ctrl = 0xff;
 	IRQ_VECTOR=handle_irq;
-	vic.intr_enable = 0b00000111;  //sprite-sprite collision interrupts enabled
+	vic.intr_enable = 0b00001111;  //sprite-to-everything irqs enabled
 	set_next_raster_irq(raster_irq_line[0], false);
 
 	////
@@ -274,11 +274,15 @@ int main() {
 	////
 	while(playing) {
 
+		//This is here in a vain attempt to prevent the VIC's registers from
+		//	being corrupted
 		vic.spr_multi   = 0b11111101;
 		vic.spr_expand_x= 0;
 		vic.spr_expand_y= 0;
 		vic.spr_mcolor0 = VCOL_LT_GREEN;
 		vic.spr_mcolor1 = VCOL_RED;
+		vic.color_back = VCOL_BLACK;
+		vic.color_border = VCOL_BLACK;
 
 
 		START_BORDER(VCOL_MED_GREY);
@@ -299,6 +303,10 @@ int main() {
 		START_BORDER(VCOL_LT_GREY);
 		//TODO it seems criminal to waste this time
 		vic_waitBottom();
+		vic_waitBottom();
+		vic_waitBottom();
+		vic_waitBottom();
+
 		END_BORDER(); //light gray
 
 		START_BORDER(VCOL_LT_GREEN);
@@ -568,7 +576,7 @@ void register_bomb_collision(byte coll_mask, byte raster) {
 };
 
 //IRQ THREAD
-//#pragma optimize(0)
+#pragma optimize(0)
 void handle_irq() {
 	//intr_ctrl  =$d019
 	//intr_enable=$d01a
@@ -602,6 +610,13 @@ void handle_irq() {
 				register_bomb_collision(back_coll_spr_num, vic.raster);//if so, do something
 			}
 		}
+		else if (intr_ctrl & 0b00001000) {	//light-pen IRQ
+			vic.intr_ctrl = 0b00001000;		//Yes, so ACK spr-back IRQ
+			printf("***BOOM***");
+			__asm {
+				nop
+			};
+		}
 		else {  
 			prev_raster = vic.raster;
 			handle_raster_irq(prev_raster);
@@ -618,7 +633,7 @@ void handle_irq() {
 	//  the line below mask out any additional ones that haven't been dealt with yet?
 	vic.intr_ctrl |= 0b10000000; 
 
-	vic.intr_enable = 0b00000111;
+	vic.intr_enable = 0b00001111;
 	__asm{ 
 		// lsr $d019   //vic.intr_ctrl -- ACK interrupt
 
@@ -709,7 +724,7 @@ bool set_next_raster_irq(unsigned int rasterline, bool calling_from_irq) {
 		// Bit #1: 1 = Sprite-background collision interrupt enabled.
 		// Bit #2: 1 = Sprite-sprite collision interrupt enabled.
 		// Bit #3: 1 = Light pen interrupt enabled.
-		vic.intr_enable = 0b00000111;
+		vic.intr_enable = 0b00001111;
 		ok = true;
 	}
 
@@ -1258,7 +1273,7 @@ void init_invaders() {
 		row_invs_left_alive[r]	= INVADERS_PER_ROW;
 		row_alive[r]            = true;
 		row_inv_index[r]        = r * INVADERS_PER_ROW;
-		row_color[r]            = 0;    //Invaders don't use sprite main color
+		row_color[r]            = 1;    //Invaders don't use sprite main color
 		row_mcolor0[r]          = (r + 2) % 16;
 		row_mcolor1[r]          = (row_mcolor0[r] == VCOL_RED ? VCOL_GREEN : VCOL_RED);
 
@@ -1274,7 +1289,7 @@ void init_invaders() {
 	}
 
 	for (int c=0;c<INVADERS_PER_ROW;c++) {
-		col_x[c] = 0 + c*35;
+		col_x[c] = 40 + (240 / INVADERS_PER_ROW * c); //c*35;
 	}
 
 	obj_x               = (signed int[]){160,           0};
@@ -1515,6 +1530,7 @@ void move_bombs() {
  */
 bool add_bomb(int x, int y) {
 	if (num_bombs < (MAX_BOMBS-1)) {
+		//NOTE: this is unreachable code if MAX_BOMBS<2
 		for (byte i=0;i<MAX_BOMBS; i++) {
 			if (! bomb_alive[i]) {
 				bomb_x[i]		=x-24;	//convert sprite-hires
