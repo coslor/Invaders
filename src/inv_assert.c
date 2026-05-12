@@ -54,7 +54,7 @@ void inv_assert(bool condition, void* message, ...) {
 
         }
         iocharmap(IOCHM_PETSCII_2);
-
+        //FIXME include __FILE__ and __LINE__
         if (message != NULL) {
             //print our message, variable substitutions included 
             va_start(argptr, message);

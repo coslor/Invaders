@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"vs64.viceExecutable": "X:\\Users\\chris\\Downloads\\GTK3VICE-3.10-win64-r46013\\bin\\x64sc.exe"	
+	}
+}
+

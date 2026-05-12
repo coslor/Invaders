@@ -13,13 +13,13 @@
         "src/resources/space_invaders_logo.kla"
          
     ],
-    "build": "debug",
+    "build": "release",
     "definitions": [
         "xUSE_BORDERS",
         "DO_UNROLL",
         "xPLAY_LOGO_MUSIC",
-        "xPLAY_THUMPS",
-        "USE_ASSERT"
+        "PLAY_THUMPS",
+        "xUSE_ASSERT"
     ],
     "includes": [
         "src/invaders.h",

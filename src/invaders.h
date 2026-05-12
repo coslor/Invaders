@@ -34,7 +34,7 @@
 //I used #defines here so that I could use them in the #if's later on
 //  in the Invs static initializers.
 #define     NUM_ROWS 			5
-#define     INVADERS_PER_ROW 	6
+#define     INVADERS_PER_ROW 	5
 
 // #ifdef USE_BORDER 
 // 	static const bool DO_BORDER=true;
@@ -66,7 +66,8 @@ const int 	MAX_SPR_X = 320;
 const int 	MIN_SPR_Y = 100;
 const int 	MAX_SPR_Y = 255;
 
-const byte  ROWS_MAX_FRAMES = 12;
+//Invader movement speed
+const byte  ROWS_MAX_FRAMES = 6;
 const int   MAX_Y_ROW = 222;
 
 const byte  Y_INC = 5;
@@ -97,7 +98,7 @@ const byte 	INVADER_SPRITE_HEIGHT = 10;
 
 //TODO come up with better names for these
 //const byte  MAX_FRAMES=32;      	//determines speed of invader X motion
-const byte  ROW_MAX_FRAMES=64;  	//determines speed of row animations
+const byte  ROW_MAX_FRAMES=32;  	//determines speed of row animations
 
 const int 	NUM_OBJECTS = 2;
 
@@ -137,8 +138,8 @@ byte        row_image_handles[NUM_ROWS][MAX_IMAGE_HANDLES];
 //The current frame # in the row's animation loop
 byte        row_image_num[NUM_ROWS];
 
-//Each row's sprite color. Invaders don't use the sprite main color.
-byte        row_color[NUM_ROWS];
+// //Each row's sprite color. Invaders don't use the sprite main color.
+// byte        row_color[NUM_ROWS];
 
 //Each row's multicolor-color #1. Invaders should be drawn with mcolor0 & mcolor1.
 byte        row_mcolor0[NUM_ROWS];
@@ -283,7 +284,7 @@ const byte pow2[8] = {
 static const int SHIP_SPEED = 2;
 
 //How fast does the bullet move vertically?
-static const int BULLET_SPEED = 3;
+static const int BULLET_SPEED = 5;
 
 
 //////////////////////////////////
@@ -420,9 +421,9 @@ const SIDFX *PlayerDieFX	= SIDFXBigExplosion;
 /////////////////////////////////////
 
 
-static const byte MAX_BOMBS=1;
+static const byte MAX_BOMBS=2;
 //How fast do the bombs fall?
-static const byte BOMB_Y_SPEED=2;
+static const byte BOMB_Y_SPEED=4;
 
 
 bool 	bomb_alive[MAX_BOMBS];
@@ -438,7 +439,7 @@ byte 	bomb_move_countdown[MAX_BOMBS];
 const byte	MAX_BOMB_MOVE_COUNTDOWN=1;
 //Drop a new bomb every so many frames
 
-const byte MAX_BOMB_DROP_COUNTDOWN=30;
+const byte MAX_BOMB_DROP_COUNTDOWN=15;
 byte bomb_drop_countdown=MAX_BOMB_DROP_COUNTDOWN;
 
 
@@ -467,12 +468,12 @@ void set_sprites_for_all();
 //All these return true if OK and false if out of bounds
 bool move_invaders();
 bool bounce_rows();
-bool move_rows_down(byte px_down);
+bool move_rows_down(byte);
 
 void display_logo();
 
 void kill_object(byte obj_num);
-void game_over();
+void game_over(bool explode);
 
 char getch_with_keybounce();
 void handle_inputs(byte joy_num);
